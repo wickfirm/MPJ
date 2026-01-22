@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
-import { ChevronDown, ChevronRight, Download, BarChart3, Calendar, TrendingUp, Megaphone, ExternalLink, Users, Lightbulb } from 'lucide-react'
+import { ChevronDown, ChevronRight, Download, BarChart3, Calendar, TrendingUp, Megaphone, ExternalLink, Users, Lightbulb, ArrowUpRight, ArrowDownRight, Minus } from 'lucide-react'
 import { LineChart as ReLineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
 
 const COLORS = ['#76527c', '#d8ee91', '#D0E4E7', '#9f7aea', '#68d391', '#fc8181']
@@ -19,6 +19,21 @@ const CollapsibleSection = ({ title, children, defaultOpen = true, color = '#765
       </button>
       {isOpen && <div className="p-6">{children}</div>}
     </div>
+  )
+}
+
+const DeltaBadge = ({ current, previous, isPercent = false }) => {
+  if (!previous || !current) return <span className="text-gray-400">—</span>
+  const diff = current - previous
+  const pct = ((diff / previous) * 100).toFixed(1)
+  const isPositive = diff > 0
+  const isNeutral = diff === 0
+  
+  return (
+    <span className={`flex items-center gap-1 text-sm font-medium ${isNeutral ? 'text-gray-500' : isPositive ? 'text-green-600' : 'text-red-600'}`}>
+      {isNeutral ? <Minus size={14} /> : isPositive ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
+      {isPercent ? `${diff > 0 ? '+' : ''}${diff.toFixed(2)}%` : `${diff > 0 ? '+' : ''}${pct}%`}
+    </span>
   )
 }
 
@@ -85,7 +100,11 @@ export default function Dashboard() {
   const [activeTab, setActiveTab] = useState('workspace')
   const [venues, setVenues] = useState([])
   const [selectedVenue, setSelectedVenue] = useState(null)
+  const [selectedWeek, setSelectedWeek] = useState(null)
+  const [compareMode, setCompareMode] = useState(false)
+  const [previousWeek, setPreviousWeek] = useState(null)
   const [weeklyReports, setWeeklyReports] = useState({})
+  const [allWeeks, setAllWeeks] = useState([])
   const [liveCampaigns, setLiveCampaigns] = useState({})
   const [workspaceData, setWorkspaceData] = useState([])
   const [monthlyData, setMonthlyData] = useState([])
@@ -108,12 +127,35 @@ export default function Dashboard() {
       }
 
       // Fetch weekly reports
-      const { data: reportsData } = await supabase.from('weekly_reports').select('*, venues(name, poc)')
+      const { data: reportsData } = await supabase.from('weekly_reports').select('*, venues(name, poc)').order('week_end', { ascending: false })
+      
+      // Group by venue and week
       const reportsMap = {}
+      const weeksSet = new Set()
+      
       reportsData?.forEach(r => {
-        if (r.venues?.name) reportsMap[r.venues.name] = { ...r, poc: r.venues.poc }
+        if (r.venues?.name) {
+          const weekKey = `${r.week_start}_${r.week_end}`
+          weeksSet.add(weekKey)
+          
+          if (!reportsMap[r.venues.name]) reportsMap[r.venues.name] = {}
+          reportsMap[r.venues.name][weekKey] = { ...r, poc: r.venues.poc }
+        }
       })
+      
       setWeeklyReports(reportsMap)
+      
+      // Create weeks array sorted by end date
+      const weeksArray = Array.from(weeksSet).map(wk => {
+        const [start, end] = wk.split('_')
+        return { key: wk, start, end, label: `${start} → ${end}` }
+      }).sort((a, b) => new Date(b.end) - new Date(a.end))
+      
+      setAllWeeks(weeksArray)
+      if (weeksArray.length > 0) {
+        setSelectedWeek(weeksArray[0].key)
+        if (weeksArray.length > 1) setPreviousWeek(weeksArray[1].key)
+      }
 
       // Fetch live campaigns
       const { data: campaignsData } = await supabase.from('live_campaigns').select('*, venues(name)')
@@ -148,9 +190,9 @@ export default function Dashboard() {
     return [...arr].sort((a, b) => (b.impressions || 0) - (a.impressions || 0))
   }
 
-  const getVenueData = (venueName) => {
+  const getVenueData = (venueName, weekKey) => {
     const venue = venues.find(v => v.name === venueName)
-    const report = weeklyReports[venueName]
+    const report = weeklyReports[venueName]?.[weekKey]
     
     // Sort meta data by impressions
     const sortedMeta = report?.meta_data ? {
@@ -181,10 +223,10 @@ export default function Dashboard() {
   const calcAvgSpend = (rev, res) => res > 0 ? (rev / res).toFixed(2) : '0.00'
 
   const exportToCSV = () => {
-    let csv = 'Venue,Ad Spend,Total Revenue,Online Revenue,ROAS,Reservations\n'
+    let csv = 'Venue,Week,Ad Spend,Total Revenue,Online Revenue,ROAS,Reservations\n'
     venues.forEach(v => {
-      const d = getVenueData(v.name)
-      csv += `${v.name},${d.adSpend},${d.revenue?.totalBusiness || 0},${d.revenue?.totalOnline || 0},${calcROAS(d)},${d.revenue?.totalReservations || 0}\n`
+      const d = getVenueData(v.name, selectedWeek)
+      csv += `${v.name},${d.weekStart} to ${d.weekEnd},${d.adSpend},${d.revenue?.totalBusiness || 0},${d.revenue?.totalOnline || 0},${calcROAS(d)},${d.revenue?.totalReservations || 0}\n`
     })
     const blob = new Blob([csv], { type: 'text/csv' })
     const url = URL.createObjectURL(blob)
@@ -201,13 +243,15 @@ export default function Dashboard() {
 
   if (loading) return <div className="min-h-screen flex items-center justify-center"><p>Loading...</p></div>
 
-  const data = selectedVenue ? getVenueData(selectedVenue) : null
-  const allVenuesSpend = venues.map(v => ({ name: v.name.substring(0, 10), spend: getVenueData(v.name).adSpend }))
-  const spendByPOC = venues.reduce((acc, v) => { acc[v.poc] = (acc[v.poc] || 0) + (getVenueData(v.name).adSpend || 0); return acc }, {})
+  const currentData = selectedVenue && selectedWeek ? getVenueData(selectedVenue, selectedWeek) : null
+  const previousData = selectedVenue && previousWeek && compareMode ? getVenueData(selectedVenue, previousWeek) : null
+  
+  const allVenuesSpend = venues.map(v => ({ name: v.name.substring(0, 10), spend: getVenueData(v.name, selectedWeek).adSpend }))
+  const spendByPOC = venues.reduce((acc, v) => { acc[v.poc] = (acc[v.poc] || 0) + (getVenueData(v.name, selectedWeek).adSpend || 0); return acc }, {})
   const pocPieData = Object.entries(spendByPOC).map(([name, value]) => ({ name, value }))
-  const totalAdSpend = venues.reduce((s, v) => s + (getVenueData(v.name).adSpend || 0), 0)
-  const totalRevenue = venues.reduce((s, v) => s + (getVenueData(v.name).revenue?.totalBusiness || 0), 0)
-  const totalReservations = venues.reduce((s, v) => s + (getVenueData(v.name).revenue?.totalReservations || 0), 0)
+  const totalAdSpend = venues.reduce((s, v) => s + (getVenueData(v.name, selectedWeek).adSpend || 0), 0)
+  const totalRevenue = venues.reduce((s, v) => s + (getVenueData(v.name, selectedWeek).revenue?.totalBusiness || 0), 0)
+  const totalReservations = venues.reduce((s, v) => s + (getVenueData(v.name, selectedWeek).revenue?.totalReservations || 0), 0)
 
   // Get POC for workspace brands
   const getBrandPOC = (brandName) => {
@@ -224,9 +268,16 @@ export default function Dashboard() {
             <h1 className="text-xl font-bold">MPJ F&Bs Performance Dashboard</h1>
             <p className="text-sm opacity-80">Marriott Palm Jumeirah Weekly Reports</p>
           </div>
-          <button onClick={exportToCSV} className="flex items-center gap-2 px-3 py-2 bg-white/20 rounded hover:bg-white/30 text-sm">
-            <Download size={16} /> Export CSV
-          </button>
+          <div className="flex gap-3 items-center">
+            {allWeeks.length > 1 && (
+              <button onClick={() => setCompareMode(!compareMode)} className={`flex items-center gap-2 px-3 py-2 rounded text-sm font-medium ${compareMode ? 'bg-green-600' : 'bg-white/20 hover:bg-white/30'}`}>
+                {compareMode ? '✓ Compare Mode' : 'Compare Weeks'}
+              </button>
+            )}
+            <button onClick={exportToCSV} className="flex items-center gap-2 px-3 py-2 bg-white/20 rounded hover:bg-white/30 text-sm">
+              <Download size={16} /> Export CSV
+            </button>
+          </div>
         </div>
       </div>
 
@@ -304,7 +355,7 @@ export default function Dashboard() {
                 <thead className="bg-gray-50"><tr><th className="text-left px-3 py-2">Venue</th><th className="text-left px-3 py-2">POC</th><th className="text-right px-3 py-2">Ad Spend</th><th className="text-right px-3 py-2">Revenue</th><th className="text-right px-3 py-2">Reservations</th><th className="text-right px-3 py-2">ROAS</th></tr></thead>
                 <tbody>
                   {venues.map(v => {
-                    const d = getVenueData(v.name)
+                    const d = getVenueData(v.name, selectedWeek)
                     return <tr key={v.id} className="border-t"><td className="px-3 py-2 font-medium">{v.name}</td><td className="px-3 py-2">{v.poc}</td><td className="px-3 py-2 text-right">AED {formatNum(d.adSpend)}</td><td className="px-3 py-2 text-right">AED {formatNum(d.revenue?.totalBusiness || 0)}</td><td className="px-3 py-2 text-right">{formatInt(d.revenue?.totalReservations || 0)}</td><td className="px-3 py-2 text-right">{calcROAS(d)}</td></tr>
                   })}
                 </tbody>
@@ -344,17 +395,47 @@ export default function Dashboard() {
         )}
 
         {/* VENUE VIEW */}
-        {activeTab === 'venue' && data && (
+        {activeTab === 'venue' && currentData && (
           <>
             <div className="mb-6 flex items-center gap-4 flex-wrap">
               <select value={selectedVenue} onChange={(e) => setSelectedVenue(e.target.value)} className="px-4 py-2 border rounded font-medium">
                 {venues.map(v => <option key={v.id} value={v.name}>{v.name}</option>)}
               </select>
-              {data.weekStart && <span className="px-3 py-1 rounded text-sm font-medium" style={{ backgroundColor: '#d8ee91' }}>{data.weekStart} → {data.weekEnd}</span>}
-              <span className="text-sm text-gray-600">POC: <strong>{data.poc}</strong></span>
+              <select value={selectedWeek} onChange={(e) => setSelectedWeek(e.target.value)} className="px-4 py-2 border rounded font-medium">
+                {allWeeks.map(w => <option key={w.key} value={w.key}>{w.label}</option>)}
+              </select>
+              <span className="text-sm text-gray-600">POC: <strong>{currentData.poc}</strong></span>
             </div>
 
-            {data.meta?.analysis && (
+            {compareMode && previousData && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                <h3 className="font-semibold text-blue-900 mb-3">Period Comparison</h3>
+                <div className="grid md:grid-cols-4 gap-4">
+                  <div>
+                    <p className="text-xs text-blue-700">Ad Spend</p>
+                    <p className="font-semibold">AED {formatNum(currentData.adSpend)}</p>
+                    <DeltaBadge current={currentData.adSpend} previous={previousData.adSpend} />
+                  </div>
+                  <div>
+                    <p className="text-xs text-blue-700">Total Impressions</p>
+                    <p className="font-semibold">{formatInt(currentData.meta.campaigns.reduce((s, c) => s + (c.impressions || 0), 0))}</p>
+                    <DeltaBadge current={currentData.meta.campaigns.reduce((s, c) => s + (c.impressions || 0), 0)} previous={previousData.meta.campaigns.reduce((s, c) => s + (c.impressions || 0), 0)} />
+                  </div>
+                  <div>
+                    <p className="text-xs text-blue-700">Revenue</p>
+                    <p className="font-semibold">AED {formatNum(currentData.revenue?.totalBusiness || 0)}</p>
+                    <DeltaBadge current={currentData.revenue?.totalBusiness || 0} previous={previousData.revenue?.totalBusiness || 0} />
+                  </div>
+                  <div>
+                    <p className="text-xs text-blue-700">Reservations</p>
+                    <p className="font-semibold">{formatInt(currentData.revenue?.totalReservations || 0)}</p>
+                    <DeltaBadge current={currentData.revenue?.totalReservations || 0} previous={previousData.revenue?.totalReservations || 0} />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {currentData.meta?.analysis && (
               <CollapsibleSection title="Analysis & Recommendations" color="#2563eb">
                 <div className="space-y-4">
                   <div className="bg-blue-50 p-4 rounded-lg">
@@ -362,15 +443,15 @@ export default function Dashboard() {
                       <Lightbulb size={20} className="text-blue-600 mt-0.5" />
                       <div>
                         <h4 className="font-semibold text-gray-800 mb-2">Summary</h4>
-                        <p className="text-gray-700 text-sm">{data.meta.analysis.summary}</p>
+                        <p className="text-gray-700 text-sm">{currentData.meta.analysis.summary}</p>
                       </div>
                     </div>
                   </div>
-                  {data.meta.analysis.recommendations?.length > 0 && (
+                  {currentData.meta.analysis.recommendations?.length > 0 && (
                     <div>
                       <h4 className="font-semibold text-gray-800 mb-2">Recommendations</h4>
                       <ul className="space-y-2">
-                        {data.meta.analysis.recommendations.map((rec, i) => (
+                        {currentData.meta.analysis.recommendations.map((rec, i) => (
                           <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
                             <span className="text-green-600 font-bold">→</span>
                             <span>{rec}</span>
@@ -383,25 +464,25 @@ export default function Dashboard() {
               </CollapsibleSection>
             )}
 
-            {data.meta?.campaigns?.length > 0 && (
+            {currentData.meta?.campaigns?.length > 0 && (
               <CollapsibleSection title="Meta Ads Performance">
                 <div className="space-y-6">
                   <div><h4 className="text-sm font-semibold mb-2">Campaign Level</h4>
                     <table className="w-full text-sm"><thead className="bg-gray-50"><tr><th className="text-left px-3 py-2">Campaign</th><th className="text-right px-3 py-2">Impressions</th><th className="text-right px-3 py-2">Clicks</th><th className="text-right px-3 py-2">CTR</th><th className="text-right px-3 py-2">Link Clicks</th><th className="text-right px-3 py-2">Engagement</th></tr></thead>
-                      <tbody>{data.meta.campaigns.map((c, i) => <tr key={i} className="border-t"><td className="px-3 py-2">{c.name}</td><td className="px-3 py-2 text-right">{formatInt(c.impressions)}</td><td className="px-3 py-2 text-right">{formatInt(c.clicks)}</td><td className="px-3 py-2 text-right">{c.ctr}</td><td className="px-3 py-2 text-right">{formatInt(c.linkClicks)}</td><td className="px-3 py-2 text-right">{formatInt(c.engagement)}</td></tr>)}</tbody>
+                      <tbody>{currentData.meta.campaigns.map((c, i) => <tr key={i} className="border-t"><td className="px-3 py-2">{c.name}</td><td className="px-3 py-2 text-right">{formatInt(c.impressions)}</td><td className="px-3 py-2 text-right">{formatInt(c.clicks)}</td><td className="px-3 py-2 text-right">{c.ctr}</td><td className="px-3 py-2 text-right">{formatInt(c.linkClicks)}</td><td className="px-3 py-2 text-right">{formatInt(c.engagement)}</td></tr>)}</tbody>
                     </table>
                   </div>
-                  {data.meta.adSets?.length > 0 && (
+                  {currentData.meta.adSets?.length > 0 && (
                     <div><h4 className="text-sm font-semibold mb-2">Ad Set Level <span className="text-xs font-normal text-gray-500">(click to view audience)</span></h4>
                       <table className="w-full text-sm"><thead className="bg-gray-50"><tr><th className="text-left px-3 py-2">Ad Set</th><th className="text-right px-3 py-2">Impressions</th><th className="text-right px-3 py-2">Clicks</th><th className="text-right px-3 py-2">CTR</th><th className="text-right px-3 py-2">Link Clicks</th><th className="text-right px-3 py-2">Engagement</th></tr></thead>
-                        <tbody>{data.meta.adSets.map((a) => <AdSetRow key={a.name} adSet={a} isExpanded={expandedAdSets[a.name]} onToggle={() => toggleAdSet(a.name)} />)}</tbody>
+                        <tbody>{currentData.meta.adSets.map((a) => <AdSetRow key={a.name} adSet={a} isExpanded={expandedAdSets[a.name]} onToggle={() => toggleAdSet(a.name)} />)}</tbody>
                       </table>
                     </div>
                   )}
-                  {data.meta.ads?.length > 0 && (
+                  {currentData.meta.ads?.length > 0 && (
                     <div><h4 className="text-sm font-semibold mb-2">Ad Level</h4>
                       <table className="w-full text-sm"><thead className="bg-gray-50"><tr><th className="text-left px-3 py-2">Ad Name</th><th className="text-right px-3 py-2">Impressions</th><th className="text-right px-3 py-2">CTR</th><th className="text-right px-3 py-2">Link Clicks</th><th className="text-right px-3 py-2">Engagement</th></tr></thead>
-                        <tbody>{data.meta.ads.map((a, i) => <tr key={i} className="border-t"><td className="px-3 py-2 max-w-xs truncate">{a.name}</td><td className="px-3 py-2 text-right">{formatInt(a.impressions)}</td><td className="px-3 py-2 text-right">{a.ctr}</td><td className="px-3 py-2 text-right">{formatInt(a.linkClicks)}</td><td className="px-3 py-2 text-right">{formatInt(a.engagement)}</td></tr>)}</tbody>
+                        <tbody>{currentData.meta.ads.map((a, i) => <tr key={i} className="border-t"><td className="px-3 py-2 max-w-xs truncate">{a.name}</td><td className="px-3 py-2 text-right">{formatInt(a.impressions)}</td><td className="px-3 py-2 text-right">{a.ctr}</td><td className="px-3 py-2 text-right">{formatInt(a.linkClicks)}</td><td className="px-3 py-2 text-right">{formatInt(a.engagement)}</td></tr>)}</tbody>
                       </table>
                     </div>
                   )}
@@ -409,35 +490,35 @@ export default function Dashboard() {
               </CollapsibleSection>
             )}
 
-            {data.revenue && (
+            {currentData.revenue && (
               <CollapsibleSection title="Revenue & Reservations (7rooms)">
                 <table className="w-full text-sm"><thead className="bg-gray-50"><tr><th className="text-left px-3 py-2 w-36">Category</th><th className="text-left px-3 py-2">Metric / Channel</th><th className="text-right px-3 py-2">Revenue (AED)</th><th className="text-right px-3 py-2">Reservations</th><th className="text-right px-3 py-2">Avg. Spend/Res</th></tr></thead>
                   <tbody>
-                    <tr className="border-t bg-gray-50"><td className="px-3 py-2 font-semibold" style={{ color: '#76527c' }}>Overall Metrics</td><td className="px-3 py-2">Total Business</td><td className="px-3 py-2 text-right font-medium">{formatNum(data.revenue.totalBusiness)}</td><td className="px-3 py-2 text-right font-medium">{formatInt(data.revenue.totalReservations)}</td><td className="px-3 py-2 text-right">{calcAvgSpend(data.revenue.totalBusiness, data.revenue.totalReservations)}</td></tr>
-                    <tr className="border-t"><td></td><td className="px-3 py-2">Total Online (Combined)</td><td className="px-3 py-2 text-right">{formatNum(data.revenue.totalOnline)}</td><td className="px-3 py-2 text-right">{formatInt(data.revenue.onlineReservations)}</td><td className="px-3 py-2 text-right">{calcAvgSpend(data.revenue.totalOnline, data.revenue.onlineReservations)}</td></tr>
-                    <tr className="border-t"><td></td><td className="px-3 py-2">% of Total (Online)</td><td className="px-3 py-2 text-right">{calcOnlinePercent(data).rev}</td><td className="px-3 py-2 text-right">{calcOnlinePercent(data).res}</td><td className="px-3 py-2 text-right">—</td></tr>
-                    <tr className="border-t bg-gray-50"><td className="px-3 py-2 font-semibold" style={{ color: '#76527c' }}>Marketing</td><td className="px-3 py-2">Ad Spend</td><td className="px-3 py-2 text-right font-medium">{formatNum(data.adSpend)}</td><td className="px-3 py-2 text-right">—</td><td className="px-3 py-2 text-right">—</td></tr>
-                    <tr className="border-t"><td></td><td className="px-3 py-2">ROAS</td><td className="px-3 py-2 text-right font-medium">{calcROAS(data)}</td><td className="px-3 py-2 text-right">—</td><td className="px-3 py-2 text-right">—</td></tr>
-                    {data.revenue.channels && Object.entries(data.revenue.channels).map(([ch, v], i) => <tr key={ch} className={`border-t ${i === 0 ? 'bg-gray-50' : ''}`}><td className="px-3 py-2 font-semibold" style={{ color: '#76527c' }}>{i === 0 ? 'Online Channels' : ''}</td><td className="px-3 py-2">{ch}</td><td className="px-3 py-2 text-right">{formatNum(v.revenue)}</td><td className="px-3 py-2 text-right">{v.reservations}</td><td className="px-3 py-2 text-right">{calcAvgSpend(v.revenue, v.reservations)}</td></tr>)}
-                    {data.revenue.offline && Object.entries(data.revenue.offline).map(([ch, v], i) => <tr key={ch} className={`border-t ${i === 0 ? 'bg-gray-50' : ''}`}><td className="px-3 py-2 font-semibold" style={{ color: '#76527c' }}>{i === 0 ? 'Offline / Internal' : ''}</td><td className="px-3 py-2">{ch}</td><td className="px-3 py-2 text-right">{formatNum(v.revenue)}</td><td className="px-3 py-2 text-right">{v.reservations}</td><td className="px-3 py-2 text-right">{calcAvgSpend(v.revenue, v.reservations)}</td></tr>)}
+                    <tr className="border-t bg-gray-50"><td className="px-3 py-2 font-semibold" style={{ color: '#76527c' }}>Overall Metrics</td><td className="px-3 py-2">Total Business</td><td className="px-3 py-2 text-right font-medium">{formatNum(currentData.revenue.totalBusiness)}</td><td className="px-3 py-2 text-right font-medium">{formatInt(currentData.revenue.totalReservations)}</td><td className="px-3 py-2 text-right">{calcAvgSpend(currentData.revenue.totalBusiness, currentData.revenue.totalReservations)}</td></tr>
+                    <tr className="border-t"><td></td><td className="px-3 py-2">Total Online (Combined)</td><td className="px-3 py-2 text-right">{formatNum(currentData.revenue.totalOnline)}</td><td className="px-3 py-2 text-right">{formatInt(currentData.revenue.onlineReservations)}</td><td className="px-3 py-2 text-right">{calcAvgSpend(currentData.revenue.totalOnline, currentData.revenue.onlineReservations)}</td></tr>
+                    <tr className="border-t"><td></td><td className="px-3 py-2">% of Total (Online)</td><td className="px-3 py-2 text-right">{calcOnlinePercent(currentData).rev}</td><td className="px-3 py-2 text-right">{calcOnlinePercent(currentData).res}</td><td className="px-3 py-2 text-right">—</td></tr>
+                    <tr className="border-t bg-gray-50"><td className="px-3 py-2 font-semibold" style={{ color: '#76527c' }}>Marketing</td><td className="px-3 py-2">Ad Spend</td><td className="px-3 py-2 text-right font-medium">{formatNum(currentData.adSpend)}</td><td className="px-3 py-2 text-right">—</td><td className="px-3 py-2 text-right">—</td></tr>
+                    <tr className="border-t"><td></td><td className="px-3 py-2">ROAS</td><td className="px-3 py-2 text-right font-medium">{calcROAS(currentData)}</td><td className="px-3 py-2 text-right">—</td><td className="px-3 py-2 text-right">—</td></tr>
+                    {currentData.revenue.channels && Object.entries(currentData.revenue.channels).map(([ch, v], i) => <tr key={ch} className={`border-t ${i === 0 ? 'bg-gray-50' : ''}`}><td className="px-3 py-2 font-semibold" style={{ color: '#76527c' }}>{i === 0 ? 'Online Channels' : ''}</td><td className="px-3 py-2">{ch}</td><td className="px-3 py-2 text-right">{formatNum(v.revenue)}</td><td className="px-3 py-2 text-right">{v.reservations}</td><td className="px-3 py-2 text-right">{calcAvgSpend(v.revenue, v.reservations)}</td></tr>)}
+                    {currentData.revenue.offline && Object.entries(currentData.revenue.offline).map(([ch, v], i) => <tr key={ch} className={`border-t ${i === 0 ? 'bg-gray-50' : ''}`}><td className="px-3 py-2 font-semibold" style={{ color: '#76527c' }}>{i === 0 ? 'Offline / Internal' : ''}</td><td className="px-3 py-2">{ch}</td><td className="px-3 py-2 text-right">{formatNum(v.revenue)}</td><td className="px-3 py-2 text-right">{v.reservations}</td><td className="px-3 py-2 text-right">{calcAvgSpend(v.revenue, v.reservations)}</td></tr>)}
                   </tbody>
                 </table>
               </CollapsibleSection>
             )}
 
-            {data.programmatic && (
+            {currentData.programmatic && (
               <CollapsibleSection title="Programmatic Performance" color="#4a5568">
                 <table className="w-full text-sm mb-4"><thead className="bg-gray-50"><tr><th className="text-left px-3 py-2">Creative File</th><th className="text-left px-3 py-2">Format</th><th className="text-left px-3 py-2">Size</th><th className="text-right px-3 py-2">Impressions</th><th className="text-right px-3 py-2">Clicks</th><th className="text-right px-3 py-2">CTR %</th></tr></thead>
                   <tbody>
-                    {data.programmatic.creatives?.map((c, i) => <tr key={i} className="border-t"><td className="px-3 py-2">{c.file}</td><td className="px-3 py-2">{c.format}</td><td className="px-3 py-2">{c.size}</td><td className="px-3 py-2 text-right">{formatInt(c.impressions)}</td><td className="px-3 py-2 text-right">{formatInt(c.clicks)}</td><td className="px-3 py-2 text-right">{c.ctr}</td></tr>)}
-                    {data.programmatic.totals && <tr className="border-t bg-gray-100 font-semibold"><td className="px-3 py-2">TOTALS</td><td></td><td></td><td className="px-3 py-2 text-right">{formatInt(data.programmatic.totals.impressions)}</td><td className="px-3 py-2 text-right">{formatInt(data.programmatic.totals.clicks)}</td><td className="px-3 py-2 text-right">{data.programmatic.totals.ctr}</td></tr>}
+                    {currentData.programmatic.creatives?.map((c, i) => <tr key={i} className="border-t"><td className="px-3 py-2">{c.file}</td><td className="px-3 py-2">{c.format}</td><td className="px-3 py-2">{c.size}</td><td className="px-3 py-2 text-right">{formatInt(c.impressions)}</td><td className="px-3 py-2 text-right">{formatInt(c.clicks)}</td><td className="px-3 py-2 text-right">{c.ctr}</td></tr>)}
+                    {currentData.programmatic.totals && <tr className="border-t bg-gray-100 font-semibold"><td className="px-3 py-2">TOTALS</td><td></td><td></td><td className="px-3 py-2 text-right">{formatInt(currentData.programmatic.totals.impressions)}</td><td className="px-3 py-2 text-right">{formatInt(currentData.programmatic.totals.clicks)}</td><td className="px-3 py-2 text-right">{currentData.programmatic.totals.ctr}</td></tr>}
                   </tbody>
                 </table>
-                {data.programmatic.viewability && <p className="text-sm text-gray-600">Viewability: <strong>{data.programmatic.viewability}</strong> | VTR: <strong>{data.programmatic.vtr}</strong></p>}
+                {currentData.programmatic.viewability && <p className="text-sm text-gray-600">Viewability: <strong>{currentData.programmatic.viewability}</strong> | VTR: <strong>{currentData.programmatic.vtr}</strong></p>}
               </CollapsibleSection>
             )}
 
-            {data.liveCampaigns?.length > 0 && (
+            {currentData.liveCampaigns?.length > 0 && (
               <CollapsibleSection title={`Live Campaigns - ${selectedVenue}`} color="#9333ea">
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
@@ -445,7 +526,7 @@ export default function Dashboard() {
                       <tr><th className="text-left px-3 py-2">Type</th><th className="text-left px-3 py-2">Name</th><th className="text-left px-3 py-2">Language</th><th className="text-left px-3 py-2">Format</th><th className="text-left px-3 py-2">Captions?</th><th className="text-left px-3 py-2">Landing Page</th><th className="text-left px-3 py-2">Status</th></tr>
                     </thead>
                     <tbody>
-                      {data.liveCampaigns.map((c, i) => (
+                      {currentData.liveCampaigns.map((c, i) => (
                         <tr key={i} className="border-t">
                           <td className="px-3 py-2"><span className={`px-2 py-1 rounded text-xs font-medium text-white ${(c.type === 'Dark Post' || c.type === 'Dark') ? 'bg-blue-500' : 'bg-pink-400'}`}>{c.type === 'Dark' ? 'Dark Post' : c.type}</span></td>
                           <td className="px-3 py-2 font-medium">{c.name}</td>
