@@ -531,7 +531,6 @@ export default function Dashboard() {
                           <td className="px-3 py-2">{c.language}</td>
                           <td className="px-3 py-2"><span className={`px-2 py-1 rounded text-xs ${c.format === 'Carousel' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}>{c.format}</span></td>
                           <td className="px-3 py-2"><span className={`px-2 py-1 rounded text-xs ${c.captions === 'Yes' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>{c.captions}</span></td>
-                          <td className="px-3 py-2">{c.landing_page?.startsWith('http') ? <a href={c.landing_page} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline flex items-center gap-1">{c.landing_page.replace('https://', '').substring(0, 20)}... <ExternalLink size={12} /></a> : <span className="text-gray-500">{c.landing_page}</span>}</td>
                           <td className="px-3 py-2"><span className="px-2 py-1 rounded text-xs font-bold bg-green-500 text-white">{c.status}</span></td>
                         </tr>
                       ))}
