@@ -300,7 +300,7 @@ export default function Dashboard() {
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead className="bg-gray-50">
-                    <tr><th className="text-left px-2 py-2">Brand</th><th className="text-left px-2 py-2">POC</th><th className="text-right px-2 py-2">Monthly Budget</th><th className="text-right px-2 py-2">Traffic</th><th className="text-right px-2 py-2">Community</th><th className="text-right px-2 py-2">Total Spend</th><th className="text-right px-2 py-2">Remaining</th><th className="text-right px-2 py-2">% Spent</th></tr>
+                    <tr><th className="text-left px-2 py-2">Brand</th><th className="text-left px-2 py-2">POC</th><th className="text-right px-2 py-2">Monthly Budget</th><th className="text-right px-2 py-2">Total Spend</th><th className="text-right px-2 py-2">Remaining</th><th className="text-right px-2 py-2">% Spent</th></tr>
                   </thead>
                   <tbody>
                     {workspaceData.map((w, i) => (
