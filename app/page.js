@@ -521,7 +521,7 @@ export default function Dashboard() {
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead style={{ backgroundColor: '#D0E4E7' }}>
-                      <tr><th className="text-left px-3 py-2">Type</th><th className="text-left px-3 py-2">Name</th><th className="text-left px-3 py-2">Language</th><th className="text-left px-3 py-2">Format</th><th className="text-left px-3 py-2">Captions?</th><th className="text-left px-3 py-2">Landing Page</th><th className="text-left px-3 py-2">Status</th></tr>
+                      <tr><th className="text-left px-3 py-2">Type</th><th className="text-left px-3 py-2">Name</th><th className="text-left px-3 py-2">Language</th><th className="text-left px-3 py-2">Format</th><th className="text-left px-3 py-2">Captions?</th><th className="text-left px-3 py-2">Status</th></tr>
                     </thead>
                     <tbody>
                       {currentData.liveCampaigns.map((c, i) => (
@@ -556,7 +556,7 @@ export default function Dashboard() {
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead style={{ backgroundColor: '#D0E4E7' }}>
-                      <tr><th className="text-left px-3 py-2">Type</th><th className="text-left px-3 py-2">Name</th><th className="text-left px-3 py-2">Language</th><th className="text-left px-3 py-2">Format</th><th className="text-left px-3 py-2">Captions?</th><th className="text-left px-3 py-2">Landing Page</th><th className="text-left px-3 py-2">Status</th></tr>
+                      <tr><th className="text-left px-3 py-2">Type</th><th className="text-left px-3 py-2">Name</th><th className="text-left px-3 py-2">Language</th><th className="text-left px-3 py-2">Format</th><th className="text-left px-3 py-2">Captions?</th><th className="text-left px-3 py-2">Status</th></tr>
                     </thead>
                     <tbody>
                       {liveCampaigns[liveCampaignVenue].map((c, i) => (
