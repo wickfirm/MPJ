@@ -308,8 +308,6 @@ export default function Dashboard() {
                         <td className="px-2 py-2 font-medium">{w.brand}</td>
                         <td className="px-2 py-2">{getBrandPOC(w.brand)}</td>
                         <td className="px-2 py-2 text-right">AED {formatNum(w.monthly_budget)}</td>
-                        <td className="px-2 py-2 text-right">AED {formatNum(w.traffic)}</td>
-                        <td className="px-2 py-2 text-right">AED {formatNum(w.community)}</td>
                         <td className="px-2 py-2 text-right">AED {formatNum(w.total_spend)}</td>
                         <td className={`px-2 py-2 text-right ${w.remaining < 0 ? 'text-red-600' : 'text-green-600'}`}>AED {formatNum(w.remaining)}</td>
                         <td className="px-2 py-2 text-right font-medium">{w.pct_spent}</td>
