@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
-import { Download, BarChart3, Calendar, TrendingUp, Megaphone, ExternalLink, Users, Lightbulb, RefreshCw, LogOut, DollarSign, ShoppingBag, Target } from 'lucide-react'
+import { Download, BarChart3, Calendar, TrendingUp, Megaphone, ExternalLink, Users, Lightbulb, RefreshCw, LogOut, DollarSign, ShoppingBag, Target, Upload, Image as ImageIcon } from 'lucide-react'
 import { LineChart as ReLineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
 
 import CollapsibleSection from './components/CollapsibleSection'
@@ -11,6 +11,9 @@ import AdSetRow from './components/AdSetRow'
 import Toast from './components/Toast'
 import ErrorState from './components/ErrorState'
 import { DashboardSkeleton } from './components/SkeletonLoader'
+import CreativeThumb from './components/CreativeThumb'
+import CreativeUpload from './components/CreativeUpload'
+import CreativeGallery from './components/CreativeGallery'
 
 // ── Constants ────────────────────────────────
 const COLORS = ['#76527c', '#d8ee91', '#D0E4E7', '#9f7aea', '#68d391', '#fc8181']
@@ -54,6 +57,8 @@ export default function Dashboard() {
   const [monthlyData, setMonthlyData] = useState([])
   const [expandedAdSets, setExpandedAdSets] = useState({})
   const [liveCampaignVenue, setLiveCampaignVenue] = useState('')
+  const [adCreatives, setAdCreatives] = useState([])
+  const [showUploadModal, setShowUploadModal] = useState(false)
 
   // UI state
   const [loading, setLoading] = useState(true)
@@ -80,16 +85,17 @@ export default function Dashboard() {
     setError(null)
 
     try {
-      const [venuesRes, reportsRes, campaignsRes, workspaceRes, monthlyRes] = await Promise.all([
+      const [venuesRes, reportsRes, campaignsRes, workspaceRes, monthlyRes, creativesRes] = await Promise.all([
         supabase.from('venues').select('*').order('name'),
         supabase.from('weekly_reports').select('*, venues(name, poc)').order('week_end', { ascending: false }),
         supabase.from('live_campaigns').select('*, venues(name)'),
         supabase.from('workspace_budgets').select('*').order('month').order('brand'),
         supabase.from('monthly_rollups').select('*').order('month'),
+        supabase.from('ad_creatives').select('*, venues(name)').order('created_at', { ascending: false }),
       ])
 
       // Check for errors
-      const errors = [venuesRes, reportsRes, campaignsRes, workspaceRes, monthlyRes]
+      const errors = [venuesRes, reportsRes, campaignsRes, workspaceRes, monthlyRes, creativesRes]
         .filter(r => r.error)
         .map(r => r.error.message)
 
@@ -152,6 +158,7 @@ export default function Dashboard() {
       }
 
       setMonthlyData(monthlyRes.data || [])
+      setAdCreatives(creativesRes.data || [])
       setLastUpdated(new Date())
 
       if (isRefresh) {
@@ -210,6 +217,30 @@ export default function Dashboard() {
       poc: report?.poc || venue?.poc
     }
   }, [venues, weeklyReports, liveCampaigns, sortByImpressions])
+
+  // Get creative image for an ad (matches by venue name + ad name + month)
+  const getCreativeForAd = useCallback((venueName, adName, weekStart) => {
+    if (!weekStart) return null
+    const month = weekStart.substring(0, 7) // '2026-02' from '2026-02-01'
+    return adCreatives.find(c =>
+      c.venues?.name === venueName &&
+      c.ad_name === adName &&
+      c.month === month
+    )
+  }, [adCreatives])
+
+  // Handle creative upload success
+  const handleCreativeUploaded = useCallback((creative) => {
+    setAdCreatives(prev => [creative, ...prev])
+    setShowUploadModal(false)
+    setToast({ message: 'Creative uploaded successfully', type: 'success' })
+  }, [])
+
+  // Handle creative deletion
+  const handleCreativeDeleted = useCallback((id) => {
+    setAdCreatives(prev => prev.filter(c => c.id !== id))
+    setToast({ message: 'Creative deleted', type: 'success' })
+  }, [])
 
   const currentData = useMemo(() =>
     selectedVenue && selectedWeek ? getVenueData(selectedVenue, selectedWeek) : null
@@ -636,8 +667,16 @@ export default function Dashboard() {
                   {allWeeks.map(w => <option key={w.key} value={w.key}>{w.label}</option>)}
                 </select>
               </div>
-              <div className="flex items-end pb-0.5">
+              <div className="flex items-end pb-0.5 gap-3">
                 <span className="text-xs text-gray-500">POC: <strong className="text-mpj-purple">{currentData.poc}</strong></span>
+                <button
+                  onClick={() => setShowUploadModal(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-mpj-purple/10 hover:bg-mpj-purple/20 text-mpj-purple rounded-lg text-xs font-medium transition-colors"
+                  title="Upload ad creative image"
+                >
+                  <Upload size={13} />
+                  Upload Creative
+                </button>
               </div>
             </div>
 
@@ -767,6 +806,7 @@ export default function Dashboard() {
                         <table className="w-full text-sm">
                           <thead className="bg-gray-50 border-b">
                             <tr>
+                              <th className="px-2 py-2.5 font-semibold text-gray-600 w-12 hidden sm:table-cell">Ad</th>
                               <th className="text-left px-3 py-2.5 font-semibold text-gray-600">Ad Name</th>
                               <th className="text-right px-3 py-2.5 font-semibold text-gray-600">Impressions</th>
                               <th className="text-right px-3 py-2.5 font-semibold text-gray-600">CTR</th>
@@ -777,6 +817,9 @@ export default function Dashboard() {
                           <tbody>
                             {currentData.meta.ads.map((a, i) => (
                               <tr key={i} className="border-t hover:bg-gray-50/50 transition-colors">
+                                <td className="px-2 py-2 hidden sm:table-cell">
+                                  <CreativeThumb creative={getCreativeForAd(selectedVenue, a.name, currentData.weekStart)} size={36} />
+                                </td>
                                 <td className="px-3 py-2.5 max-w-[200px] truncate font-medium">{a.name}</td>
                                 <td className="px-3 py-2.5 text-right tabular-nums">{formatInt(a.impressions)}</td>
                                 <td className="px-3 py-2.5 text-right tabular-nums">{a.ctr}</td>
@@ -790,6 +833,16 @@ export default function Dashboard() {
                     </div>
                   )}
                 </div>
+              </CollapsibleSection>
+            )}
+
+            {/* Creative Gallery */}
+            {adCreatives.filter(c => c.venues?.name === selectedVenue).length > 0 && (
+              <CollapsibleSection title="Creative Gallery" icon={ImageIcon} defaultOpen={false}>
+                <CreativeGallery
+                  creatives={adCreatives.filter(c => c.venues?.name === selectedVenue)}
+                  onDelete={handleCreativeDeleted}
+                />
               </CollapsibleSection>
             )}
 
@@ -1035,6 +1088,16 @@ export default function Dashboard() {
           Made by MB
         </div>
       </main>
+
+      {/* Creative Upload Modal */}
+      {showUploadModal && (
+        <CreativeUpload
+          venues={venues}
+          weeklyReports={weeklyReports}
+          onSuccess={handleCreativeUploaded}
+          onClose={() => setShowUploadModal(false)}
+        />
+      )}
     </div>
   )
 }
