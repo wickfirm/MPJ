@@ -1,6 +1,6 @@
 'use client'
 import { useState, useRef, useCallback } from 'react'
-import { Upload, X, Image as ImageIcon, Loader2, Check } from 'lucide-react'
+import { Upload, X, Image as ImageIcon, Loader2, Check, Plus, Trash2 } from 'lucide-react'
 
 export default function CreativeUpload({ venues, weeklyReports, onSuccess, onClose }) {
   const [selectedVenue, setSelectedVenue] = useState('')
@@ -8,9 +8,9 @@ export default function CreativeUpload({ venues, weeklyReports, onSuccess, onClo
   const [adName, setAdName] = useState('')
   const [customAdName, setCustomAdName] = useState('')
   const [notes, setNotes] = useState('')
-  const [file, setFile] = useState(null)
-  const [preview, setPreview] = useState(null)
+  const [files, setFiles] = useState([]) // { file, preview }[]
   const [uploading, setUploading] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState(0) // how many uploaded so far
   const [error, setError] = useState(null)
   const [dragActive, setDragActive] = useState(false)
   const fileInputRef = useRef(null)
@@ -23,9 +23,8 @@ export default function CreativeUpload({ venues, weeklyReports, onSuccess, onClo
     if (!selectedVenue || !weeklyReports[selectedVenue]) return []
     const months = new Set()
     Object.keys(weeklyReports[selectedVenue]).forEach(weekKey => {
-      // weekKey format: 'YYYY-MM-DD → YYYY-MM-DD'
       const startDate = weekKey.split(' → ')[0]
-      if (startDate) months.add(startDate.substring(0, 7)) // '2026-02'
+      if (startDate) months.add(startDate.substring(0, 7))
     })
     return Array.from(months).sort().reverse()
   })()
@@ -49,86 +48,120 @@ export default function CreativeUpload({ venues, weeklyReports, onSuccess, onClo
     return Array.from(names).sort()
   })()
 
-  const handleFile = useCallback((f) => {
-    if (!f) return
+  const validateFile = (f) => {
     const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
-    if (!allowed.includes(f.type)) {
-      setError('Only JPG, PNG, WebP, and GIF images are allowed')
-      return
+    if (!allowed.includes(f.type)) return 'Only JPG, PNG, WebP, and GIF images are allowed'
+    if (f.size > 10 * 1024 * 1024) return 'File must be under 10MB'
+    return null
+  }
+
+  const addFiles = useCallback((newFiles) => {
+    const toAdd = []
+    for (const f of newFiles) {
+      const err = validateFile(f)
+      if (err) {
+        setError(err)
+        continue
+      }
+      toAdd.push(f)
     }
-    if (f.size > 10 * 1024 * 1024) {
-      setError('File must be under 10MB')
-      return
-    }
-    setFile(f)
+    if (toAdd.length === 0) return
+
     setError(null)
-    const reader = new FileReader()
-    reader.onload = (e) => setPreview(e.target.result)
-    reader.readAsDataURL(f)
+
+    // Generate previews for each file
+    toAdd.forEach(f => {
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        setFiles(prev => [...prev, { file: f, preview: e.target.result }])
+      }
+      reader.readAsDataURL(f)
+    })
   }, [])
+
+  const removeFile = (index) => {
+    setFiles(prev => prev.filter((_, i) => i !== index))
+  }
 
   const handleDrop = useCallback((e) => {
     e.preventDefault()
     setDragActive(false)
-    const f = e.dataTransfer?.files?.[0]
-    if (f) handleFile(f)
-  }, [handleFile])
+    const dropped = Array.from(e.dataTransfer?.files || [])
+    if (dropped.length > 0) addFiles(dropped)
+  }, [addFiles])
 
   // Clipboard paste support — works anywhere in the modal
   const handlePaste = useCallback((e) => {
     const items = e.clipboardData?.items
     if (!items) return
+    const imageFiles = []
     for (const item of items) {
       if (item.type.startsWith('image/')) {
         e.preventDefault()
         const f = item.getAsFile()
         if (f) {
-          // Clipboard images often have generic names, give it a better one
           const ext = f.type.split('/')[1] || 'png'
           const renamed = new File([f], `pasted-creative-${Date.now()}.${ext}`, { type: f.type })
-          handleFile(renamed)
+          imageFiles.push(renamed)
         }
-        return
       }
     }
-  }, [handleFile])
+    if (imageFiles.length > 0) addFiles(imageFiles)
+  }, [addFiles])
 
   const handleUpload = async () => {
     const finalAdName = adName === '__custom__' ? customAdName.trim() : adName
-    if (!file || !selectedVenue || !selectedMonth || !finalAdName) {
-      setError('Please fill in all required fields')
+    if (files.length === 0 || !selectedVenue || !selectedMonth || !finalAdName) {
+      setError('Please fill in all required fields and add at least one image')
       return
     }
 
     setUploading(true)
     setError(null)
+    setUploadProgress(0)
 
-    try {
-      const formData = new FormData()
-      formData.append('file', file)
-      formData.append('venue_id', venueObj.id)
-      formData.append('venue_name', selectedVenue)
-      formData.append('ad_name', finalAdName)
-      formData.append('month', selectedMonth)
-      if (notes.trim()) formData.append('notes', notes.trim())
+    const uploaded = []
+    const errors = []
 
-      const res = await fetch('/api/creatives/upload', {
-        method: 'POST',
-        body: formData,
-      })
+    for (let i = 0; i < files.length; i++) {
+      setUploadProgress(i + 1)
+      try {
+        const formData = new FormData()
+        formData.append('file', files[i].file)
+        formData.append('venue_id', venueObj.id)
+        formData.append('venue_name', selectedVenue)
+        formData.append('ad_name', finalAdName)
+        formData.append('month', selectedMonth)
+        if (notes.trim()) formData.append('notes', notes.trim())
 
-      const data = await res.json()
+        const res = await fetch('/api/creatives/upload', {
+          method: 'POST',
+          body: formData,
+        })
 
-      if (!res.ok) {
-        throw new Error(data.error || 'Upload failed')
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error || 'Upload failed')
+        uploaded.push(data.creative)
+      } catch (err) {
+        errors.push(`${files[i].file.name}: ${err.message}`)
       }
-
-      onSuccess?.(data.creative)
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setUploading(false)
     }
+
+    if (uploaded.length > 0) {
+      // Notify parent of each uploaded creative
+      uploaded.forEach(c => onSuccess?.(c))
+    }
+
+    if (errors.length > 0) {
+      setError(`${errors.length} upload(s) failed: ${errors.join('; ')}`)
+      // Remove successfully uploaded files, keep failed ones
+      setFiles(prev => prev.filter((_, i) => i >= uploaded.length))
+    } else {
+      // All done — close modal
+      setFiles([])
+    }
+
+    setUploading(false)
   }
 
   return (
@@ -141,7 +174,7 @@ export default function CreativeUpload({ venues, weeklyReports, onSuccess, onClo
         <div className="flex items-center justify-between px-6 py-4 border-b bg-gray-50 rounded-t-2xl">
           <div className="flex items-center gap-2">
             <Upload size={20} className="text-mpj-purple" />
-            <h3 className="text-lg font-semibold text-gray-800">Upload Creative</h3>
+            <h3 className="text-lg font-semibold text-gray-800">Upload Creatives</h3>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
             <X size={20} />
@@ -216,51 +249,66 @@ export default function CreativeUpload({ venues, weeklyReports, onSuccess, onClo
 
           {/* File Upload Zone */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Creative Image *</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Creative Images * <span className="text-gray-400 font-normal">({files.length} selected)</span>
+            </label>
             <div
               onDragOver={(e) => { e.preventDefault(); setDragActive(true) }}
               onDragLeave={() => setDragActive(false)}
               onDrop={handleDrop}
               onClick={() => fileInputRef.current?.click()}
               className={`
-                relative border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all
+                relative border-2 border-dashed rounded-xl p-5 text-center cursor-pointer transition-all
                 ${dragActive ? 'border-mpj-purple bg-mpj-purple/5' : 'border-gray-300 hover:border-mpj-purple/50 hover:bg-gray-50'}
-                ${preview ? 'border-mpj-green' : ''}
+                ${files.length > 0 ? 'border-mpj-green/60' : ''}
               `}
             >
               <input
                 ref={fileInputRef}
                 type="file"
                 accept="image/jpeg,image/png,image/webp,image/gif"
-                onChange={(e) => handleFile(e.target.files?.[0])}
+                multiple
+                onChange={(e) => {
+                  const selected = Array.from(e.target.files || [])
+                  if (selected.length > 0) addFiles(selected)
+                  e.target.value = '' // reset so same file can be re-selected
+                }}
                 className="hidden"
               />
 
-              {preview ? (
-                <div className="space-y-3">
-                  <img src={preview} alt="Preview" className="mx-auto max-h-48 rounded-lg shadow-sm" />
-                  <div className="flex items-center justify-center gap-2 text-sm text-green-600">
-                    <Check size={16} />
-                    <span>{file?.name} ({(file?.size / 1024).toFixed(0)} KB)</span>
-                  </div>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setFile(null); setPreview(null) }}
-                    className="text-xs text-red-500 hover:text-red-700 underline"
-                  >
-                    Remove
-                  </button>
-                </div>
-              ) : (
-                <div className="space-y-2">
+              <div className="space-y-2">
+                {files.length > 0 ? (
+                  <Plus size={28} className="mx-auto text-mpj-purple" />
+                ) : (
                   <ImageIcon size={32} className="mx-auto text-gray-400" />
-                  <p className="text-sm text-gray-600">
-                    <span className="font-medium text-mpj-purple">Click to upload</span>, drag and drop, or <span className="font-medium text-mpj-purple">Ctrl+V</span> to paste
-                  </p>
-                  <p className="text-xs text-gray-400">JPG, PNG, WebP, GIF (max 10MB)</p>
-                </div>
-              )}
+                )}
+                <p className="text-sm text-gray-600">
+                  <span className="font-medium text-mpj-purple">Click to upload</span>, drag and drop, or <span className="font-medium text-mpj-purple">Ctrl+V</span> to paste
+                </p>
+                <p className="text-xs text-gray-400">JPG, PNG, WebP, GIF (max 10MB each) — multiple files supported</p>
+              </div>
             </div>
           </div>
+
+          {/* Image Previews */}
+          {files.length > 0 && (
+            <div className="grid grid-cols-3 gap-2">
+              {files.map((f, i) => (
+                <div key={i} className="relative group rounded-lg overflow-hidden border border-gray-200 bg-gray-50">
+                  <img src={f.preview} alt={f.file.name} className="w-full aspect-square object-cover" />
+                  <button
+                    onClick={(e) => { e.stopPropagation(); removeFile(i) }}
+                    className="absolute top-1 right-1 bg-red-500 hover:bg-red-600 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity shadow"
+                  >
+                    <X size={12} />
+                  </button>
+                  <div className="absolute bottom-0 left-0 right-0 bg-black/50 px-1.5 py-0.5">
+                    <p className="text-[9px] text-white truncate">{f.file.name}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* Notes */}
           <div>
@@ -281,6 +329,22 @@ export default function CreativeUpload({ venues, weeklyReports, onSuccess, onClo
             </div>
           )}
 
+          {/* Upload Progress */}
+          {uploading && files.length > 1 && (
+            <div className="space-y-1">
+              <div className="flex justify-between text-xs text-gray-500">
+                <span>Uploading {uploadProgress} of {files.length}...</span>
+                <span>{Math.round((uploadProgress / files.length) * 100)}%</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-1.5">
+                <div
+                  className="bg-mpj-purple h-1.5 rounded-full transition-all duration-300"
+                  style={{ width: `${(uploadProgress / files.length) * 100}%` }}
+                />
+              </div>
+            </div>
+          )}
+
           {/* Actions */}
           <div className="flex gap-3 pt-2">
             <button
@@ -291,7 +355,7 @@ export default function CreativeUpload({ venues, weeklyReports, onSuccess, onClo
             </button>
             <button
               onClick={handleUpload}
-              disabled={uploading || !file || !selectedVenue || !selectedMonth || (!adName || (adName === '__custom__' && !customAdName.trim()))}
+              disabled={uploading || files.length === 0 || !selectedVenue || !selectedMonth || (!adName || (adName === '__custom__' && !customAdName.trim()))}
               className={`
                 flex-1 px-4 py-2.5 rounded-lg text-sm font-medium text-white transition-all flex items-center justify-center gap-2
                 ${uploading ? 'bg-mpj-purple/70 cursor-wait' : 'bg-mpj-purple hover:bg-mpj-purple-dark'}
@@ -301,12 +365,12 @@ export default function CreativeUpload({ venues, weeklyReports, onSuccess, onClo
               {uploading ? (
                 <>
                   <Loader2 size={16} className="animate-spin" />
-                  Uploading...
+                  Uploading {uploadProgress}/{files.length}...
                 </>
               ) : (
                 <>
                   <Upload size={16} />
-                  Upload
+                  Upload {files.length > 1 ? `${files.length} Images` : 'Image'}
                 </>
               )}
             </button>
