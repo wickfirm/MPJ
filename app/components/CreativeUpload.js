@@ -74,6 +74,25 @@ export default function CreativeUpload({ venues, weeklyReports, onSuccess, onClo
     if (f) handleFile(f)
   }, [handleFile])
 
+  // Clipboard paste support — works anywhere in the modal
+  const handlePaste = useCallback((e) => {
+    const items = e.clipboardData?.items
+    if (!items) return
+    for (const item of items) {
+      if (item.type.startsWith('image/')) {
+        e.preventDefault()
+        const f = item.getAsFile()
+        if (f) {
+          // Clipboard images often have generic names, give it a better one
+          const ext = f.type.split('/')[1] || 'png'
+          const renamed = new File([f], `pasted-creative-${Date.now()}.${ext}`, { type: f.type })
+          handleFile(renamed)
+        }
+        return
+      }
+    }
+  }, [handleFile])
+
   const handleUpload = async () => {
     const finalAdName = adName === '__custom__' ? customAdName.trim() : adName
     if (!file || !selectedVenue || !selectedMonth || !finalAdName) {
@@ -113,7 +132,7 @@ export default function CreativeUpload({ venues, weeklyReports, onSuccess, onClo
   }
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[90] p-4 animate-fade-in">
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[90] p-4 animate-fade-in" onPaste={handlePaste}>
       <div
         className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
@@ -235,7 +254,7 @@ export default function CreativeUpload({ venues, weeklyReports, onSuccess, onClo
                 <div className="space-y-2">
                   <ImageIcon size={32} className="mx-auto text-gray-400" />
                   <p className="text-sm text-gray-600">
-                    <span className="font-medium text-mpj-purple">Click to upload</span> or drag and drop
+                    <span className="font-medium text-mpj-purple">Click to upload</span>, drag and drop, or <span className="font-medium text-mpj-purple">Ctrl+V</span> to paste
                   </p>
                   <p className="text-xs text-gray-400">JPG, PNG, WebP, GIF (max 10MB)</p>
                 </div>
