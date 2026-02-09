@@ -1,94 +1,24 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
-import { ChevronDown, ChevronRight, Download, BarChart3, Calendar, TrendingUp, Megaphone, ExternalLink, Users, Lightbulb, ArrowUpRight, ArrowDownRight, Minus } from 'lucide-react'
+import { Download, BarChart3, Calendar, TrendingUp, Megaphone, ExternalLink, Users, Lightbulb, RefreshCw, LogOut, DollarSign, ShoppingBag, Target } from 'lucide-react'
 import { LineChart as ReLineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
 
+import CollapsibleSection from './components/CollapsibleSection'
+import DeltaBadge from './components/DeltaBadge'
+import KPICard from './components/KPICard'
+import AdSetRow from './components/AdSetRow'
+import Toast from './components/Toast'
+import ErrorState from './components/ErrorState'
+import { DashboardSkeleton } from './components/SkeletonLoader'
+
+// ── Constants ────────────────────────────────
 const COLORS = ['#76527c', '#d8ee91', '#D0E4E7', '#9f7aea', '#68d391', '#fc8181']
-const formatNum = (n) => n?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'
-const formatInt = (n) => n?.toLocaleString('en-US') || '0'
-const formatK = (n) => n >= 1000000 ? (n/1000000).toFixed(1) + 'M' : n >= 1000 ? (n/1000).toFixed(0) + 'K' : n
-
-const CollapsibleSection = ({ title, children, defaultOpen = true, color = '#76527c' }) => {
-  const [isOpen, setIsOpen] = useState(defaultOpen)
-  return (
-    <div className="bg-white rounded-lg shadow mb-4">
-      <button onClick={() => setIsOpen(!isOpen)} className="w-full px-6 py-4 flex items-center justify-between text-white font-semibold rounded-t-lg" style={{ backgroundColor: color }}>
-        <span>{title}</span>
-        {isOpen ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
-      </button>
-      {isOpen && <div className="p-6">{children}</div>}
-    </div>
-  )
-}
-
-const DeltaBadge = ({ current, previous, isPercent = false }) => {
-  if (!previous || !current) return <span className="text-gray-400">—</span>
-  const diff = current - previous
-  const pct = ((diff / previous) * 100).toFixed(1)
-  const isPositive = diff > 0
-  const isNeutral = diff === 0
-  
-  return (
-    <span className={`flex items-center gap-1 text-sm font-medium ${isNeutral ? 'text-gray-500' : isPositive ? 'text-green-600' : 'text-red-600'}`}>
-      {isNeutral ? <Minus size={14} /> : isPositive ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
-      {isPercent ? `${diff > 0 ? '+' : ''}${diff.toFixed(2)}%` : `${diff > 0 ? '+' : ''}${pct}%`}
-    </span>
-  )
-}
-
-const AudienceTag = ({ items, color }) => (
-  <div className="flex flex-wrap gap-1">
-    {items?.map((item, i) => (
-      <span key={i} className="px-2 py-0.5 text-xs rounded" style={{ backgroundColor: color, color: '#333' }}>{item}</span>
-    ))}
-  </div>
-)
-
-const AdSetRow = ({ adSet, isExpanded, onToggle }) => (
-  <>
-    <tr className="border-t">
-      <td className="px-3 py-2">
-        <button onClick={onToggle} className="flex items-center gap-2 font-medium hover:text-purple-700">
-          {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-          {adSet.name}
-        </button>
-      </td>
-      <td className="px-3 py-2 text-right">{formatInt(adSet.impressions)}</td>
-      <td className="px-3 py-2 text-right">{formatInt(adSet.clicks)}</td>
-      <td className="px-3 py-2 text-right">{adSet.ctr}</td>
-      <td className="px-3 py-2 text-right">{formatInt(adSet.linkClicks)}</td>
-      <td className="px-3 py-2 text-right">{formatInt(adSet.engagement)}</td>
-    </tr>
-    {isExpanded && adSet.audience && (
-      <tr className="bg-gray-50">
-        <td colSpan={6} className="px-6 py-4">
-          <div className="grid md:grid-cols-2 gap-4 text-sm">
-            <div className="space-y-3">
-              <div>
-                <p className="font-semibold text-gray-700 flex items-center gap-1 mb-1"><Users size={14} /> Location</p>
-                <p className="text-gray-600">{adSet.audience.location}</p>
-              </div>
-              <div>
-                <p className="font-semibold text-gray-700 mb-1">Demographics</p>
-                <p className="text-gray-600">Age: {adSet.audience.age} | Gender: {adSet.audience.gender}</p>
-                {adSet.audience.demographics?.length > 0 && <div className="mt-1"><AudienceTag items={adSet.audience.demographics} color="#D0E4E7" /></div>}
-              </div>
-            </div>
-            <div className="space-y-3">
-              {adSet.audience.interests?.length > 0 && <div><p className="font-semibold text-gray-700 mb-1">Interests</p><AudienceTag items={adSet.audience.interests} color="#d8ee91" /></div>}
-              {adSet.audience.behaviors?.length > 0 && <div><p className="font-semibold text-gray-700 mb-1">Behaviors</p><AudienceTag items={adSet.audience.behaviors} color="#faf089" /></div>}
-            </div>
-          </div>
-        </td>
-      </tr>
-    )}
-  </>
-)
+const AUTO_REFRESH_MS = 5 * 60 * 1000 // 5 minutes
 
 const SLA_DATA = [
-  { type: 'Monthly Report – GM', timeline: '5 working days after receiving the 7rooms report once the month is over' },
-  { type: 'Monthly Report – Internal', timeline: '5 working days after receiving the 7rooms report once the month is over' },
+  { type: 'Monthly Report - GM', timeline: '5 working days after receiving the 7rooms report once the month is over' },
+  { type: 'Monthly Report - Internal', timeline: '5 working days after receiving the 7rooms report once the month is over' },
   { type: 'Weekly Report', timeline: '2 working days after receiving the 7rooms report. For Thursday meetings, reports must be sent by Monday 10 AM' },
   { type: 'Influencer Report', timeline: '7 working days after the influencer launches the campaign, to allow time for content reach' },
   { type: 'AEO/SEO Report', timeline: '3-5 working days once the month is over' },
@@ -96,7 +26,19 @@ const SLA_DATA = [
   { type: 'Online/Offline Media Plans', timeline: '3-5 working days depending on seasonality, number of verticals, and budget' }
 ]
 
+// ── Helpers ──────────────────────────────────
+const formatNum = (n) => n?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'
+const formatInt = (n) => n?.toLocaleString('en-US') || '0'
+const formatK = (n) => n >= 1000000 ? (n / 1000000).toFixed(1) + 'M' : n >= 1000 ? (n / 1000).toFixed(0) + 'K' : n
+const calcAvgSpend = (rev, res) => res > 0 ? (rev / res).toFixed(2) : '0.00'
+
+// ── Main Dashboard ───────────────────────────
 export default function Dashboard() {
+  // Auth state
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [authChecked, setAuthChecked] = useState(false)
+
+  // Data state
   const [activeTab, setActiveTab] = useState('workspace')
   const [venues, setVenues] = useState([])
   const [selectedVenue, setSelectedVenue] = useState(null)
@@ -108,59 +50,86 @@ export default function Dashboard() {
   const [liveCampaigns, setLiveCampaigns] = useState({})
   const [workspaceData, setWorkspaceData] = useState([])
   const [monthlyData, setMonthlyData] = useState([])
-  const [loading, setLoading] = useState(true)
   const [expandedAdSets, setExpandedAdSets] = useState({})
   const [liveCampaignVenue, setLiveCampaignVenue] = useState('')
 
+  // UI state
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+  const [refreshing, setRefreshing] = useState(false)
+  const [lastUpdated, setLastUpdated] = useState(null)
+  const [toast, setToast] = useState(null)
+
+  // ── Auth check ───────────────────────────
   useEffect(() => {
-    fetchData()
+    const auth = sessionStorage.getItem('mpj_auth')
+    if (auth === 'true') {
+      setIsAuthenticated(true)
+    } else {
+      window.location.href = '/login'
+    }
+    setAuthChecked(true)
   }, [])
 
-  const fetchData = async () => {
+  // ── Data fetching ────────────────────────
+  const fetchData = useCallback(async (isRefresh = false) => {
+    if (isRefresh) setRefreshing(true)
+    if (!isRefresh) setLoading(true)
+    setError(null)
+
     try {
-      // Fetch venues
-      const { data: venuesData } = await supabase.from('venues').select('*').order('name')
-      setVenues(venuesData || [])
-      if (venuesData?.length > 0) {
+      const [venuesRes, reportsRes, campaignsRes, workspaceRes, monthlyRes] = await Promise.all([
+        supabase.from('venues').select('*').order('name'),
+        supabase.from('weekly_reports').select('*, venues(name, poc)').order('week_end', { ascending: false }),
+        supabase.from('live_campaigns').select('*, venues(name)'),
+        supabase.from('workspace_budgets').select('*').order('brand'),
+        supabase.from('monthly_rollups').select('*').order('month'),
+      ])
+
+      // Check for errors
+      const errors = [venuesRes, reportsRes, campaignsRes, workspaceRes, monthlyRes]
+        .filter(r => r.error)
+        .map(r => r.error.message)
+
+      if (errors.length > 0) {
+        throw new Error(errors.join('; '))
+      }
+
+      // Process venues
+      const venuesData = venuesRes.data || []
+      setVenues(venuesData)
+      if (venuesData.length > 0 && !selectedVenue) {
         setSelectedVenue(venuesData[0].name)
         setLiveCampaignVenue(venuesData[0].name)
       }
 
-      // Fetch weekly reports
-      const { data: reportsData } = await supabase.from('weekly_reports').select('*, venues(name, poc)').order('week_end', { ascending: false })
-      
-      // Group by venue and week
+      // Process weekly reports
       const reportsMap = {}
       const weeksSet = new Set()
-      
-      reportsData?.forEach(r => {
+      reportsRes.data?.forEach(r => {
         if (r.venues?.name) {
           const weekKey = `${r.week_start}_${r.week_end}`
           weeksSet.add(weekKey)
-          
           if (!reportsMap[r.venues.name]) reportsMap[r.venues.name] = {}
           reportsMap[r.venues.name][weekKey] = { ...r, poc: r.venues.poc }
         }
       })
-      
       setWeeklyReports(reportsMap)
-      
-      // Create weeks array sorted by end date
+
       const weeksArray = Array.from(weeksSet).map(wk => {
         const [start, end] = wk.split('_')
         return { key: wk, start, end, label: `${start} → ${end}` }
       }).sort((a, b) => new Date(b.end) - new Date(a.end))
-      
+
       setAllWeeks(weeksArray)
-      if (weeksArray.length > 0) {
+      if (weeksArray.length > 0 && !selectedWeek) {
         setSelectedWeek(weeksArray[0].key)
         if (weeksArray.length > 1) setPreviousWeek(weeksArray[1].key)
       }
 
-      // Fetch live campaigns
-      const { data: campaignsData } = await supabase.from('live_campaigns').select('*, venues(name)')
+      // Process live campaigns
       const campaignsMap = {}
-      campaignsData?.forEach(c => {
+      campaignsRes.data?.forEach(c => {
         if (c.venues?.name) {
           if (!campaignsMap[c.venues.name]) campaignsMap[c.venues.name] = []
           campaignsMap[c.venues.name].push(c)
@@ -168,33 +137,48 @@ export default function Dashboard() {
       })
       setLiveCampaigns(campaignsMap)
 
-      // Fetch workspace
-      const { data: workspaceRaw } = await supabase.from('workspace_budgets').select('*').order('brand')
-      setWorkspaceData(workspaceRaw || [])
+      // Workspace + Monthly
+      setWorkspaceData(workspaceRes.data || [])
+      setMonthlyData(monthlyRes.data || [])
+      setLastUpdated(new Date())
 
-      // Fetch monthly rollups
-      const { data: monthlyRaw } = await supabase.from('monthly_rollups').select('*').order('month')
-      setMonthlyData(monthlyRaw || [])
-
-    } catch (error) {
-      console.error('Error fetching data:', error)
+      if (isRefresh) {
+        setToast({ message: 'Data refreshed successfully', type: 'success' })
+      }
+    } catch (err) {
+      console.error('Error fetching data:', err)
+      setError(err.message || 'Failed to load dashboard data')
+      if (isRefresh) {
+        setToast({ message: 'Failed to refresh data', type: 'error' })
+      }
     } finally {
       setLoading(false)
+      setRefreshing(false)
     }
-  }
+  }, [selectedVenue, selectedWeek])
 
-  const toggleAdSet = (name) => setExpandedAdSets(prev => ({ ...prev, [name]: !prev[name] }))
+  // Initial fetch
+  useEffect(() => {
+    if (isAuthenticated) fetchData()
+  }, [isAuthenticated])
 
-  const sortByImpressions = (arr) => {
+  // Auto-refresh
+  useEffect(() => {
+    if (!isAuthenticated) return
+    const interval = setInterval(() => fetchData(true), AUTO_REFRESH_MS)
+    return () => clearInterval(interval)
+  }, [isAuthenticated, fetchData])
+
+  // ── Derived data (memoized) ──────────────
+  const sortByImpressions = useCallback((arr) => {
     if (!arr || !Array.isArray(arr)) return []
     return [...arr].sort((a, b) => (b.impressions || 0) - (a.impressions || 0))
-  }
+  }, [])
 
-  const getVenueData = (venueName, weekKey) => {
+  const getVenueData = useCallback((venueName, weekKey) => {
     const venue = venues.find(v => v.name === venueName)
     const report = weeklyReports[venueName]?.[weekKey]
-    
-    // Sort meta data by impressions
+
     const sortedMeta = report?.meta_data ? {
       campaigns: sortByImpressions(report.meta_data.campaigns),
       adSets: sortByImpressions(report.meta_data.adSets),
@@ -213,14 +197,53 @@ export default function Dashboard() {
       liveCampaigns: liveCampaigns[venueName] || [],
       poc: report?.poc || venue?.poc
     }
-  }
+  }, [venues, weeklyReports, liveCampaigns, sortByImpressions])
+
+  const currentData = useMemo(() =>
+    selectedVenue && selectedWeek ? getVenueData(selectedVenue, selectedWeek) : null
+  , [selectedVenue, selectedWeek, getVenueData])
+
+  const previousData = useMemo(() =>
+    selectedVenue && previousWeek && compareMode ? getVenueData(selectedVenue, previousWeek) : null
+  , [selectedVenue, previousWeek, compareMode, getVenueData])
+
+  const executiveMetrics = useMemo(() => {
+    if (!selectedWeek) return { totalAdSpend: 0, totalRevenue: 0, totalReservations: 0, allVenuesSpend: [], pocPieData: [] }
+
+    let totalAdSpend = 0, totalRevenue = 0, totalReservations = 0
+    const allVenuesSpend = []
+    const spendByPOC = {}
+
+    venues.forEach(v => {
+      const d = getVenueData(v.name, selectedWeek)
+      totalAdSpend += d.adSpend || 0
+      totalRevenue += d.revenue?.totalBusiness || 0
+      totalReservations += d.revenue?.totalReservations || 0
+      allVenuesSpend.push({ name: v.name.length > 12 ? v.name.substring(0, 12) + '..' : v.name, spend: d.adSpend })
+      spendByPOC[v.poc] = (spendByPOC[v.poc] || 0) + (d.adSpend || 0)
+    })
+
+    const pocPieData = Object.entries(spendByPOC).map(([name, value]) => ({ name, value }))
+    return { totalAdSpend, totalRevenue, totalReservations, allVenuesSpend, pocPieData }
+  }, [venues, selectedWeek, getVenueData])
 
   const calcROAS = (d) => (!d?.revenue || !d?.adSpend) ? '0x' : (d.revenue.totalOnline / d.adSpend).toFixed(2) + 'x'
   const calcOnlinePercent = (d) => {
     if (!d?.revenue) return { rev: '0%', res: '0%' }
-    return { rev: ((d.revenue.totalOnline / d.revenue.totalBusiness) * 100).toFixed(2) + '%', res: ((d.revenue.onlineReservations / d.revenue.totalReservations) * 100).toFixed(2) + '%' }
+    return {
+      rev: ((d.revenue.totalOnline / d.revenue.totalBusiness) * 100).toFixed(2) + '%',
+      res: ((d.revenue.onlineReservations / d.revenue.totalReservations) * 100).toFixed(2) + '%'
+    }
   }
-  const calcAvgSpend = (rev, res) => res > 0 ? (rev / res).toFixed(2) : '0.00'
+
+  const getBrandPOC = (brandName) => {
+    const venueName = brandName.replace(' Media', '')
+    const venue = venues.find(v => v.name === venueName)
+    return venue?.poc || '-'
+  }
+
+  // ── Actions ────────────────────────────
+  const toggleAdSet = (name) => setExpandedAdSets(prev => ({ ...prev, [name]: !prev[name] }))
 
   const exportToCSV = () => {
     let csv = 'Venue,Week,Ad Spend,Total Revenue,Online Revenue,ROAS,Reservations\n'
@@ -231,7 +254,14 @@ export default function Dashboard() {
     const blob = new Blob([csv], { type: 'text/csv' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
-    a.href = url; a.download = 'mpj-report.csv'; a.click()
+    a.href = url; a.download = `mpj-report-${selectedWeek}.csv`; a.click()
+    URL.revokeObjectURL(url)
+    setToast({ message: 'CSV exported successfully', type: 'success' })
+  }
+
+  const handleLogout = () => {
+    sessionStorage.removeItem('mpj_auth')
+    window.location.href = '/login'
   }
 
   const tabs = [
@@ -241,76 +271,123 @@ export default function Dashboard() {
     { id: 'live', label: 'Live Campaigns', icon: Megaphone }
   ]
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center"><p>Loading...</p></div>
+  // ── Render guards ──────────────────────
+  if (!authChecked) return null
+  if (!isAuthenticated) return null
+  if (loading) return <DashboardSkeleton />
+  if (error && venues.length === 0) return <ErrorState message={error} onRetry={() => fetchData()} />
 
-  const currentData = selectedVenue && selectedWeek ? getVenueData(selectedVenue, selectedWeek) : null
-  const previousData = selectedVenue && previousWeek && compareMode ? getVenueData(selectedVenue, previousWeek) : null
-  
-  const allVenuesSpend = venues.map(v => ({ name: v.name.substring(0, 10), spend: getVenueData(v.name, selectedWeek).adSpend }))
-  const spendByPOC = venues.reduce((acc, v) => { acc[v.poc] = (acc[v.poc] || 0) + (getVenueData(v.name, selectedWeek).adSpend || 0); return acc }, {})
-  const pocPieData = Object.entries(spendByPOC).map(([name, value]) => ({ name, value }))
-  const totalAdSpend = venues.reduce((s, v) => s + (getVenueData(v.name, selectedWeek).adSpend || 0), 0)
-  const totalRevenue = venues.reduce((s, v) => s + (getVenueData(v.name, selectedWeek).revenue?.totalBusiness || 0), 0)
-  const totalReservations = venues.reduce((s, v) => s + (getVenueData(v.name, selectedWeek).revenue?.totalReservations || 0), 0)
-
-  // Get POC for workspace brands
-  const getBrandPOC = (brandName) => {
-    const venueName = brandName.replace(' Media', '')
-    const venue = venues.find(v => v.name === venueName)
-    return venue?.poc || '-'
-  }
-
+  // ── Render ─────────────────────────────
   return (
-    <div className="min-h-screen bg-gray-100">
-      <div style={{ backgroundColor: '#76527c' }} className="text-white px-6 py-4">
-        <div className="max-w-7xl mx-auto flex justify-between items-center flex-wrap gap-4">
+    <div className="min-h-screen bg-gray-50">
+      {/* Toast */}
+      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+
+      {/* ── Header ──────────────────────── */}
+      <header className="bg-mpj-purple text-white px-4 md:px-6 py-4 no-print">
+        <div className="max-w-7xl mx-auto flex justify-between items-center flex-wrap gap-3">
           <div>
-            <h1 className="text-xl font-bold">MPJ F&Bs Performance Dashboard</h1>
-            <p className="text-sm opacity-80">Marriott Palm Jumeirah Weekly Reports</p>
+            <h1 className="text-lg md:text-xl font-bold tracking-tight">MPJ F&Bs Performance Dashboard</h1>
+            <p className="text-xs md:text-sm text-white/70">
+              Marriott Palm Jumeirah Weekly Reports
+              {lastUpdated && (
+                <span className="ml-2 hidden sm:inline">
+                  | Updated {lastUpdated.toLocaleTimeString()}
+                </span>
+              )}
+            </p>
           </div>
-          <div className="flex gap-3 items-center">
+          <div className="flex gap-2 items-center flex-wrap">
             {allWeeks.length > 1 && (
-              <button onClick={() => setCompareMode(!compareMode)} className={`flex items-center gap-2 px-3 py-2 rounded text-sm font-medium ${compareMode ? 'bg-green-600' : 'bg-white/20 hover:bg-white/30'}`}>
-                {compareMode ? '✓ Compare Mode' : 'Compare Weeks'}
+              <button
+                onClick={() => setCompareMode(!compareMode)}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs md:text-sm font-medium transition-colors cursor-pointer ${
+                  compareMode ? 'bg-green-500 text-white' : 'bg-white/15 hover:bg-white/25 text-white'
+                }`}
+              >
+                {compareMode ? 'Compare ON' : 'Compare'}
               </button>
             )}
-            <button onClick={exportToCSV} className="flex items-center gap-2 px-3 py-2 bg-white/20 rounded hover:bg-white/30 text-sm">
-              <Download size={16} /> Export CSV
+            <button
+              onClick={() => fetchData(true)}
+              disabled={refreshing}
+              className="flex items-center gap-1.5 px-3 py-2 bg-white/15 rounded-lg hover:bg-white/25 text-xs md:text-sm cursor-pointer disabled:opacity-50 transition-colors"
+              aria-label="Refresh data"
+            >
+              <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
+              <span className="hidden sm:inline">Refresh</span>
+            </button>
+            <button
+              onClick={exportToCSV}
+              className="flex items-center gap-1.5 px-3 py-2 bg-white/15 rounded-lg hover:bg-white/25 text-xs md:text-sm cursor-pointer transition-colors"
+              aria-label="Export to CSV"
+            >
+              <Download size={14} />
+              <span className="hidden sm:inline">Export</span>
+            </button>
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-1.5 px-3 py-2 bg-white/15 rounded-lg hover:bg-white/25 text-xs md:text-sm cursor-pointer transition-colors"
+              aria-label="Log out"
+            >
+              <LogOut size={14} />
             </button>
           </div>
         </div>
-      </div>
+      </header>
 
-      <div className="bg-white border-b">
-        <div className="max-w-7xl mx-auto flex gap-1 px-6 overflow-x-auto">
+      {/* ── Tabs ────────────────────────── */}
+      <nav className="bg-white border-b sticky top-0 z-30 no-print" aria-label="Dashboard sections">
+        <div className="max-w-7xl mx-auto flex gap-0.5 px-4 md:px-6 overflow-x-auto scrollbar-hide">
           {tabs.map(tab => (
-            <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition whitespace-nowrap ${activeTab === tab.id ? 'border-purple-600 text-purple-700' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
-              <tab.icon size={16} /> {tab.label}
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-1.5 px-3 md:px-4 py-3 text-xs md:text-sm font-medium border-b-2 transition-colors whitespace-nowrap cursor-pointer ${
+                activeTab === tab.id
+                  ? 'border-mpj-purple text-mpj-purple'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-200'
+              }`}
+              aria-selected={activeTab === tab.id}
+              role="tab"
+            >
+              <tab.icon size={15} />
+              {tab.label}
             </button>
           ))}
         </div>
-      </div>
+      </nav>
 
-      <div className="max-w-7xl mx-auto p-6">
-        
-        {/* WORKSPACE */}
+      {/* ── Content ─────────────────────── */}
+      <main className="max-w-7xl mx-auto p-4 md:p-6">
+
+        {/* WORKSPACE TAB */}
         {activeTab === 'workspace' && (
-          <>
-            <CollapsibleSection title="Budget Workspace - All Brands">
-              <div className="overflow-x-auto">
+          <div className="space-y-4 animate-fade-in">
+            <CollapsibleSection title="Budget Workspace - All Brands" icon={DollarSign}>
+              <div className="table-responsive">
                 <table className="w-full text-sm">
-                  <thead className="bg-gray-50">
-                    <tr><th className="text-left px-2 py-2">Brand</th><th className="text-left px-2 py-2">POC</th><th className="text-right px-2 py-2">Monthly Budget</th><th className="text-right px-2 py-2">Total Spend</th><th className="text-right px-2 py-2">Remaining</th><th className="text-right px-2 py-2">% Spent</th></tr>
+                  <thead className="bg-gray-50 border-b">
+                    <tr>
+                      <th className="text-left px-3 py-2.5 font-semibold text-gray-600">Brand</th>
+                      <th className="text-left px-3 py-2.5 font-semibold text-gray-600">POC</th>
+                      <th className="text-right px-3 py-2.5 font-semibold text-gray-600">Monthly Budget</th>
+                      <th className="text-right px-3 py-2.5 font-semibold text-gray-600">Total Spend</th>
+                      <th className="text-right px-3 py-2.5 font-semibold text-gray-600 hidden md:table-cell">Remaining</th>
+                      <th className="text-right px-3 py-2.5 font-semibold text-gray-600">% Spent</th>
+                    </tr>
                   </thead>
                   <tbody>
                     {workspaceData.map((w, i) => (
-                      <tr key={i} className="border-t">
-                        <td className="px-2 py-2 font-medium">{w.brand}</td>
-                        <td className="px-2 py-2">{getBrandPOC(w.brand)}</td>
-                        <td className="px-2 py-2 text-right">AED {formatNum(w.monthly_budget)}</td>
-                        <td className="px-2 py-2 text-right">AED {formatNum(w.total_spend)}</td>
-                        <td className={`px-2 py-2 text-right ${w.remaining < 0 ? 'text-red-600' : 'text-green-600'}`}>AED {formatNum(w.remaining)}</td>
-                        <td className="px-2 py-2 text-right font-medium">{w.pct_spent}</td>
+                      <tr key={i} className="border-t hover:bg-gray-50/50 transition-colors">
+                        <td className="px-3 py-2.5 font-medium text-gray-900">{w.brand}</td>
+                        <td className="px-3 py-2.5 text-gray-600">{getBrandPOC(w.brand)}</td>
+                        <td className="px-3 py-2.5 text-right tabular-nums">AED {formatNum(w.monthly_budget)}</td>
+                        <td className="px-3 py-2.5 text-right tabular-nums">AED {formatNum(w.total_spend)}</td>
+                        <td className={`px-3 py-2.5 text-right tabular-nums hidden md:table-cell font-medium ${w.remaining < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                          AED {formatNum(w.remaining)}
+                        </td>
+                        <td className="px-3 py-2.5 text-right font-semibold">{w.pct_spent}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -318,115 +395,188 @@ export default function Dashboard() {
               </div>
             </CollapsibleSection>
 
-            <CollapsibleSection title="SLA Timelines" color="#4a5568">
-              <div className="overflow-x-auto">
+            <CollapsibleSection title="SLA Timelines" color="#4a5568" icon={Calendar}>
+              <div className="table-responsive">
                 <table className="w-full text-sm">
-                  <thead className="bg-gray-50">
-                    <tr><th className="text-left px-3 py-2">Report Type</th><th className="text-left px-3 py-2">Timeline</th></tr>
+                  <thead className="bg-gray-50 border-b">
+                    <tr>
+                      <th className="text-left px-3 py-2.5 font-semibold text-gray-600">Report Type</th>
+                      <th className="text-left px-3 py-2.5 font-semibold text-gray-600">Timeline</th>
+                    </tr>
                   </thead>
                   <tbody>
                     {SLA_DATA.map((sla, i) => (
-                      <tr key={i} className="border-t">
-                        <td className="px-3 py-2 font-medium">{sla.type}</td>
-                        <td className="px-3 py-2">{sla.timeline}</td>
+                      <tr key={i} className="border-t hover:bg-gray-50/50 transition-colors">
+                        <td className="px-3 py-2.5 font-medium text-gray-900 whitespace-nowrap">{sla.type}</td>
+                        <td className="px-3 py-2.5 text-gray-600">{sla.timeline}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
-                <p className="text-xs text-gray-500 mt-3">*Timelines may shift due to public holidays (e.g., Eid) or country-specific circumstances.</p>
+                <p className="text-xs text-gray-400 mt-4">*Timelines may shift due to public holidays (e.g., Eid) or country-specific circumstances.</p>
               </div>
             </CollapsibleSection>
-          </>
+          </div>
         )}
 
-        {/* EXECUTIVE */}
+        {/* EXECUTIVE SUMMARY TAB */}
         {activeTab === 'executive' && (
-          <>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-              <div className="bg-white p-4 rounded-lg shadow"><p className="text-xs text-gray-500">Total Ad Spend</p><p className="text-2xl font-bold" style={{ color: '#76527c' }}>AED {formatNum(totalAdSpend)}</p></div>
-              <div className="bg-white p-4 rounded-lg shadow"><p className="text-xs text-gray-500">Total Revenue</p><p className="text-2xl font-bold" style={{ color: '#76527c' }}>AED {formatNum(totalRevenue)}</p></div>
-              <div className="bg-white p-4 rounded-lg shadow"><p className="text-xs text-gray-500">Total Reservations</p><p className="text-2xl font-bold" style={{ color: '#76527c' }}>{formatInt(totalReservations)}</p></div>
-              <div className="bg-white p-4 rounded-lg shadow"><p className="text-xs text-gray-500">Combined ROAS</p><p className="text-2xl font-bold" style={{ color: '#76527c' }}>{totalAdSpend > 0 ? (totalRevenue / totalAdSpend).toFixed(2) : 0}x</p></div>
+          <div className="space-y-4 animate-fade-in">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+              <KPICard label="Total Ad Spend" value={formatNum(executiveMetrics.totalAdSpend)} prefix="AED " icon={DollarSign} />
+              <KPICard label="Total Revenue" value={formatNum(executiveMetrics.totalRevenue)} prefix="AED " icon={TrendingUp} />
+              <KPICard label="Total Reservations" value={formatInt(executiveMetrics.totalReservations)} icon={ShoppingBag} />
+              <KPICard label="Combined ROAS" value={executiveMetrics.totalAdSpend > 0 ? (executiveMetrics.totalRevenue / executiveMetrics.totalAdSpend).toFixed(2) : '0'} suffix="x" icon={Target} />
             </div>
-            <CollapsibleSection title="All Venues Performance">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50"><tr><th className="text-left px-3 py-2">Venue</th><th className="text-left px-3 py-2">POC</th><th className="text-right px-3 py-2">Ad Spend</th><th className="text-right px-3 py-2">Revenue</th><th className="text-right px-3 py-2">Reservations</th><th className="text-right px-3 py-2">ROAS</th></tr></thead>
-                <tbody>
-                  {venues.map(v => {
-                    const d = getVenueData(v.name, selectedWeek)
-                    return <tr key={v.id} className="border-t"><td className="px-3 py-2 font-medium">{v.name}</td><td className="px-3 py-2">{v.poc}</td><td className="px-3 py-2 text-right">AED {formatNum(d.adSpend)}</td><td className="px-3 py-2 text-right">AED {formatNum(d.revenue?.totalBusiness || 0)}</td><td className="px-3 py-2 text-right">{formatInt(d.revenue?.totalReservations || 0)}</td><td className="px-3 py-2 text-right">{calcROAS(d)}</td></tr>
-                  })}
-                </tbody>
-              </table>
+
+            <CollapsibleSection title="All Venues Performance" icon={BarChart3}>
+              <div className="table-responsive">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 border-b">
+                    <tr>
+                      <th className="text-left px-3 py-2.5 font-semibold text-gray-600">Venue</th>
+                      <th className="text-left px-3 py-2.5 font-semibold text-gray-600 hidden md:table-cell">POC</th>
+                      <th className="text-right px-3 py-2.5 font-semibold text-gray-600">Ad Spend</th>
+                      <th className="text-right px-3 py-2.5 font-semibold text-gray-600">Revenue</th>
+                      <th className="text-right px-3 py-2.5 font-semibold text-gray-600 hidden sm:table-cell">Reservations</th>
+                      <th className="text-right px-3 py-2.5 font-semibold text-gray-600">ROAS</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {venues.map(v => {
+                      const d = getVenueData(v.name, selectedWeek)
+                      return (
+                        <tr key={v.id} className="border-t hover:bg-gray-50/50 transition-colors">
+                          <td className="px-3 py-2.5 font-medium text-gray-900">{v.name}</td>
+                          <td className="px-3 py-2.5 text-gray-600 hidden md:table-cell">{v.poc}</td>
+                          <td className="px-3 py-2.5 text-right tabular-nums">AED {formatNum(d.adSpend)}</td>
+                          <td className="px-3 py-2.5 text-right tabular-nums">AED {formatNum(d.revenue?.totalBusiness || 0)}</td>
+                          <td className="px-3 py-2.5 text-right tabular-nums hidden sm:table-cell">{formatInt(d.revenue?.totalReservations || 0)}</td>
+                          <td className="px-3 py-2.5 text-right font-semibold text-mpj-purple">{calcROAS(d)}</td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </CollapsibleSection>
+
             {monthlyData.length > 0 && (
-              <CollapsibleSection title="Monthly Rollup" color="#4a5568">
+              <CollapsibleSection title="Monthly Rollup" color="#4a5568" icon={TrendingUp}>
                 <div className="grid md:grid-cols-2 gap-6">
-                  <div><h4 className="text-sm font-semibold mb-3">Ad Spend vs Revenue</h4>
-                    <ResponsiveContainer width="100%" height={200}>
-                      <BarChart data={monthlyData}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="month" /><YAxis tickFormatter={formatK} /><Tooltip formatter={(v) => formatK(v)} /><Legend /><Bar dataKey="ad_spend" fill="#76527c" name="Ad Spend" /><Bar dataKey="revenue" fill="#d8ee91" name="Revenue" /></BarChart>
+                  <div>
+                    <h4 className="text-sm font-semibold text-gray-700 mb-3">Ad Spend vs Revenue</h4>
+                    <ResponsiveContainer width="100%" height={220}>
+                      <BarChart data={monthlyData}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                        <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+                        <YAxis tickFormatter={formatK} tick={{ fontSize: 11 }} />
+                        <Tooltip formatter={(v) => 'AED ' + formatNum(v)} />
+                        <Legend />
+                        <Bar dataKey="ad_spend" fill="#76527c" name="Ad Spend" radius={[4, 4, 0, 0]} />
+                        <Bar dataKey="revenue" fill="#d8ee91" name="Revenue" radius={[4, 4, 0, 0]} />
+                      </BarChart>
                     </ResponsiveContainer>
                   </div>
-                  <div><h4 className="text-sm font-semibold mb-3">Reservations Trend</h4>
-                    <ResponsiveContainer width="100%" height={200}>
-                      <ReLineChart data={monthlyData}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="month" /><YAxis /><Tooltip /><Line type="monotone" dataKey="reservations" stroke="#76527c" strokeWidth={3} /></ReLineChart>
+                  <div>
+                    <h4 className="text-sm font-semibold text-gray-700 mb-3">Reservations Trend</h4>
+                    <ResponsiveContainer width="100%" height={220}>
+                      <ReLineChart data={monthlyData}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                        <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+                        <YAxis tick={{ fontSize: 11 }} />
+                        <Tooltip />
+                        <Line type="monotone" dataKey="reservations" stroke="#76527c" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                      </ReLineChart>
                     </ResponsiveContainer>
                   </div>
                 </div>
               </CollapsibleSection>
             )}
-            <CollapsibleSection title="Visual Trends" color="#2d3748">
+
+            <CollapsibleSection title="Visual Trends" color="#2d3748" icon={BarChart3}>
               <div className="grid md:grid-cols-2 gap-6">
-                <div><h4 className="text-sm font-semibold mb-3">Ad Spend by Venue</h4>
-                  <ResponsiveContainer width="100%" height={220}>
-                    <BarChart data={allVenuesSpend} layout="vertical"><CartesianGrid strokeDasharray="3 3" /><XAxis type="number" tickFormatter={formatK} /><YAxis dataKey="name" type="category" width={80} tick={{ fontSize: 11 }} /><Tooltip formatter={(v) => 'AED ' + formatNum(v)} /><Bar dataKey="spend" fill="#76527c" /></BarChart>
+                <div>
+                  <h4 className="text-sm font-semibold text-gray-700 mb-3">Ad Spend by Venue</h4>
+                  <ResponsiveContainer width="100%" height={240}>
+                    <BarChart data={executiveMetrics.allVenuesSpend} layout="vertical">
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                      <XAxis type="number" tickFormatter={formatK} tick={{ fontSize: 11 }} />
+                      <YAxis dataKey="name" type="category" width={90} tick={{ fontSize: 10 }} />
+                      <Tooltip formatter={(v) => 'AED ' + formatNum(v)} />
+                      <Bar dataKey="spend" fill="#76527c" radius={[0, 4, 4, 0]} />
+                    </BarChart>
                   </ResponsiveContainer>
                 </div>
-                <div><h4 className="text-sm font-semibold mb-3">Spend by POC</h4>
-                  <ResponsiveContainer width="100%" height={220}>
-                    <PieChart><Pie data={pocPieData} cx="50%" cy="50%" outerRadius={70} dataKey="value" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>{pocPieData.map((e, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}</Pie><Tooltip formatter={(v) => 'AED ' + formatNum(v)} /></PieChart>
+                <div>
+                  <h4 className="text-sm font-semibold text-gray-700 mb-3">Spend by POC</h4>
+                  <ResponsiveContainer width="100%" height={240}>
+                    <PieChart>
+                      <Pie data={executiveMetrics.pocPieData} cx="50%" cy="50%" outerRadius={80} innerRadius={40} dataKey="value" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={{ strokeWidth: 1 }}>
+                        {executiveMetrics.pocPieData.map((e, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                      </Pie>
+                      <Tooltip formatter={(v) => 'AED ' + formatNum(v)} />
+                    </PieChart>
                   </ResponsiveContainer>
                 </div>
               </div>
             </CollapsibleSection>
-          </>
+          </div>
         )}
 
-        {/* VENUE VIEW */}
+        {/* VENUE VIEW TAB */}
         {activeTab === 'venue' && currentData && (
-          <>
-            <div className="mb-6 flex items-center gap-4 flex-wrap">
-              <select value={selectedVenue} onChange={(e) => setSelectedVenue(e.target.value)} className="px-4 py-2 border rounded font-medium">
-                {venues.map(v => <option key={v.id} value={v.name}>{v.name}</option>)}
-              </select>
-              <select value={selectedWeek} onChange={(e) => setSelectedWeek(e.target.value)} className="px-4 py-2 border rounded font-medium">
-                {allWeeks.map(w => <option key={w.key} value={w.key}>{w.label}</option>)}
-              </select>
-              <span className="text-sm text-gray-600">POC: <strong>{currentData.poc}</strong></span>
+          <div className="space-y-4 animate-fade-in">
+            <div className="flex items-center gap-3 flex-wrap bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
+              <div className="flex-1 min-w-[180px]">
+                <label htmlFor="venue-select" className="block text-xs font-medium text-gray-500 mb-1">Venue</label>
+                <select
+                  id="venue-select"
+                  value={selectedVenue}
+                  onChange={(e) => setSelectedVenue(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg font-medium text-sm focus:outline-none focus:ring-2 focus:ring-mpj-purple/30 focus:border-mpj-purple cursor-pointer"
+                >
+                  {venues.map(v => <option key={v.id} value={v.name}>{v.name}</option>)}
+                </select>
+              </div>
+              <div className="flex-1 min-w-[200px]">
+                <label htmlFor="week-select" className="block text-xs font-medium text-gray-500 mb-1">Reporting Week</label>
+                <select
+                  id="week-select"
+                  value={selectedWeek}
+                  onChange={(e) => setSelectedWeek(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg font-medium text-sm focus:outline-none focus:ring-2 focus:ring-mpj-purple/30 focus:border-mpj-purple cursor-pointer"
+                >
+                  {allWeeks.map(w => <option key={w.key} value={w.key}>{w.label}</option>)}
+                </select>
+              </div>
+              <div className="flex items-end pb-0.5">
+                <span className="text-xs text-gray-500">POC: <strong className="text-mpj-purple">{currentData.poc}</strong></span>
+              </div>
             </div>
 
             {compareMode && previousData && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-                <h3 className="font-semibold text-blue-900 mb-3">Period Comparison</h3>
-                <div className="grid md:grid-cols-4 gap-4">
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 animate-slide-down">
+                <h3 className="font-semibold text-blue-900 mb-3 text-sm">Period Comparison</h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div>
-                    <p className="text-xs text-blue-700">Ad Spend</p>
-                    <p className="font-semibold">AED {formatNum(currentData.adSpend)}</p>
+                    <p className="text-xs text-blue-600 font-medium">Ad Spend</p>
+                    <p className="font-semibold text-gray-900">AED {formatNum(currentData.adSpend)}</p>
                     <DeltaBadge current={currentData.adSpend} previous={previousData.adSpend} />
                   </div>
                   <div>
-                    <p className="text-xs text-blue-700">Total Impressions</p>
-                    <p className="font-semibold">{formatInt(currentData.meta.campaigns.reduce((s, c) => s + (c.impressions || 0), 0))}</p>
+                    <p className="text-xs text-blue-600 font-medium">Impressions</p>
+                    <p className="font-semibold text-gray-900">{formatInt(currentData.meta.campaigns.reduce((s, c) => s + (c.impressions || 0), 0))}</p>
                     <DeltaBadge current={currentData.meta.campaigns.reduce((s, c) => s + (c.impressions || 0), 0)} previous={previousData.meta.campaigns.reduce((s, c) => s + (c.impressions || 0), 0)} />
                   </div>
                   <div>
-                    <p className="text-xs text-blue-700">Revenue</p>
-                    <p className="font-semibold">AED {formatNum(currentData.revenue?.totalBusiness || 0)}</p>
+                    <p className="text-xs text-blue-600 font-medium">Revenue</p>
+                    <p className="font-semibold text-gray-900">AED {formatNum(currentData.revenue?.totalBusiness || 0)}</p>
                     <DeltaBadge current={currentData.revenue?.totalBusiness || 0} previous={previousData.revenue?.totalBusiness || 0} />
                   </div>
                   <div>
-                    <p className="text-xs text-blue-700">Reservations</p>
-                    <p className="font-semibold">{formatInt(currentData.revenue?.totalReservations || 0)}</p>
+                    <p className="text-xs text-blue-600 font-medium">Reservations</p>
+                    <p className="font-semibold text-gray-900">{formatInt(currentData.revenue?.totalReservations || 0)}</p>
                     <DeltaBadge current={currentData.revenue?.totalReservations || 0} previous={previousData.revenue?.totalReservations || 0} />
                   </div>
                 </div>
@@ -434,25 +584,27 @@ export default function Dashboard() {
             )}
 
             {currentData.meta?.analysis && (
-              <CollapsibleSection title="Analysis & Recommendations" color="#2563eb">
+              <CollapsibleSection title="Analysis & Recommendations" color="#2563eb" icon={Lightbulb}>
                 <div className="space-y-4">
                   <div className="bg-blue-50 p-4 rounded-lg">
-                    <div className="flex items-start gap-2">
-                      <Lightbulb size={20} className="text-blue-600 mt-0.5" />
+                    <div className="flex items-start gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <Lightbulb size={16} className="text-blue-600" />
+                      </div>
                       <div>
-                        <h4 className="font-semibold text-gray-800 mb-2">Summary</h4>
-                        <p className="text-gray-700 text-sm">{currentData.meta.analysis.summary}</p>
+                        <h4 className="font-semibold text-gray-900 mb-1.5 text-sm">Summary</h4>
+                        <p className="text-gray-700 text-sm leading-relaxed">{currentData.meta.analysis.summary}</p>
                       </div>
                     </div>
                   </div>
                   {currentData.meta.analysis.recommendations?.length > 0 && (
                     <div>
-                      <h4 className="font-semibold text-gray-800 mb-2">Recommendations</h4>
+                      <h4 className="font-semibold text-gray-800 mb-2 text-sm">Recommendations</h4>
                       <ul className="space-y-2">
                         {currentData.meta.analysis.recommendations.map((rec, i) => (
-                          <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
-                            <span className="text-green-600 font-bold">→</span>
-                            <span>{rec}</span>
+                          <li key={i} className="flex items-start gap-2.5 text-sm text-gray-700 bg-gray-50 px-3 py-2.5 rounded-lg">
+                            <span className="text-mpj-purple font-bold text-lg leading-none mt-0.5">-</span>
+                            <span className="leading-relaxed">{rec}</span>
                           </li>
                         ))}
                       </ul>
@@ -463,25 +615,92 @@ export default function Dashboard() {
             )}
 
             {currentData.meta?.campaigns?.length > 0 && (
-              <CollapsibleSection title="Meta Ads Performance">
+              <CollapsibleSection title="Meta Ads Performance" icon={Megaphone}>
                 <div className="space-y-6">
-                  <div><h4 className="text-sm font-semibold mb-2">Campaign Level</h4>
-                    <table className="w-full text-sm"><thead className="bg-gray-50"><tr><th className="text-left px-3 py-2">Campaign</th><th className="text-right px-3 py-2">Impressions</th><th className="text-right px-3 py-2">Clicks</th><th className="text-right px-3 py-2">CTR</th><th className="text-right px-3 py-2">Link Clicks</th><th className="text-right px-3 py-2">Engagement</th></tr></thead>
-                      <tbody>{currentData.meta.campaigns.map((c, i) => <tr key={i} className="border-t"><td className="px-3 py-2">{c.name}</td><td className="px-3 py-2 text-right">{formatInt(c.impressions)}</td><td className="px-3 py-2 text-right">{formatInt(c.clicks)}</td><td className="px-3 py-2 text-right">{c.ctr}</td><td className="px-3 py-2 text-right">{formatInt(c.linkClicks)}</td><td className="px-3 py-2 text-right">{formatInt(c.engagement)}</td></tr>)}</tbody>
-                    </table>
-                  </div>
-                  {currentData.meta.adSets?.length > 0 && (
-                    <div><h4 className="text-sm font-semibold mb-2">Ad Set Level <span className="text-xs font-normal text-gray-500">(click to view audience)</span></h4>
-                      <table className="w-full text-sm"><thead className="bg-gray-50"><tr><th className="text-left px-3 py-2">Ad Set</th><th className="text-right px-3 py-2">Impressions</th><th className="text-right px-3 py-2">Clicks</th><th className="text-right px-3 py-2">CTR</th><th className="text-right px-3 py-2">Link Clicks</th><th className="text-right px-3 py-2">Engagement</th></tr></thead>
-                        <tbody>{currentData.meta.adSets.map((a) => <AdSetRow key={a.name} adSet={a} isExpanded={expandedAdSets[a.name]} onToggle={() => toggleAdSet(a.name)} />)}</tbody>
+                  <div>
+                    <h4 className="text-sm font-semibold text-gray-700 mb-2">Campaign Level</h4>
+                    <div className="table-responsive">
+                      <table className="w-full text-sm">
+                        <thead className="bg-gray-50 border-b">
+                          <tr>
+                            <th className="text-left px-3 py-2.5 font-semibold text-gray-600">Campaign</th>
+                            <th className="text-right px-3 py-2.5 font-semibold text-gray-600">Impressions</th>
+                            <th className="text-right px-3 py-2.5 font-semibold text-gray-600">Clicks</th>
+                            <th className="text-right px-3 py-2.5 font-semibold text-gray-600">CTR</th>
+                            <th className="text-right px-3 py-2.5 font-semibold text-gray-600 hidden md:table-cell">Link Clicks</th>
+                            <th className="text-right px-3 py-2.5 font-semibold text-gray-600 hidden md:table-cell">Engagement</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {currentData.meta.campaigns.map((c, i) => (
+                            <tr key={i} className="border-t hover:bg-gray-50/50 transition-colors">
+                              <td className="px-3 py-2.5 font-medium max-w-[200px] truncate">{c.name}</td>
+                              <td className="px-3 py-2.5 text-right tabular-nums">{formatInt(c.impressions)}</td>
+                              <td className="px-3 py-2.5 text-right tabular-nums">{formatInt(c.clicks)}</td>
+                              <td className="px-3 py-2.5 text-right tabular-nums">{c.ctr}</td>
+                              <td className="px-3 py-2.5 text-right tabular-nums hidden md:table-cell">{formatInt(c.linkClicks)}</td>
+                              <td className="px-3 py-2.5 text-right tabular-nums hidden md:table-cell">{formatInt(c.engagement)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
                       </table>
                     </div>
+                  </div>
+
+                  {currentData.meta.adSets?.length > 0 && (
+                    <div>
+                      <h4 className="text-sm font-semibold text-gray-700 mb-2">
+                        Ad Set Level <span className="text-xs font-normal text-gray-400">(click to view audience)</span>
+                      </h4>
+                      <div className="table-responsive">
+                        <table className="w-full text-sm">
+                          <thead className="bg-gray-50 border-b">
+                            <tr>
+                              <th className="text-left px-3 py-2.5 font-semibold text-gray-600">Ad Set</th>
+                              <th className="text-right px-3 py-2.5 font-semibold text-gray-600">Impressions</th>
+                              <th className="text-right px-3 py-2.5 font-semibold text-gray-600">Clicks</th>
+                              <th className="text-right px-3 py-2.5 font-semibold text-gray-600">CTR</th>
+                              <th className="text-right px-3 py-2.5 font-semibold text-gray-600 hidden md:table-cell">Link Clicks</th>
+                              <th className="text-right px-3 py-2.5 font-semibold text-gray-600 hidden md:table-cell">Engagement</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {currentData.meta.adSets.map((a) => (
+                              <AdSetRow key={a.name} adSet={a} isExpanded={expandedAdSets[a.name]} onToggle={() => toggleAdSet(a.name)} />
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
                   )}
+
                   {currentData.meta.ads?.length > 0 && (
-                    <div><h4 className="text-sm font-semibold mb-2">Ad Level</h4>
-                      <table className="w-full text-sm"><thead className="bg-gray-50"><tr><th className="text-left px-3 py-2">Ad Name</th><th className="text-right px-3 py-2">Impressions</th><th className="text-right px-3 py-2">CTR</th><th className="text-right px-3 py-2">Link Clicks</th><th className="text-right px-3 py-2">Engagement</th></tr></thead>
-                        <tbody>{currentData.meta.ads.map((a, i) => <tr key={i} className="border-t"><td className="px-3 py-2 max-w-xs truncate">{a.name}</td><td className="px-3 py-2 text-right">{formatInt(a.impressions)}</td><td className="px-3 py-2 text-right">{a.ctr}</td><td className="px-3 py-2 text-right">{formatInt(a.linkClicks)}</td><td className="px-3 py-2 text-right">{formatInt(a.engagement)}</td></tr>)}</tbody>
-                      </table>
+                    <div>
+                      <h4 className="text-sm font-semibold text-gray-700 mb-2">Ad Level</h4>
+                      <div className="table-responsive">
+                        <table className="w-full text-sm">
+                          <thead className="bg-gray-50 border-b">
+                            <tr>
+                              <th className="text-left px-3 py-2.5 font-semibold text-gray-600">Ad Name</th>
+                              <th className="text-right px-3 py-2.5 font-semibold text-gray-600">Impressions</th>
+                              <th className="text-right px-3 py-2.5 font-semibold text-gray-600">CTR</th>
+                              <th className="text-right px-3 py-2.5 font-semibold text-gray-600 hidden md:table-cell">Link Clicks</th>
+                              <th className="text-right px-3 py-2.5 font-semibold text-gray-600 hidden md:table-cell">Engagement</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {currentData.meta.ads.map((a, i) => (
+                              <tr key={i} className="border-t hover:bg-gray-50/50 transition-colors">
+                                <td className="px-3 py-2.5 max-w-[200px] truncate font-medium">{a.name}</td>
+                                <td className="px-3 py-2.5 text-right tabular-nums">{formatInt(a.impressions)}</td>
+                                <td className="px-3 py-2.5 text-right tabular-nums">{a.ctr}</td>
+                                <td className="px-3 py-2.5 text-right tabular-nums hidden md:table-cell">{formatInt(a.linkClicks)}</td>
+                                <td className="px-3 py-2.5 text-right tabular-nums hidden md:table-cell">{formatInt(a.engagement)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -489,49 +708,70 @@ export default function Dashboard() {
             )}
 
             {currentData.revenue && (
-              <CollapsibleSection title="Revenue & Reservations (7rooms)">
-                <table className="w-full text-sm"><thead className="bg-gray-50"><tr><th className="text-left px-3 py-2 w-36">Category</th><th className="text-left px-3 py-2">Metric / Channel</th><th className="text-right px-3 py-2">Revenue (AED)</th><th className="text-right px-3 py-2">Reservations</th><th className="text-right px-3 py-2">Avg. Spend/Res</th></tr></thead>
-                  <tbody>
-                    <tr className="border-t bg-gray-50"><td className="px-3 py-2 font-semibold" style={{ color: '#76527c' }}>Overall Metrics</td><td className="px-3 py-2">Total Business</td><td className="px-3 py-2 text-right font-medium">{formatNum(currentData.revenue.totalBusiness)}</td><td className="px-3 py-2 text-right font-medium">{formatInt(currentData.revenue.totalReservations)}</td><td className="px-3 py-2 text-right">{calcAvgSpend(currentData.revenue.totalBusiness, currentData.revenue.totalReservations)}</td></tr>
-                    <tr className="border-t"><td></td><td className="px-3 py-2">Total Online (Combined)</td><td className="px-3 py-2 text-right">{formatNum(currentData.revenue.totalOnline)}</td><td className="px-3 py-2 text-right">{formatInt(currentData.revenue.onlineReservations)}</td><td className="px-3 py-2 text-right">{calcAvgSpend(currentData.revenue.totalOnline, currentData.revenue.onlineReservations)}</td></tr>
-                    <tr className="border-t"><td></td><td className="px-3 py-2">% of Total (Online)</td><td className="px-3 py-2 text-right">{calcOnlinePercent(currentData).rev}</td><td className="px-3 py-2 text-right">{calcOnlinePercent(currentData).res}</td><td className="px-3 py-2 text-right">—</td></tr>
-                    <tr className="border-t bg-gray-50"><td className="px-3 py-2 font-semibold" style={{ color: '#76527c' }}>Marketing</td><td className="px-3 py-2">Ad Spend</td><td className="px-3 py-2 text-right font-medium">{formatNum(currentData.adSpend)}</td><td className="px-3 py-2 text-right">—</td><td className="px-3 py-2 text-right">—</td></tr>
-                    <tr className="border-t"><td></td><td className="px-3 py-2">ROAS</td><td className="px-3 py-2 text-right font-medium">{calcROAS(currentData)}</td><td className="px-3 py-2 text-right">—</td><td className="px-3 py-2 text-right">—</td></tr>
-                    {currentData.revenue.channels && Object.entries(currentData.revenue.channels).map(([ch, v], i) => <tr key={ch} className={`border-t ${i === 0 ? 'bg-gray-50' : ''}`}><td className="px-3 py-2 font-semibold" style={{ color: '#76527c' }}>{i === 0 ? 'Online Channels' : ''}</td><td className="px-3 py-2">{ch}</td><td className="px-3 py-2 text-right">{formatNum(v.revenue)}</td><td className="px-3 py-2 text-right">{v.reservations}</td><td className="px-3 py-2 text-right">{calcAvgSpend(v.revenue, v.reservations)}</td></tr>)}
-                    {currentData.revenue.offline && Object.entries(currentData.revenue.offline).map(([ch, v], i) => <tr key={ch} className={`border-t ${i === 0 ? 'bg-gray-50' : ''}`}><td className="px-3 py-2 font-semibold" style={{ color: '#76527c' }}>{i === 0 ? 'Offline / Internal' : ''}</td><td className="px-3 py-2">{ch}</td><td className="px-3 py-2 text-right">{formatNum(v.revenue)}</td><td className="px-3 py-2 text-right">{v.reservations}</td><td className="px-3 py-2 text-right">{calcAvgSpend(v.revenue, v.reservations)}</td></tr>)}
-                  </tbody>
-                </table>
-              </CollapsibleSection>
-            )}
-
-            {currentData.programmatic && (
-              <CollapsibleSection title="Programmatic Performance" color="#4a5568">
-                <table className="w-full text-sm mb-4"><thead className="bg-gray-50"><tr><th className="text-left px-3 py-2">Creative File</th><th className="text-left px-3 py-2">Format</th><th className="text-left px-3 py-2">Size</th><th className="text-right px-3 py-2">Impressions</th><th className="text-right px-3 py-2">Clicks</th><th className="text-right px-3 py-2">CTR %</th></tr></thead>
-                  <tbody>
-                    {currentData.programmatic.creatives?.map((c, i) => <tr key={i} className="border-t"><td className="px-3 py-2">{c.file}</td><td className="px-3 py-2">{c.format}</td><td className="px-3 py-2">{c.size}</td><td className="px-3 py-2 text-right">{formatInt(c.impressions)}</td><td className="px-3 py-2 text-right">{formatInt(c.clicks)}</td><td className="px-3 py-2 text-right">{c.ctr}</td></tr>)}
-                    {currentData.programmatic.totals && <tr className="border-t bg-gray-100 font-semibold"><td className="px-3 py-2">TOTALS</td><td></td><td></td><td className="px-3 py-2 text-right">{formatInt(currentData.programmatic.totals.impressions)}</td><td className="px-3 py-2 text-right">{formatInt(currentData.programmatic.totals.clicks)}</td><td className="px-3 py-2 text-right">{currentData.programmatic.totals.ctr}</td></tr>}
-                  </tbody>
-                </table>
-                {currentData.programmatic.viewability && <p className="text-sm text-gray-600">Viewability: <strong>{currentData.programmatic.viewability}</strong> | VTR: <strong>{currentData.programmatic.vtr}</strong></p>}
-              </CollapsibleSection>
-            )}
-
-            {currentData.liveCampaigns?.length > 0 && (
-              <CollapsibleSection title={`Live Campaigns - ${selectedVenue}`} color="#9333ea">
-                <div className="overflow-x-auto">
+              <CollapsibleSection title="Revenue & Reservations (7rooms)" icon={DollarSign}>
+                <div className="table-responsive">
                   <table className="w-full text-sm">
-                    <thead style={{ backgroundColor: '#D0E4E7' }}>
-                      <tr><th className="text-left px-3 py-2">Type</th><th className="text-left px-3 py-2">Name</th><th className="text-left px-3 py-2">Language</th><th className="text-left px-3 py-2">Format</th><th className="text-left px-3 py-2">Captions?</th><th className="text-left px-3 py-2">Status</th></tr>
+                    <thead className="bg-gray-50 border-b">
+                      <tr>
+                        <th className="text-left px-3 py-2.5 font-semibold text-gray-600 w-32">Category</th>
+                        <th className="text-left px-3 py-2.5 font-semibold text-gray-600">Metric / Channel</th>
+                        <th className="text-right px-3 py-2.5 font-semibold text-gray-600">Revenue (AED)</th>
+                        <th className="text-right px-3 py-2.5 font-semibold text-gray-600 hidden sm:table-cell">Reservations</th>
+                        <th className="text-right px-3 py-2.5 font-semibold text-gray-600 hidden md:table-cell">Avg. Spend</th>
+                      </tr>
                     </thead>
                     <tbody>
-                      {currentData.liveCampaigns.map((c, i) => (
-                        <tr key={i} className="border-t">
-                          <td className="px-3 py-2"><span className={`px-2 py-1 rounded text-xs font-medium text-white ${(c.type === 'Dark Post' || c.type === 'Dark') ? 'bg-blue-500' : 'bg-pink-400'}`}>{c.type === 'Dark' ? 'Dark Post' : c.type}</span></td>
-                          <td className="px-3 py-2 font-medium">{c.name}</td>
-                          <td className="px-3 py-2">{c.language}</td>
-                          <td className="px-3 py-2"><span className={`px-2 py-1 rounded text-xs ${c.format === 'Carousel' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}>{c.format}</span></td>
-                          <td className="px-3 py-2"><span className={`px-2 py-1 rounded text-xs ${c.captions === 'Yes' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>{c.captions}</span></td>
-                          <td className="px-3 py-2"><span className="px-2 py-1 rounded text-xs font-bold bg-green-500 text-white">{c.status}</span></td>
+                      <tr className="border-t bg-gray-50/80">
+                        <td className="px-3 py-2.5 font-semibold text-mpj-purple">Overall</td>
+                        <td className="px-3 py-2.5">Total Business</td>
+                        <td className="px-3 py-2.5 text-right font-medium tabular-nums">{formatNum(currentData.revenue.totalBusiness)}</td>
+                        <td className="px-3 py-2.5 text-right font-medium tabular-nums hidden sm:table-cell">{formatInt(currentData.revenue.totalReservations)}</td>
+                        <td className="px-3 py-2.5 text-right tabular-nums hidden md:table-cell">{calcAvgSpend(currentData.revenue.totalBusiness, currentData.revenue.totalReservations)}</td>
+                      </tr>
+                      <tr className="border-t">
+                        <td></td>
+                        <td className="px-3 py-2.5">Total Online</td>
+                        <td className="px-3 py-2.5 text-right tabular-nums">{formatNum(currentData.revenue.totalOnline)}</td>
+                        <td className="px-3 py-2.5 text-right tabular-nums hidden sm:table-cell">{formatInt(currentData.revenue.onlineReservations)}</td>
+                        <td className="px-3 py-2.5 text-right tabular-nums hidden md:table-cell">{calcAvgSpend(currentData.revenue.totalOnline, currentData.revenue.onlineReservations)}</td>
+                      </tr>
+                      <tr className="border-t">
+                        <td></td>
+                        <td className="px-3 py-2.5">% of Total (Online)</td>
+                        <td className="px-3 py-2.5 text-right tabular-nums">{calcOnlinePercent(currentData).rev}</td>
+                        <td className="px-3 py-2.5 text-right tabular-nums hidden sm:table-cell">{calcOnlinePercent(currentData).res}</td>
+                        <td className="px-3 py-2.5 text-right hidden md:table-cell">--</td>
+                      </tr>
+                      <tr className="border-t bg-gray-50/80">
+                        <td className="px-3 py-2.5 font-semibold text-mpj-purple">Marketing</td>
+                        <td className="px-3 py-2.5">Ad Spend</td>
+                        <td className="px-3 py-2.5 text-right font-medium tabular-nums">{formatNum(currentData.adSpend)}</td>
+                        <td className="px-3 py-2.5 text-right hidden sm:table-cell">--</td>
+                        <td className="px-3 py-2.5 text-right hidden md:table-cell">--</td>
+                      </tr>
+                      <tr className="border-t">
+                        <td></td>
+                        <td className="px-3 py-2.5">ROAS</td>
+                        <td className="px-3 py-2.5 text-right font-semibold text-mpj-purple tabular-nums">{calcROAS(currentData)}</td>
+                        <td className="px-3 py-2.5 text-right hidden sm:table-cell">--</td>
+                        <td className="px-3 py-2.5 text-right hidden md:table-cell">--</td>
+                      </tr>
+                      {currentData.revenue.channels && Object.entries(currentData.revenue.channels).map(([ch, v], i) => (
+                        <tr key={ch} className={`border-t ${i === 0 ? 'bg-gray-50/80' : ''}`}>
+                          <td className="px-3 py-2.5 font-semibold text-mpj-purple">{i === 0 ? 'Online' : ''}</td>
+                          <td className="px-3 py-2.5">{ch}</td>
+                          <td className="px-3 py-2.5 text-right tabular-nums">{formatNum(v.revenue)}</td>
+                          <td className="px-3 py-2.5 text-right tabular-nums hidden sm:table-cell">{v.reservations}</td>
+                          <td className="px-3 py-2.5 text-right tabular-nums hidden md:table-cell">{calcAvgSpend(v.revenue, v.reservations)}</td>
+                        </tr>
+                      ))}
+                      {currentData.revenue.offline && Object.entries(currentData.revenue.offline).map(([ch, v], i) => (
+                        <tr key={ch} className={`border-t ${i === 0 ? 'bg-gray-50/80' : ''}`}>
+                          <td className="px-3 py-2.5 font-semibold text-mpj-purple">{i === 0 ? 'Offline' : ''}</td>
+                          <td className="px-3 py-2.5">{ch}</td>
+                          <td className="px-3 py-2.5 text-right tabular-nums">{formatNum(v.revenue)}</td>
+                          <td className="px-3 py-2.5 text-right tabular-nums hidden sm:table-cell">{v.reservations}</td>
+                          <td className="px-3 py-2.5 text-right tabular-nums hidden md:table-cell">{calcAvgSpend(v.revenue, v.reservations)}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -539,48 +779,176 @@ export default function Dashboard() {
                 </div>
               </CollapsibleSection>
             )}
-          </>
+
+            {currentData.programmatic && (
+              <CollapsibleSection title="Programmatic Performance" color="#4a5568" icon={Target}>
+                <div className="table-responsive">
+                  <table className="w-full text-sm mb-4">
+                    <thead className="bg-gray-50 border-b">
+                      <tr>
+                        <th className="text-left px-3 py-2.5 font-semibold text-gray-600">Creative</th>
+                        <th className="text-left px-3 py-2.5 font-semibold text-gray-600 hidden md:table-cell">Format</th>
+                        <th className="text-left px-3 py-2.5 font-semibold text-gray-600 hidden md:table-cell">Size</th>
+                        <th className="text-right px-3 py-2.5 font-semibold text-gray-600">Impressions</th>
+                        <th className="text-right px-3 py-2.5 font-semibold text-gray-600">Clicks</th>
+                        <th className="text-right px-3 py-2.5 font-semibold text-gray-600">CTR</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {currentData.programmatic.creatives?.map((c, i) => (
+                        <tr key={i} className="border-t hover:bg-gray-50/50 transition-colors">
+                          <td className="px-3 py-2.5 font-medium truncate max-w-[150px]">{c.file}</td>
+                          <td className="px-3 py-2.5 hidden md:table-cell">{c.format}</td>
+                          <td className="px-3 py-2.5 hidden md:table-cell">{c.size}</td>
+                          <td className="px-3 py-2.5 text-right tabular-nums">{formatInt(c.impressions)}</td>
+                          <td className="px-3 py-2.5 text-right tabular-nums">{formatInt(c.clicks)}</td>
+                          <td className="px-3 py-2.5 text-right tabular-nums">{c.ctr}</td>
+                        </tr>
+                      ))}
+                      {currentData.programmatic.totals && (
+                        <tr className="border-t bg-gray-100 font-semibold">
+                          <td className="px-3 py-2.5">TOTALS</td>
+                          <td className="hidden md:table-cell"></td>
+                          <td className="hidden md:table-cell"></td>
+                          <td className="px-3 py-2.5 text-right tabular-nums">{formatInt(currentData.programmatic.totals.impressions)}</td>
+                          <td className="px-3 py-2.5 text-right tabular-nums">{formatInt(currentData.programmatic.totals.clicks)}</td>
+                          <td className="px-3 py-2.5 text-right tabular-nums">{currentData.programmatic.totals.ctr}</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+                {currentData.programmatic.viewability && (
+                  <div className="flex gap-6 text-sm text-gray-600 mt-2">
+                    <span>Viewability: <strong className="text-gray-900">{currentData.programmatic.viewability}</strong></span>
+                    <span>VTR: <strong className="text-gray-900">{currentData.programmatic.vtr}</strong></span>
+                  </div>
+                )}
+              </CollapsibleSection>
+            )}
+
+            {currentData.liveCampaigns?.length > 0 && (
+              <CollapsibleSection title={`Live Campaigns - ${selectedVenue}`} color="#9333ea" icon={Megaphone}>
+                <div className="table-responsive">
+                  <table className="w-full text-sm">
+                    <thead className="bg-mpj-teal/50 border-b">
+                      <tr>
+                        <th className="text-left px-3 py-2.5 font-semibold text-gray-600">Type</th>
+                        <th className="text-left px-3 py-2.5 font-semibold text-gray-600">Name</th>
+                        <th className="text-left px-3 py-2.5 font-semibold text-gray-600 hidden sm:table-cell">Language</th>
+                        <th className="text-left px-3 py-2.5 font-semibold text-gray-600 hidden md:table-cell">Format</th>
+                        <th className="text-left px-3 py-2.5 font-semibold text-gray-600 hidden md:table-cell">Captions</th>
+                        <th className="text-left px-3 py-2.5 font-semibold text-gray-600">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {currentData.liveCampaigns.map((c, i) => (
+                        <tr key={i} className="border-t hover:bg-gray-50/50 transition-colors">
+                          <td className="px-3 py-2.5">
+                            <span className={`px-2 py-1 rounded-md text-xs font-medium text-white ${(c.type === 'Dark Post' || c.type === 'Dark') ? 'bg-blue-500' : 'bg-pink-400'}`}>
+                              {c.type === 'Dark' ? 'Dark Post' : c.type}
+                            </span>
+                          </td>
+                          <td className="px-3 py-2.5 font-medium">{c.name}</td>
+                          <td className="px-3 py-2.5 hidden sm:table-cell">{c.language}</td>
+                          <td className="px-3 py-2.5 hidden md:table-cell">
+                            <span className={`px-2 py-1 rounded-md text-xs ${c.format === 'Carousel' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}>{c.format}</span>
+                          </td>
+                          <td className="px-3 py-2.5 hidden md:table-cell">
+                            <span className={`px-2 py-1 rounded-md text-xs ${c.captions === 'Yes' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>{c.captions}</span>
+                          </td>
+                          <td className="px-3 py-2.5">
+                            <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-green-500 text-white">{c.status}</span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CollapsibleSection>
+            )}
+          </div>
         )}
 
-        {/* LIVE CAMPAIGNS */}
+        {/* LIVE CAMPAIGNS TAB */}
         {activeTab === 'live' && (
-          <>
-            <div className="mb-6">
-              <select value={liveCampaignVenue} onChange={(e) => setLiveCampaignVenue(e.target.value)} className="px-4 py-2 border rounded font-medium">
+          <div className="space-y-4 animate-fade-in">
+            <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
+              <label htmlFor="live-venue-select" className="block text-xs font-medium text-gray-500 mb-1">Select Venue</label>
+              <select
+                id="live-venue-select"
+                value={liveCampaignVenue}
+                onChange={(e) => setLiveCampaignVenue(e.target.value)}
+                className="w-full max-w-sm px-3 py-2 border border-gray-200 rounded-lg font-medium text-sm focus:outline-none focus:ring-2 focus:ring-mpj-purple/30 focus:border-mpj-purple cursor-pointer"
+              >
                 {venues.map(v => <option key={v.id} value={v.name}>{v.name}</option>)}
               </select>
             </div>
-            <CollapsibleSection title={`Live Campaigns - ${liveCampaignVenue}`}>
+
+            <CollapsibleSection title={`Live Campaigns - ${liveCampaignVenue}`} icon={Megaphone}>
               {liveCampaigns[liveCampaignVenue]?.length > 0 ? (
-                <div className="overflow-x-auto">
+                <div className="table-responsive">
                   <table className="w-full text-sm">
-                    <thead style={{ backgroundColor: '#D0E4E7' }}>
-                      <tr><th className="text-left px-3 py-2">Type</th><th className="text-left px-3 py-2">Name</th><th className="text-left px-3 py-2">Language</th><th className="text-left px-3 py-2">Format</th><th className="text-left px-3 py-2">Captions?</th><th className="text-left px-3 py-2">Status</th></tr>
+                    <thead className="bg-mpj-teal/50 border-b">
+                      <tr>
+                        <th className="text-left px-3 py-2.5 font-semibold text-gray-600">Type</th>
+                        <th className="text-left px-3 py-2.5 font-semibold text-gray-600">Name</th>
+                        <th className="text-left px-3 py-2.5 font-semibold text-gray-600 hidden sm:table-cell">Language</th>
+                        <th className="text-left px-3 py-2.5 font-semibold text-gray-600 hidden md:table-cell">Format</th>
+                        <th className="text-left px-3 py-2.5 font-semibold text-gray-600 hidden md:table-cell">Captions</th>
+                        <th className="text-left px-3 py-2.5 font-semibold text-gray-600 hidden lg:table-cell">Landing Page</th>
+                        <th className="text-left px-3 py-2.5 font-semibold text-gray-600">Status</th>
+                      </tr>
                     </thead>
                     <tbody>
                       {liveCampaigns[liveCampaignVenue].map((c, i) => (
-                        <tr key={i} className="border-t">
-                          <td className="px-3 py-2"><span className={`px-2 py-1 rounded text-xs font-medium text-white ${(c.type === 'Dark Post' || c.type === 'Dark') ? 'bg-blue-500' : 'bg-pink-400'}`}>{c.type === 'Dark' ? 'Dark Post' : c.type}</span></td>
-                          <td className="px-3 py-2 font-medium">{c.name}</td>
-                          <td className="px-3 py-2">{c.language}</td>
-                          <td className="px-3 py-2"><span className={`px-2 py-1 rounded text-xs ${c.format === 'Carousel' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}>{c.format}</span></td>
-                          <td className="px-3 py-2"><span className={`px-2 py-1 rounded text-xs ${c.captions === 'Yes' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>{c.captions}</span></td>
-                          <td className="px-3 py-2">{c.landing_page?.startsWith('http') ? <a href={c.landing_page} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline flex items-center gap-1">{c.landing_page.replace('https://', '').substring(0, 20)}... <ExternalLink size={12} /></a> : <span className="text-gray-500">{c.landing_page}</span>}</td>
-                          <td className="px-3 py-2"><span className="px-2 py-1 rounded text-xs font-bold bg-green-500 text-white">{c.status}</span></td>
+                        <tr key={i} className="border-t hover:bg-gray-50/50 transition-colors">
+                          <td className="px-3 py-2.5">
+                            <span className={`px-2 py-1 rounded-md text-xs font-medium text-white ${(c.type === 'Dark Post' || c.type === 'Dark') ? 'bg-blue-500' : 'bg-pink-400'}`}>
+                              {c.type === 'Dark' ? 'Dark Post' : c.type}
+                            </span>
+                          </td>
+                          <td className="px-3 py-2.5 font-medium">{c.name}</td>
+                          <td className="px-3 py-2.5 hidden sm:table-cell">{c.language}</td>
+                          <td className="px-3 py-2.5 hidden md:table-cell">
+                            <span className={`px-2 py-1 rounded-md text-xs ${c.format === 'Carousel' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}>{c.format}</span>
+                          </td>
+                          <td className="px-3 py-2.5 hidden md:table-cell">
+                            <span className={`px-2 py-1 rounded-md text-xs ${c.captions === 'Yes' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>{c.captions}</span>
+                          </td>
+                          <td className="px-3 py-2.5 hidden lg:table-cell">
+                            {c.landing_page?.startsWith('http') ? (
+                              <a href={c.landing_page} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline flex items-center gap-1 text-xs truncate max-w-[180px]">
+                                {c.landing_page.replace('https://', '').substring(0, 25)}...
+                                <ExternalLink size={10} />
+                              </a>
+                            ) : (
+                              <span className="text-gray-400 text-xs">{c.landing_page || '--'}</span>
+                            )}
+                          </td>
+                          <td className="px-3 py-2.5">
+                            <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-green-500 text-white">{c.status}</span>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
               ) : (
-                <p className="text-gray-500 text-center py-8">No live campaigns for this venue</p>
+                <div className="text-center py-12">
+                  <Megaphone size={40} className="text-gray-300 mx-auto mb-3" />
+                  <p className="text-gray-500 text-sm">No live campaigns for this venue</p>
+                </div>
               )}
             </CollapsibleSection>
-          </>
+          </div>
         )}
 
-        <div className="mt-6 text-center text-xs text-gray-400">Made by MB with ❤️</div>
-      </div>
+        {/* Footer */}
+        <div className="mt-8 text-center text-xs text-gray-400 no-print">
+          Made by MB
+        </div>
+      </main>
     </div>
   )
 }

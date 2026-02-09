@@ -1,3 +1,105 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ── Base ───────────────────────────────────── */
+@layer base {
+  body {
+    @apply antialiased text-gray-800;
+    font-feature-settings: "cv11", "ss01";
+  }
+
+  /* Smooth scrolling */
+  html {
+    scroll-behavior: smooth;
+  }
+
+  /* Better focus rings */
+  *:focus-visible {
+    @apply outline-2 outline-offset-2 outline-mpj-purple ring-0;
+  }
+}
+
+/* ── Components ─────────────────────────────── */
+@layer components {
+  /* Skeleton loader */
+  .skeleton {
+    @apply relative overflow-hidden bg-gray-200 rounded;
+  }
+  .skeleton::after {
+    content: '';
+    @apply absolute inset-0;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.5), transparent);
+    animation: shimmer 1.5s infinite;
+  }
+
+  /* Toast notification */
+  .toast {
+    @apply fixed bottom-6 right-6 z-50 px-5 py-3 rounded-lg shadow-lg text-white text-sm font-medium;
+    @apply animate-slide-up;
+  }
+  .toast-error { @apply bg-red-500; }
+  .toast-success { @apply bg-green-600; }
+  .toast-info { @apply bg-blue-600; }
+
+  /* Responsive table wrapper */
+  .table-responsive {
+    @apply overflow-x-auto -mx-6 px-6;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Card hover effect */
+  .card-hover {
+    @apply transition-all duration-200 ease-out;
+  }
+  .card-hover:hover {
+    @apply shadow-md -translate-y-0.5;
+  }
+
+  /* KPI card */
+  .kpi-card {
+    @apply bg-white p-5 rounded-xl shadow-sm border border-gray-100;
+    @apply transition-all duration-200 ease-out;
+  }
+  .kpi-card:hover {
+    @apply shadow-md border-mpj-purple/20;
+  }
+}
+
+/* ── Utilities ──────────────────────────────── */
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  /* Hide scrollbar but allow scroll */
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
+/* ── Animations ─────────────────────────────── */
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+/* ── Print ──────────────────────────────────── */
+@media print {
+  .no-print { display: none !important; }
+  body { background: white; }
+  .shadow, .shadow-sm, .shadow-md, .shadow-lg { box-shadow: none !important; }
+}
+
+/* ── Reduced motion ─────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
