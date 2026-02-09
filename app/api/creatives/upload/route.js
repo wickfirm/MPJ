@@ -109,8 +109,8 @@ export async function DELETE(request) {
       return NextResponse.json({ error: 'Creative not found' }, { status: 404 })
     }
 
-    // Extract R2 key from the full URL
-    const key = creative.image_url.replace(`${R2_PUBLIC_URL}/`, '')
+    // Extract R2 key from the full URL (decode URI-encoded segments)
+    const key = decodeURIComponent(creative.image_url.replace(`${R2_PUBLIC_URL}/`, ''))
 
     // Delete from R2
     try {
