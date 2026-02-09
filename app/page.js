@@ -49,6 +49,8 @@ export default function Dashboard() {
   const [allWeeks, setAllWeeks] = useState([])
   const [liveCampaigns, setLiveCampaigns] = useState({})
   const [workspaceData, setWorkspaceData] = useState([])
+  const [workspaceMonths, setWorkspaceMonths] = useState([])
+  const [selectedBudgetMonth, setSelectedBudgetMonth] = useState(null)
   const [monthlyData, setMonthlyData] = useState([])
   const [expandedAdSets, setExpandedAdSets] = useState({})
   const [liveCampaignVenue, setLiveCampaignVenue] = useState('')
@@ -82,7 +84,7 @@ export default function Dashboard() {
         supabase.from('venues').select('*').order('name'),
         supabase.from('weekly_reports').select('*, venues(name, poc)').order('week_end', { ascending: false }),
         supabase.from('live_campaigns').select('*, venues(name)'),
-        supabase.from('workspace_budgets').select('*').order('brand'),
+        supabase.from('workspace_budgets').select('*').order('month').order('brand'),
         supabase.from('monthly_rollups').select('*').order('month'),
       ])
 
@@ -138,7 +140,17 @@ export default function Dashboard() {
       setLiveCampaigns(campaignsMap)
 
       // Workspace + Monthly
-      setWorkspaceData(workspaceRes.data || [])
+      const wsData = workspaceRes.data || []
+      setWorkspaceData(wsData)
+
+      // Extract unique months from workspace data
+      const monthsSet = new Set(wsData.map(w => w.month))
+      const monthsArr = Array.from(monthsSet).sort((a, b) => new Date(a) - new Date(b))
+      setWorkspaceMonths(monthsArr)
+      if (monthsArr.length > 0 && !selectedBudgetMonth) {
+        setSelectedBudgetMonth(monthsArr[0])
+      }
+
       setMonthlyData(monthlyRes.data || [])
       setLastUpdated(new Date())
 
@@ -226,6 +238,27 @@ export default function Dashboard() {
     const pocPieData = Object.entries(spendByPOC).map(([name, value]) => ({ name, value }))
     return { totalAdSpend, totalRevenue, totalReservations, allVenuesSpend, pocPieData }
   }, [venues, selectedWeek, getVenueData])
+
+  // Workspace budget filtered by month
+  const filteredWorkspaceData = useMemo(() => {
+    if (!selectedBudgetMonth) return []
+    return workspaceData.filter(w => w.month === selectedBudgetMonth)
+  }, [workspaceData, selectedBudgetMonth])
+
+  const workspaceTotals = useMemo(() => {
+    return filteredWorkspaceData.reduce((acc, w) => ({
+      budget: acc.budget + parseFloat(w.monthly_budget || 0),
+      traffic: acc.traffic + parseFloat(w.traffic || 0),
+      community: acc.community + parseFloat(w.community || 0),
+      spend: acc.spend + parseFloat(w.total_spend || 0),
+      remaining: acc.remaining + parseFloat(w.remaining || 0),
+    }), { budget: 0, traffic: 0, community: 0, spend: 0, remaining: 0 })
+  }, [filteredWorkspaceData])
+
+  const formatMonth = (dateStr) => {
+    const d = new Date(dateStr + 'T00:00:00')
+    return d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+  }
 
   const calcROAS = (d) => (!d?.revenue || !d?.adSpend) ? '0x' : (d.revenue.totalOnline / d.adSpend).toFixed(2) + 'x'
   const calcOnlinePercent = (d) => {
@@ -364,32 +397,85 @@ export default function Dashboard() {
         {/* WORKSPACE TAB */}
         {activeTab === 'workspace' && (
           <div className="space-y-4 animate-fade-in">
-            <CollapsibleSection title="Budget Workspace - All Brands" icon={DollarSign}>
+            {/* Month Selector */}
+            <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-center gap-4 flex-wrap">
+              <div className="min-w-[200px]">
+                <label htmlFor="budget-month-select" className="block text-xs font-medium text-gray-500 mb-1">Select Month</label>
+                <select
+                  id="budget-month-select"
+                  value={selectedBudgetMonth || ''}
+                  onChange={(e) => setSelectedBudgetMonth(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg font-medium text-sm focus:outline-none focus:ring-2 focus:ring-mpj-purple/30 focus:border-mpj-purple cursor-pointer"
+                >
+                  {workspaceMonths.map(m => (
+                    <option key={m} value={m}>{formatMonth(m)}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex gap-1 flex-wrap">
+                {workspaceMonths.map(m => {
+                  const isActive = m === selectedBudgetMonth
+                  const monthLabel = new Date(m + 'T00:00:00').toLocaleDateString('en-US', { month: 'short' })
+                  return (
+                    <button
+                      key={m}
+                      onClick={() => setSelectedBudgetMonth(m)}
+                      className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
+                        isActive ? 'bg-mpj-purple text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                    >
+                      {monthLabel}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            <CollapsibleSection title={`Budget Workspace — ${selectedBudgetMonth ? formatMonth(selectedBudgetMonth) : 'All Brands'}`} icon={DollarSign}>
               <div className="table-responsive">
                 <table className="w-full text-sm">
                   <thead className="bg-gray-50 border-b">
                     <tr>
                       <th className="text-left px-3 py-2.5 font-semibold text-gray-600">Brand</th>
-                      <th className="text-left px-3 py-2.5 font-semibold text-gray-600">POC</th>
+                      <th className="text-left px-3 py-2.5 font-semibold text-gray-600 hidden sm:table-cell">POC</th>
                       <th className="text-right px-3 py-2.5 font-semibold text-gray-600">Monthly Budget</th>
+                      <th className="text-right px-3 py-2.5 font-semibold text-gray-600 hidden md:table-cell">Traffic</th>
+                      <th className="text-right px-3 py-2.5 font-semibold text-gray-600 hidden md:table-cell">Community</th>
                       <th className="text-right px-3 py-2.5 font-semibold text-gray-600">Total Spend</th>
-                      <th className="text-right px-3 py-2.5 font-semibold text-gray-600 hidden md:table-cell">Remaining</th>
+                      <th className="text-right px-3 py-2.5 font-semibold text-gray-600 hidden sm:table-cell">Remaining</th>
                       <th className="text-right px-3 py-2.5 font-semibold text-gray-600">% Spent</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {workspaceData.map((w, i) => (
+                    {filteredWorkspaceData.map((w, i) => (
                       <tr key={i} className="border-t hover:bg-gray-50/50 transition-colors">
                         <td className="px-3 py-2.5 font-medium text-gray-900">{w.brand}</td>
-                        <td className="px-3 py-2.5 text-gray-600">{getBrandPOC(w.brand)}</td>
+                        <td className="px-3 py-2.5 text-gray-600 hidden sm:table-cell">{getBrandPOC(w.brand)}</td>
                         <td className="px-3 py-2.5 text-right tabular-nums">AED {formatNum(w.monthly_budget)}</td>
+                        <td className="px-3 py-2.5 text-right tabular-nums hidden md:table-cell">AED {formatNum(w.traffic)}</td>
+                        <td className="px-3 py-2.5 text-right tabular-nums hidden md:table-cell">AED {formatNum(w.community)}</td>
                         <td className="px-3 py-2.5 text-right tabular-nums">AED {formatNum(w.total_spend)}</td>
-                        <td className={`px-3 py-2.5 text-right tabular-nums hidden md:table-cell font-medium ${w.remaining < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                        <td className={`px-3 py-2.5 text-right tabular-nums hidden sm:table-cell font-medium ${parseFloat(w.remaining) < 0 ? 'text-red-600' : 'text-green-600'}`}>
                           AED {formatNum(w.remaining)}
                         </td>
                         <td className="px-3 py-2.5 text-right font-semibold">{w.pct_spent}</td>
                       </tr>
                     ))}
+                    {/* Totals Row */}
+                    {filteredWorkspaceData.length > 0 && (
+                      <tr className="border-t-2 border-mpj-purple/30 bg-gray-50 font-semibold">
+                        <td className="px-3 py-3 text-mpj-purple">TOTAL</td>
+                        <td className="hidden sm:table-cell"></td>
+                        <td className="px-3 py-3 text-right tabular-nums">AED {formatNum(workspaceTotals.budget)}</td>
+                        <td className="px-3 py-3 text-right tabular-nums hidden md:table-cell">AED {formatNum(workspaceTotals.traffic)}</td>
+                        <td className="px-3 py-3 text-right tabular-nums hidden md:table-cell">AED {formatNum(workspaceTotals.community)}</td>
+                        <td className="px-3 py-3 text-right tabular-nums">AED {formatNum(workspaceTotals.spend)}</td>
+                        <td className={`px-3 py-3 text-right tabular-nums hidden sm:table-cell ${workspaceTotals.remaining < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                          AED {formatNum(workspaceTotals.remaining)}
+                        </td>
+                        <td className="px-3 py-3 text-right">{workspaceTotals.budget > 0 ? ((workspaceTotals.spend / workspaceTotals.budget) * 100).toFixed(1) + '%' : '0.0%'}</td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>
