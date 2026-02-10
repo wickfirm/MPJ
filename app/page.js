@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
-import { Download, BarChart3, Calendar, TrendingUp, Megaphone, ExternalLink, Users, Lightbulb, RefreshCw, LogOut, DollarSign, ShoppingBag, Target, Upload, Image as ImageIcon } from 'lucide-react'
+import { Download, BarChart3, Calendar, TrendingUp, Megaphone, ExternalLink, Users, Lightbulb, RefreshCw, LogOut, DollarSign, ShoppingBag, Target, Upload, Image as ImageIcon, Eye, MousePointerClick, Percent } from 'lucide-react'
 import { LineChart as ReLineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
 
 import CollapsibleSection from './components/CollapsibleSection'
@@ -251,23 +251,34 @@ export default function Dashboard() {
   , [selectedVenue, previousWeek, compareMode, getVenueData])
 
   const executiveMetrics = useMemo(() => {
-    if (!selectedWeek) return { totalAdSpend: 0, totalRevenue: 0, totalReservations: 0, allVenuesSpend: [], pocPieData: [] }
+    if (!selectedWeek) return { totalAdSpend: 0, totalOnlineRevenue: 0, totalRevenue: 0, totalReservations: 0, onlineReservations: 0, totalImpressions: 0, totalClicks: 0, totalLinkClicks: 0, allVenuesSpend: [], pocPieData: [] }
 
-    let totalAdSpend = 0, totalRevenue = 0, totalReservations = 0
+    let totalAdSpend = 0, totalOnlineRevenue = 0, totalRevenue = 0, totalReservations = 0, onlineReservations = 0
+    let totalImpressions = 0, totalClicks = 0, totalLinkClicks = 0
     const allVenuesSpend = []
     const spendByPOC = {}
 
     venues.forEach(v => {
       const d = getVenueData(v.name, selectedWeek)
       totalAdSpend += d.adSpend || 0
+      totalOnlineRevenue += d.revenue?.totalOnline || 0
       totalRevenue += d.revenue?.totalBusiness || 0
       totalReservations += d.revenue?.totalReservations || 0
+      onlineReservations += d.revenue?.onlineReservations || 0
+      // Aggregate meta ad metrics
+      if (d.meta?.campaigns) {
+        d.meta.campaigns.forEach(c => {
+          totalImpressions += c.impressions || 0
+          totalClicks += c.clicks || 0
+          totalLinkClicks += c.linkClicks || 0
+        })
+      }
       allVenuesSpend.push({ name: v.name.length > 12 ? v.name.substring(0, 12) + '..' : v.name, spend: d.adSpend })
       spendByPOC[v.poc] = (spendByPOC[v.poc] || 0) + (d.adSpend || 0)
     })
 
     const pocPieData = Object.entries(spendByPOC).map(([name, value]) => ({ name, value }))
-    return { totalAdSpend, totalRevenue, totalReservations, allVenuesSpend, pocPieData }
+    return { totalAdSpend, totalOnlineRevenue, totalRevenue, totalReservations, onlineReservations, totalImpressions, totalClicks, totalLinkClicks, allVenuesSpend, pocPieData }
   }, [venues, selectedWeek, getVenueData])
 
   // Workspace budget filtered by month
@@ -541,9 +552,15 @@ export default function Dashboard() {
           <div className="space-y-4 animate-fade-in">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
               <KPICard label="Total Ad Spend" value={formatNum(executiveMetrics.totalAdSpend)} prefix="AED " icon={DollarSign} />
-              <KPICard label="Total Revenue" value={formatNum(executiveMetrics.totalRevenue)} prefix="AED " icon={TrendingUp} />
-              <KPICard label="Total Reservations" value={formatInt(executiveMetrics.totalReservations)} icon={ShoppingBag} />
-              <KPICard label="Combined ROAS" value={executiveMetrics.totalAdSpend > 0 ? (executiveMetrics.totalRevenue / executiveMetrics.totalAdSpend).toFixed(2) : '0'} suffix="x" icon={Target} />
+              <KPICard label="Online Revenue" value={formatNum(executiveMetrics.totalOnlineRevenue)} prefix="AED " icon={TrendingUp} />
+              <KPICard label="Online Reservations" value={formatInt(executiveMetrics.onlineReservations)} icon={ShoppingBag} />
+              <KPICard label="ROAS" value={executiveMetrics.totalAdSpend > 0 ? (executiveMetrics.totalOnlineRevenue / executiveMetrics.totalAdSpend).toFixed(2) : '0'} suffix="x" icon={Target} />
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+              <KPICard label="Impressions" value={formatInt(executiveMetrics.totalImpressions)} icon={Eye} />
+              <KPICard label="Link Clicks" value={formatInt(executiveMetrics.totalLinkClicks)} icon={MousePointerClick} />
+              <KPICard label="CTR" value={executiveMetrics.totalImpressions > 0 ? ((executiveMetrics.totalClicks / executiveMetrics.totalImpressions) * 100).toFixed(2) : '0'} suffix="%" icon={Percent} />
+              <KPICard label="Cost per Click" value={executiveMetrics.totalClicks > 0 ? formatNum(executiveMetrics.totalAdSpend / executiveMetrics.totalClicks) : '0.00'} prefix="AED " icon={DollarSign} />
             </div>
 
             <CollapsibleSection title="All Venues Performance" icon={BarChart3}>
@@ -1085,7 +1102,7 @@ export default function Dashboard() {
 
         {/* Footer */}
         <div className="mt-8 text-center text-xs text-gray-400 no-print">
-          Made by MB
+          Made with ❤️ by <a href="https://omnixia.ai/" target="_blank" rel="noopener noreferrer" className="text-mpj-purple hover:underline font-medium">Omnixia</a>
         </div>
       </main>
 
