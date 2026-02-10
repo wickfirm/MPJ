@@ -319,7 +319,6 @@ export default function SocialMediaInsights({ data, allData = [], venueName }) {
                       <th className="text-right px-3 py-2 font-semibold text-gray-600">Reach</th>
                       <th className="text-right px-3 py-2 font-semibold text-gray-600">Views</th>
                       <th className="text-right px-3 py-2 font-semibold text-gray-600">Interactions</th>
-                      <th className="text-right px-3 py-2 font-semibold text-gray-600">Spent</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -330,7 +329,6 @@ export default function SocialMediaInsights({ data, allData = [], venueName }) {
                         <td className="px-3 py-2 text-right tabular-nums">{formatK(s.reach)}</td>
                         <td className="px-3 py-2 text-right tabular-nums">{formatK(s.views)}</td>
                         <td className="px-3 py-2 text-right tabular-nums">{formatNum(s.interactions)}</td>
-                        <td className="px-3 py-2 text-right tabular-nums font-medium text-purple-600">${Number(s.spent).toFixed(2)}</td>
                       </tr>
                     ))}
                   </tbody>
