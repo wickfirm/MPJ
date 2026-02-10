@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
-import { Download, BarChart3, Calendar, TrendingUp, Megaphone, ExternalLink, Users, Lightbulb, RefreshCw, LogOut, DollarSign, ShoppingBag, Target, Upload, Image as ImageIcon, Eye, MousePointerClick, Percent } from 'lucide-react'
+import { Download, BarChart3, Calendar, TrendingUp, Megaphone, ExternalLink, Users, Lightbulb, RefreshCw, LogOut, DollarSign, ShoppingBag, Target, Upload, Image as ImageIcon, Eye, MousePointerClick, Percent, Instagram } from 'lucide-react'
 import { LineChart as ReLineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
 
 import CollapsibleSection from './components/CollapsibleSection'
@@ -14,6 +14,7 @@ import { DashboardSkeleton } from './components/SkeletonLoader'
 import CreativeThumb from './components/CreativeThumb'
 import CreativeUpload from './components/CreativeUpload'
 import CreativeGallery from './components/CreativeGallery'
+import SocialMediaInsights from './components/SocialMediaInsights'
 
 // ── Constants ────────────────────────────────
 const COLORS = ['#76527c', '#d8ee91', '#D0E4E7', '#9f7aea', '#68d391', '#fc8181']
@@ -59,6 +60,7 @@ export default function Dashboard() {
   const [liveCampaignVenue, setLiveCampaignVenue] = useState('')
   const [adCreatives, setAdCreatives] = useState([])
   const [showUploadModal, setShowUploadModal] = useState(false)
+  const [socialMediaData, setSocialMediaData] = useState([])
 
   // UI state
   const [loading, setLoading] = useState(true)
@@ -85,17 +87,18 @@ export default function Dashboard() {
     setError(null)
 
     try {
-      const [venuesRes, reportsRes, campaignsRes, workspaceRes, monthlyRes, creativesRes] = await Promise.all([
+      const [venuesRes, reportsRes, campaignsRes, workspaceRes, monthlyRes, creativesRes, socialRes] = await Promise.all([
         supabase.from('venues').select('*').order('name'),
         supabase.from('weekly_reports').select('*, venues(name, poc)').order('week_end', { ascending: false }),
         supabase.from('live_campaigns').select('*, venues(name)'),
         supabase.from('workspace_budgets').select('*').order('month').order('brand'),
         supabase.from('monthly_rollups').select('*').order('month'),
         supabase.from('ad_creatives').select('*, venues(name)').order('created_at', { ascending: false }),
+        supabase.from('social_media_monthly').select('*, venues(name)').order('month', { ascending: false }),
       ])
 
       // Check for errors
-      const errors = [venuesRes, reportsRes, campaignsRes, workspaceRes, monthlyRes, creativesRes]
+      const errors = [venuesRes, reportsRes, campaignsRes, workspaceRes, monthlyRes, creativesRes, socialRes]
         .filter(r => r.error)
         .map(r => r.error.message)
 
@@ -159,6 +162,7 @@ export default function Dashboard() {
 
       setMonthlyData(monthlyRes.data || [])
       setAdCreatives(creativesRes.data || [])
+      setSocialMediaData(socialRes.data || [])
       setLastUpdated(new Date())
 
       if (isRefresh) {
@@ -859,6 +863,16 @@ export default function Dashboard() {
                 <CreativeGallery
                   creatives={adCreatives.filter(c => c.venues?.name === selectedVenue)}
                   onDelete={handleCreativeDeleted}
+                />
+              </CollapsibleSection>
+            )}
+
+            {/* Social Media Insights */}
+            {socialMediaData.filter(d => d.venues?.name === selectedVenue).length > 0 && (
+              <CollapsibleSection title="Social Media Insights" icon={Instagram} defaultOpen={false}>
+                <SocialMediaInsights
+                  allData={socialMediaData}
+                  venueName={selectedVenue}
                 />
               </CollapsibleSection>
             )}
