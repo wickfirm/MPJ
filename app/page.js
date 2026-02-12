@@ -744,12 +744,7 @@ export default function Dashboard() {
             {compareMode && previousData && (
               <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 animate-slide-down">
                 <h3 className="font-semibold text-blue-900 mb-3 text-sm">Period Comparison</h3>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div>
-                    <p className="text-xs text-blue-600 font-medium">Ad Spend</p>
-                    <p className="font-semibold text-gray-900">AED {formatNum(currentData.adSpend)}</p>
-                    <DeltaBadge current={currentData.adSpend} previous={previousData.adSpend} />
-                  </div>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                   <div>
                     <p className="text-xs text-blue-600 font-medium">Impressions</p>
                     <p className="font-semibold text-gray-900">{formatInt(currentData.meta.campaigns.reduce((s, c) => s + (c.impressions || 0), 0))}</p>
@@ -992,20 +987,6 @@ export default function Dashboard() {
                         <td className="px-3 py-2.5">% of Total (Online)</td>
                         <td className="px-3 py-2.5 text-right tabular-nums">{calcOnlinePercent(currentData).rev}</td>
                         <td className="px-3 py-2.5 text-right tabular-nums hidden sm:table-cell">{calcOnlinePercent(currentData).res}</td>
-                        <td className="px-3 py-2.5 text-right hidden md:table-cell">--</td>
-                      </tr>
-                      <tr className="border-t bg-gray-50/80">
-                        <td className="px-3 py-2.5 font-semibold text-mpj-purple">Marketing</td>
-                        <td className="px-3 py-2.5">Ad Spend</td>
-                        <td className="px-3 py-2.5 text-right font-medium tabular-nums">{formatNum(currentData.adSpend)}</td>
-                        <td className="px-3 py-2.5 text-right hidden sm:table-cell">--</td>
-                        <td className="px-3 py-2.5 text-right hidden md:table-cell">--</td>
-                      </tr>
-                      <tr className="border-t">
-                        <td></td>
-                        <td className="px-3 py-2.5">ROAS</td>
-                        <td className="px-3 py-2.5 text-right font-semibold text-mpj-purple tabular-nums">{calcROAS(currentData)}</td>
-                        <td className="px-3 py-2.5 text-right hidden sm:table-cell">--</td>
                         <td className="px-3 py-2.5 text-right hidden md:table-cell">--</td>
                       </tr>
                       {currentData.revenue.channels && Object.entries(currentData.revenue.channels).map(([ch, v], i) => (
