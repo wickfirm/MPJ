@@ -386,8 +386,8 @@ export default function Dashboard() {
   const tabs = [
     { id: 'workspace', label: 'Workspace', icon: Calendar },
     { id: 'executive', label: 'Executive Summary', icon: TrendingUp },
-    { id: 'venue', label: 'Venue View', icon: BarChart3 },
-    { id: 'live', label: 'Live Campaigns', icon: Megaphone }
+    { id: 'venue', label: 'Venue View', icon: BarChart3 }
+    // { id: 'live', label: 'Live Campaigns', icon: Megaphone }
   ]
 
   // ── Render guards ──────────────────────
@@ -1060,46 +1060,13 @@ export default function Dashboard() {
               </CollapsibleSection>
             )}
 
+            {/* Live Campaigns hidden until data is updated
             {currentData.liveCampaigns?.length > 0 && (
               <CollapsibleSection title={`Live Campaigns - ${selectedVenue}`} color="#9333ea" icon={Megaphone}>
-                <div className="table-responsive">
-                  <table className="w-full text-sm">
-                    <thead className="bg-mpj-teal/50 border-b">
-                      <tr>
-                        <th className="text-left px-3 py-2.5 font-semibold text-gray-600">Type</th>
-                        <th className="text-left px-3 py-2.5 font-semibold text-gray-600">Name</th>
-                        <th className="text-left px-3 py-2.5 font-semibold text-gray-600 hidden sm:table-cell">Language</th>
-                        <th className="text-left px-3 py-2.5 font-semibold text-gray-600 hidden md:table-cell">Format</th>
-                        <th className="text-left px-3 py-2.5 font-semibold text-gray-600 hidden md:table-cell">Captions</th>
-                        <th className="text-left px-3 py-2.5 font-semibold text-gray-600">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {currentData.liveCampaigns.map((c, i) => (
-                        <tr key={i} className="border-t hover:bg-gray-50/50 transition-colors">
-                          <td className="px-3 py-2.5">
-                            <span className={`px-2 py-1 rounded-md text-xs font-medium text-white ${(c.type === 'Dark Post' || c.type === 'Dark') ? 'bg-blue-500' : 'bg-pink-400'}`}>
-                              {c.type === 'Dark' ? 'Dark Post' : c.type}
-                            </span>
-                          </td>
-                          <td className="px-3 py-2.5 font-medium">{c.name}</td>
-                          <td className="px-3 py-2.5 hidden sm:table-cell">{c.language}</td>
-                          <td className="px-3 py-2.5 hidden md:table-cell">
-                            <span className={`px-2 py-1 rounded-md text-xs ${c.format === 'Carousel' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}>{c.format}</span>
-                          </td>
-                          <td className="px-3 py-2.5 hidden md:table-cell">
-                            <span className={`px-2 py-1 rounded-md text-xs ${c.captions === 'Yes' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>{c.captions}</span>
-                          </td>
-                          <td className="px-3 py-2.5">
-                            <span className={`px-2.5 py-1 rounded-md text-xs font-bold text-white ${c.status === 'active' ? 'bg-green-500' : c.status === 'learning' ? 'bg-amber-500' : c.status === 'not_delivering' || c.status === 'inactive' ? 'bg-red-400' : 'bg-gray-400'}`}>{c.status}</span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                ...
               </CollapsibleSection>
             )}
+            */}
           </div>
         )}
 
