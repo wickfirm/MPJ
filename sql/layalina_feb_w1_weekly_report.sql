@@ -10,11 +10,12 @@ DELETE FROM weekly_reports
 WHERE venue_id = (SELECT id FROM venues WHERE name = 'Layalina' LIMIT 1)
   AND week_start = '2026-02-05';
 
-INSERT INTO weekly_reports (venue_id, week_start, week_end, meta_data, revenue_data, programmatic_data)
+INSERT INTO weekly_reports (venue_id, week_start, week_end, ad_spend, meta_data, revenue_data, programmatic_data)
 VALUES (
   (SELECT id FROM venues WHERE name = 'Layalina' LIMIT 1),
   '2026-02-05',
   '2026-02-12',
+  408.00,
   '{
     "campaigns": [
       {
