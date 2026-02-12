@@ -384,7 +384,7 @@ export default function Dashboard() {
 
   const tabs = [
     { id: 'workspace', label: 'Workspace', icon: Calendar },
-    { id: 'executive', label: 'Executive Summary', icon: TrendingUp },
+    // { id: 'executive', label: 'Executive Summary', icon: TrendingUp },
     { id: 'venue', label: 'Venue View', icon: BarChart3 }
     // { id: 'live', label: 'Live Campaigns', icon: Megaphone }
   ]
