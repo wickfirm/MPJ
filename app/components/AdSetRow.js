@@ -35,6 +35,9 @@ export default function AdSetRow({ adSet, isExpanded, onToggle }) {
                 <div>
                   <p className="font-semibold text-gray-700 flex items-center gap-1.5 mb-1.5">
                     <Users size={14} className="text-mpj-purple" /> Location
+                    {adSet.audience.type && (
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${adSet.audience.type === 'Advantage+' ? 'bg-blue-100 text-blue-700' : adSet.audience.type === 'Custom' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-600'}`}>{adSet.audience.type}</span>
+                    )}
                   </p>
                   <p className="text-gray-600">{adSet.audience.location}</p>
                 </div>
@@ -47,6 +50,12 @@ export default function AdSetRow({ adSet, isExpanded, onToggle }) {
                 </div>
               </div>
               <div className="space-y-3">
+                {adSet.audience.customAudiences?.length > 0 && (
+                  <div>
+                    <p className="font-semibold text-gray-700 mb-1.5">Custom Audiences</p>
+                    <AudienceTag items={adSet.audience.customAudiences} color="#e9d5ff" />
+                  </div>
+                )}
                 {adSet.audience.interests?.length > 0 && (
                   <div>
                     <p className="font-semibold text-gray-700 mb-1.5">Interests</p>
