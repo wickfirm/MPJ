@@ -290,14 +290,17 @@ export default function Dashboard() {
   , [selectedVenue, previousWeek, compareMode, getVenueData])
 
   const executiveMetrics = useMemo(() => {
-    if (!selectedWeek) return { totalOnlineRevenue: 0, totalRevenue: 0, totalReservations: 0, onlineReservations: 0, totalImpressions: 0, totalClicks: 0, totalLinkClicks: 0, allVenuesImpressions: [] }
+    if (!selectedWeek) return { totalAdSpend: 0, totalOnlineRevenue: 0, totalRevenue: 0, totalReservations: 0, onlineReservations: 0, totalImpressions: 0, totalClicks: 0, totalLinkClicks: 0, allVenuesSpend: [], pocPieData: [], allVenuesImpressions: [] }
 
-    let totalOnlineRevenue = 0, totalRevenue = 0, totalReservations = 0, onlineReservations = 0
+    let totalAdSpend = 0, totalOnlineRevenue = 0, totalRevenue = 0, totalReservations = 0, onlineReservations = 0
     let totalImpressions = 0, totalClicks = 0, totalLinkClicks = 0
+    const allVenuesSpend = []
     const allVenuesImpressions = []
+    const spendByPOC = {}
 
     venues.forEach(v => {
       const d = getVenueData(v.name, selectedWeek)
+      totalAdSpend += d.adSpend || 0
       totalOnlineRevenue += d.revenue?.totalOnline || 0
       totalRevenue += d.revenue?.totalBusiness || 0
       totalReservations += d.revenue?.totalReservations || 0
@@ -312,10 +315,13 @@ export default function Dashboard() {
           venueLinkClicks += c.linkClicks || 0
         })
       }
+      allVenuesSpend.push({ name: v.name.length > 12 ? v.name.substring(0, 12) + '..' : v.name, spend: d.adSpend })
       allVenuesImpressions.push({ name: v.name.length > 12 ? v.name.substring(0, 12) + '..' : v.name, impressions: venueImpressions, linkClicks: venueLinkClicks })
+      spendByPOC[v.poc] = (spendByPOC[v.poc] || 0) + (d.adSpend || 0)
     })
 
-    return { totalOnlineRevenue, totalRevenue, totalReservations, onlineReservations, totalImpressions, totalClicks, totalLinkClicks, allVenuesImpressions }
+    const pocPieData = Object.entries(spendByPOC).map(([name, value]) => ({ name, value }))
+    return { totalAdSpend, totalOnlineRevenue, totalRevenue, totalReservations, onlineReservations, totalImpressions, totalClicks, totalLinkClicks, allVenuesSpend, pocPieData, allVenuesImpressions }
   }, [venues, selectedWeek, getVenueData])
 
   // Workspace budget filtered by month
@@ -358,13 +364,10 @@ export default function Dashboard() {
   const toggleAdSet = (name) => setExpandedAdSets(prev => ({ ...prev, [name]: !prev[name] }))
 
   const exportToCSV = () => {
-    let csv = 'Venue,Week,Impressions,Link Clicks,CTR,Reservations\n'
+    let csv = 'Venue,Week,Ad Spend,Total Revenue,Online Revenue,ROAS,Reservations\n'
     venues.forEach(v => {
       const d = getVenueData(v.name, selectedWeek)
-      const imp = d.meta?.campaigns?.reduce((s, c) => s + (c.impressions || 0), 0) || 0
-      const lc = d.meta?.campaigns?.reduce((s, c) => s + (c.linkClicks || 0), 0) || 0
-      const ctr = imp > 0 ? ((d.meta?.campaigns?.reduce((s, c) => s + (c.clicks || 0), 0) / imp) * 100).toFixed(2) + '%' : '0%'
-      csv += `${v.name},${d.weekStart} to ${d.weekEnd},${imp},${lc},${ctr},${d.revenue?.totalReservations || 0}\n`
+      csv += `${v.name},${d.weekStart} to ${d.weekEnd},${d.adSpend},${d.revenue?.totalBusiness || 0},${d.revenue?.totalOnline || 0},${calcROAS(d)},${d.revenue?.totalReservations || 0}\n`
     })
     const blob = new Blob([csv], { type: 'text/csv' })
     const url = URL.createObjectURL(blob)
@@ -591,10 +594,16 @@ export default function Dashboard() {
         {activeTab === 'executive' && (
           <div className="space-y-4 animate-fade-in">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+              <KPICard label="Total Ad Spend" value={formatNum(executiveMetrics.totalAdSpend)} prefix="AED " icon={DollarSign} />
+              <KPICard label="Online Revenue" value={formatNum(executiveMetrics.totalOnlineRevenue)} prefix="AED " icon={TrendingUp} />
+              <KPICard label="Online Reservations" value={formatInt(executiveMetrics.onlineReservations)} icon={ShoppingBag} />
+              <KPICard label="ROAS" value={executiveMetrics.totalAdSpend > 0 ? (executiveMetrics.totalOnlineRevenue / executiveMetrics.totalAdSpend).toFixed(2) : '0'} suffix="x" icon={Target} />
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
               <KPICard label="Impressions" value={formatInt(executiveMetrics.totalImpressions)} icon={Eye} />
               <KPICard label="Link Clicks" value={formatInt(executiveMetrics.totalLinkClicks)} icon={MousePointerClick} />
               <KPICard label="CTR" value={executiveMetrics.totalImpressions > 0 ? ((executiveMetrics.totalClicks / executiveMetrics.totalImpressions) * 100).toFixed(2) : '0'} suffix="%" icon={Percent} />
-              <KPICard label="Online Reservations" value={formatInt(executiveMetrics.onlineReservations)} icon={ShoppingBag} />
+              <KPICard label="Cost per Click" value={executiveMetrics.totalClicks > 0 ? formatNum(executiveMetrics.totalAdSpend / executiveMetrics.totalClicks) : '0.00'} prefix="AED " icon={DollarSign} />
             </div>
 
             <CollapsibleSection title="All Venues Performance" icon={BarChart3}>
@@ -604,10 +613,10 @@ export default function Dashboard() {
                     <tr>
                       <th className="text-left px-3 py-2.5 font-semibold text-gray-600">Venue</th>
                       <th className="text-left px-3 py-2.5 font-semibold text-gray-600 hidden md:table-cell">POC</th>
-                      <th className="text-right px-3 py-2.5 font-semibold text-gray-600">Impressions</th>
-                      <th className="text-right px-3 py-2.5 font-semibold text-gray-600">Link Clicks</th>
-                      <th className="text-right px-3 py-2.5 font-semibold text-gray-600 hidden sm:table-cell">CTR</th>
+                      <th className="text-right px-3 py-2.5 font-semibold text-gray-600">Ad Spend</th>
+                      <th className="text-right px-3 py-2.5 font-semibold text-gray-600">Revenue</th>
                       <th className="text-right px-3 py-2.5 font-semibold text-gray-600 hidden sm:table-cell">Reservations</th>
+                      <th className="text-right px-3 py-2.5 font-semibold text-gray-600">ROAS</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -617,10 +626,10 @@ export default function Dashboard() {
                         <tr key={v.id} className="border-t hover:bg-gray-50/50 transition-colors">
                           <td className="px-3 py-2.5 font-medium text-gray-900">{v.name}</td>
                           <td className="px-3 py-2.5 text-gray-600 hidden md:table-cell">{v.poc}</td>
-                          <td className="px-3 py-2.5 text-right tabular-nums">{formatInt(d.meta?.campaigns?.reduce((s, c) => s + (c.impressions || 0), 0) || 0)}</td>
-                          <td className="px-3 py-2.5 text-right tabular-nums">{formatInt(d.meta?.campaigns?.reduce((s, c) => s + (c.linkClicks || 0), 0) || 0)}</td>
-                          <td className="px-3 py-2.5 text-right tabular-nums hidden sm:table-cell">{d.meta?.campaigns?.reduce((s, c) => s + (c.impressions || 0), 0) > 0 ? ((d.meta?.campaigns?.reduce((s, c) => s + (c.clicks || 0), 0) / d.meta?.campaigns?.reduce((s, c) => s + (c.impressions || 0), 0)) * 100).toFixed(2) + '%' : '0%'}</td>
+                          <td className="px-3 py-2.5 text-right tabular-nums">AED {formatNum(d.adSpend)}</td>
+                          <td className="px-3 py-2.5 text-right tabular-nums">AED {formatNum(d.revenue?.totalBusiness || 0)}</td>
                           <td className="px-3 py-2.5 text-right tabular-nums hidden sm:table-cell">{formatInt(d.revenue?.totalReservations || 0)}</td>
+                          <td className="px-3 py-2.5 text-right font-semibold text-mpj-purple">{calcROAS(d)}</td>
                         </tr>
                       )
                     })}
@@ -633,16 +642,16 @@ export default function Dashboard() {
               <CollapsibleSection title="Monthly Rollup" color="#4a5568" icon={TrendingUp}>
                 <div className="grid md:grid-cols-2 gap-6">
                   <div>
-                    <h4 className="text-sm font-semibold text-gray-700 mb-3">Impressions & Clicks Trend</h4>
+                    <h4 className="text-sm font-semibold text-gray-700 mb-3">Ad Spend vs Revenue</h4>
                     <ResponsiveContainer width="100%" height={220}>
                       <BarChart data={monthlyData}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                         <XAxis dataKey="month" tick={{ fontSize: 11 }} />
                         <YAxis tickFormatter={formatK} tick={{ fontSize: 11 }} />
-                        <Tooltip formatter={(v) => formatInt(v)} />
+                        <Tooltip formatter={(v) => 'AED ' + formatNum(v)} />
                         <Legend />
-                        <Bar dataKey="impressions" fill="#76527c" name="Impressions" radius={[4, 4, 0, 0]} />
-                        <Bar dataKey="clicks" fill="#d8ee91" name="Clicks" radius={[4, 4, 0, 0]} />
+                        <Bar dataKey="ad_spend" fill="#76527c" name="Ad Spend" radius={[4, 4, 0, 0]} />
+                        <Bar dataKey="revenue" fill="#d8ee91" name="Revenue" radius={[4, 4, 0, 0]} />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
@@ -665,27 +674,26 @@ export default function Dashboard() {
             <CollapsibleSection title="Visual Trends" color="#2d3748" icon={BarChart3}>
               <div className="grid md:grid-cols-2 gap-6">
                 <div>
-                  <h4 className="text-sm font-semibold text-gray-700 mb-3">Impressions by Venue</h4>
+                  <h4 className="text-sm font-semibold text-gray-700 mb-3">Ad Spend by Venue</h4>
                   <ResponsiveContainer width="100%" height={240}>
-                    <BarChart data={executiveMetrics.allVenuesImpressions} layout="vertical">
+                    <BarChart data={executiveMetrics.allVenuesSpend} layout="vertical">
                       <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                       <XAxis type="number" tickFormatter={formatK} tick={{ fontSize: 11 }} />
                       <YAxis dataKey="name" type="category" width={90} tick={{ fontSize: 10 }} />
-                      <Tooltip formatter={(v) => formatInt(v)} />
-                      <Bar dataKey="impressions" fill="#76527c" radius={[0, 4, 4, 0]} />
+                      <Tooltip formatter={(v) => 'AED ' + formatNum(v)} />
+                      <Bar dataKey="spend" fill="#76527c" radius={[0, 4, 4, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
                 <div>
-                  <h4 className="text-sm font-semibold text-gray-700 mb-3">Link Clicks by Venue</h4>
+                  <h4 className="text-sm font-semibold text-gray-700 mb-3">Spend by POC</h4>
                   <ResponsiveContainer width="100%" height={240}>
-                    <BarChart data={executiveMetrics.allVenuesImpressions} layout="vertical">
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                      <XAxis type="number" tickFormatter={formatK} tick={{ fontSize: 11 }} />
-                      <YAxis dataKey="name" type="category" width={90} tick={{ fontSize: 10 }} />
-                      <Tooltip formatter={(v) => formatInt(v)} />
-                      <Bar dataKey="linkClicks" fill="#d8ee91" radius={[0, 4, 4, 0]} />
-                    </BarChart>
+                    <PieChart>
+                      <Pie data={executiveMetrics.pocPieData} cx="50%" cy="50%" outerRadius={80} innerRadius={40} dataKey="value" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={{ strokeWidth: 1 }}>
+                        {executiveMetrics.pocPieData.map((e, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                      </Pie>
+                      <Tooltip formatter={(v) => 'AED ' + formatNum(v)} />
+                    </PieChart>
                   </ResponsiveContainer>
                 </div>
               </div>
