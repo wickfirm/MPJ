@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
-import { Download, BarChart3, Calendar, TrendingUp, Megaphone, ExternalLink, Users, Lightbulb, RefreshCw, LogOut, DollarSign, ShoppingBag, Target, Upload, Image as ImageIcon, Eye, MousePointerClick, Percent, Instagram } from 'lucide-react'
+import { Download, BarChart3, Calendar, TrendingUp, Megaphone, ExternalLink, Users, Lightbulb, RefreshCw, LogOut, DollarSign, ShoppingBag, Target, Upload, Image as ImageIcon, Eye, MousePointerClick, Percent, Instagram, MessageSquare } from 'lucide-react'
 import { LineChart as ReLineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
 
 import CollapsibleSection from './components/CollapsibleSection'
@@ -61,6 +61,8 @@ export default function Dashboard() {
   const [adCreatives, setAdCreatives] = useState([])
   const [showUploadModal, setShowUploadModal] = useState(false)
   const [socialMediaData, setSocialMediaData] = useState([])
+  const [adNotes, setAdNotes] = useState({})         // { "venueId_weekKey_adName": "note text" }
+  const [savingNote, setSavingNote] = useState(null)  // key of note currently saving
 
   // UI state
   const [loading, setLoading] = useState(true)
@@ -87,7 +89,7 @@ export default function Dashboard() {
     setError(null)
 
     try {
-      const [venuesRes, reportsRes, campaignsRes, workspaceRes, monthlyRes, creativesRes, socialRes] = await Promise.all([
+      const [venuesRes, reportsRes, campaignsRes, workspaceRes, monthlyRes, creativesRes, socialRes, adNotesRes] = await Promise.all([
         supabase.from('venues').select('*').order('name'),
         supabase.from('weekly_reports').select('*, venues(name, poc)').order('week_end', { ascending: false }),
         supabase.from('live_campaigns').select('*, venues(name)'),
@@ -95,10 +97,11 @@ export default function Dashboard() {
         supabase.from('monthly_rollups').select('*').order('month'),
         supabase.from('ad_creatives').select('*, venues(name)').order('created_at', { ascending: false }),
         supabase.from('social_media_monthly').select('*, venues(name)').order('month', { ascending: false }),
+        supabase.from('ad_notes').select('*'),
       ])
 
       // Check for errors
-      const errors = [venuesRes, reportsRes, campaignsRes, workspaceRes, monthlyRes, creativesRes, socialRes]
+      const errors = [venuesRes, reportsRes, campaignsRes, workspaceRes, monthlyRes, creativesRes, socialRes, adNotesRes]
         .filter(r => r.error)
         .map(r => r.error.message)
 
@@ -163,6 +166,14 @@ export default function Dashboard() {
       setMonthlyData(monthlyRes.data || [])
       setAdCreatives(creativesRes.data || [])
       setSocialMediaData(socialRes.data || [])
+
+      // Build ad_notes lookup map: "venueId_weekKey_adName" -> note
+      const notesMap = {}
+      ;(adNotesRes.data || []).forEach(n => {
+        notesMap[`${n.venue_id}_${n.week_key}_${n.ad_name}`] = n.note || ''
+      })
+      setAdNotes(notesMap)
+
       setLastUpdated(new Date())
 
       if (isRefresh) {
@@ -245,6 +256,35 @@ export default function Dashboard() {
     setAdCreatives(prev => prev.filter(c => c.id !== id))
     setToast({ message: 'Creative deleted', type: 'success' })
   }, [])
+
+  // ── Ad Notes helpers ──────────────────
+  const getNoteKey = useCallback((venueName, weekKey, adName) => {
+    const venue = venues.find(v => v.name === venueName)
+    return venue ? `${venue.id}_${weekKey}_${adName}` : null
+  }, [venues])
+
+  const saveAdNote = useCallback(async (venueName, weekKey, adName, note) => {
+    const venue = venues.find(v => v.name === venueName)
+    if (!venue) return
+    const key = `${venue.id}_${weekKey}_${adName}`
+    setSavingNote(key)
+    try {
+      const { error } = await supabase.from('ad_notes').upsert({
+        venue_id: venue.id,
+        week_key: weekKey,
+        ad_name: adName,
+        note: note,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'venue_id,week_key,ad_name' })
+      if (error) throw error
+      setAdNotes(prev => ({ ...prev, [key]: note }))
+    } catch (err) {
+      console.error('Failed to save note:', err)
+      setToast({ message: 'Failed to save note', type: 'error' })
+    } finally {
+      setSavingNote(null)
+    }
+  }, [venues])
 
   const currentData = useMemo(() =>
     selectedVenue && selectedWeek ? getVenueData(selectedVenue, selectedWeek) : null
@@ -822,7 +862,10 @@ export default function Dashboard() {
 
                   {currentData.meta.ads?.length > 0 && (
                     <div>
-                      <h4 className="text-sm font-semibold text-gray-700 mb-2">Ad Level</h4>
+                      <h4 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                        Ad Level
+                        <span className="text-xs font-normal text-gray-400 flex items-center gap-1"><MessageSquare size={11} /> click notes to edit</span>
+                      </h4>
                       <div className="table-responsive">
                         <table className="w-full text-sm">
                           <thead className="bg-gray-50 border-b">
@@ -833,21 +876,54 @@ export default function Dashboard() {
                               <th className="text-right px-3 py-2.5 font-semibold text-gray-600">CTR</th>
                               <th className="text-right px-3 py-2.5 font-semibold text-gray-600 hidden md:table-cell">Link Clicks</th>
                               <th className="text-right px-3 py-2.5 font-semibold text-gray-600 hidden md:table-cell">Engagement</th>
+                              <th className="text-left px-3 py-2.5 font-semibold text-gray-600 min-w-[180px]">
+                                <span className="flex items-center gap-1"><MessageSquare size={12} /> Notes</span>
+                              </th>
                             </tr>
                           </thead>
                           <tbody>
-                            {currentData.meta.ads.map((a, i) => (
-                              <tr key={i} className="border-t hover:bg-gray-50/50 transition-colors">
-                                <td className="px-2 py-2 hidden sm:table-cell">
-                                  <CreativeThumb creative={getCreativeForAd(selectedVenue, a.name, currentData.weekStart)} size={36} />
-                                </td>
-                                <td className="px-3 py-2.5 max-w-[200px] truncate font-medium">{a.name}</td>
-                                <td className="px-3 py-2.5 text-right tabular-nums">{formatInt(a.impressions)}</td>
-                                <td className="px-3 py-2.5 text-right tabular-nums">{a.ctr}</td>
-                                <td className="px-3 py-2.5 text-right tabular-nums hidden md:table-cell">{formatInt(a.linkClicks)}</td>
-                                <td className="px-3 py-2.5 text-right tabular-nums hidden md:table-cell">{formatInt(a.engagement)}</td>
-                              </tr>
-                            ))}
+                            {currentData.meta.ads.map((a, i) => {
+                              const noteKey = getNoteKey(selectedVenue, selectedWeek, a.name)
+                              const noteVal = noteKey ? (adNotes[noteKey] || '') : ''
+                              const isSaving = savingNote === noteKey
+                              return (
+                                <tr key={i} className="border-t hover:bg-gray-50/50 transition-colors">
+                                  <td className="px-2 py-2 hidden sm:table-cell">
+                                    <CreativeThumb creative={getCreativeForAd(selectedVenue, a.name, currentData.weekStart)} size={36} />
+                                  </td>
+                                  <td className="px-3 py-2.5 max-w-[200px] truncate font-medium">{a.name}</td>
+                                  <td className="px-3 py-2.5 text-right tabular-nums">{formatInt(a.impressions)}</td>
+                                  <td className="px-3 py-2.5 text-right tabular-nums">{a.ctr}</td>
+                                  <td className="px-3 py-2.5 text-right tabular-nums hidden md:table-cell">{formatInt(a.linkClicks)}</td>
+                                  <td className="px-3 py-2.5 text-right tabular-nums hidden md:table-cell">{formatInt(a.engagement)}</td>
+                                  <td className="px-3 py-1.5">
+                                    <div className="relative">
+                                      <textarea
+                                        defaultValue={noteVal}
+                                        placeholder="Add note..."
+                                        rows={1}
+                                        onBlur={(e) => {
+                                          const val = e.target.value.trim()
+                                          if (val !== noteVal) {
+                                            saveAdNote(selectedVenue, selectedWeek, a.name, val)
+                                          }
+                                        }}
+                                        onKeyDown={(e) => {
+                                          if (e.key === 'Enter' && !e.shiftKey) {
+                                            e.preventDefault()
+                                            e.target.blur()
+                                          }
+                                        }}
+                                        className="w-full text-xs px-2 py-1.5 border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-mpj-purple/40 focus:border-mpj-purple resize-none bg-white hover:bg-gray-50 transition-colors min-w-[160px]"
+                                      />
+                                      {isSaving && (
+                                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-mpj-purple animate-pulse">saving...</span>
+                                      )}
+                                    </div>
+                                  </td>
+                                </tr>
+                              )
+                            })}
                           </tbody>
                         </table>
                       </div>
