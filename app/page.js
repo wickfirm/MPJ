@@ -876,6 +876,7 @@ export default function Dashboard() {
                               <th className="text-right px-3 py-2.5 font-semibold text-gray-600">CTR</th>
                               <th className="text-right px-3 py-2.5 font-semibold text-gray-600 hidden md:table-cell">Link Clicks</th>
                               <th className="text-right px-3 py-2.5 font-semibold text-gray-600 hidden md:table-cell">Engagement</th>
+                              <th className="text-center px-3 py-2.5 font-semibold text-gray-600">Status</th>
                               <th className="text-left px-3 py-2.5 font-semibold text-gray-600 min-w-[180px]">
                                 <span className="flex items-center gap-1"><MessageSquare size={12} /> Notes</span>
                               </th>
@@ -896,6 +897,11 @@ export default function Dashboard() {
                                   <td className="px-3 py-2.5 text-right tabular-nums">{a.ctr}</td>
                                   <td className="px-3 py-2.5 text-right tabular-nums hidden md:table-cell">{formatInt(a.linkClicks)}</td>
                                   <td className="px-3 py-2.5 text-right tabular-nums hidden md:table-cell">{formatInt(a.engagement)}</td>
+                                  <td className="px-3 py-2.5 text-center">
+                                    {a.status && (
+                                      <span className={`px-2.5 py-1 rounded-md text-xs font-bold text-white ${a.status === 'active' ? 'bg-green-500' : a.status === 'learning' ? 'bg-amber-500' : a.status === 'not_delivering' || a.status === 'inactive' ? 'bg-red-400' : 'bg-gray-400'}`}>{a.status}</span>
+                                    )}
+                                  </td>
                                   <td className="px-3 py-1.5">
                                     <div className="relative">
                                       <textarea
@@ -1104,7 +1110,7 @@ export default function Dashboard() {
                             <span className={`px-2 py-1 rounded-md text-xs ${c.captions === 'Yes' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>{c.captions}</span>
                           </td>
                           <td className="px-3 py-2.5">
-                            <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-green-500 text-white">{c.status}</span>
+                            <span className={`px-2.5 py-1 rounded-md text-xs font-bold text-white ${c.status === 'active' ? 'bg-green-500' : c.status === 'learning' ? 'bg-amber-500' : c.status === 'not_delivering' || c.status === 'inactive' ? 'bg-red-400' : 'bg-gray-400'}`}>{c.status}</span>
                           </td>
                         </tr>
                       ))}
@@ -1173,7 +1179,7 @@ export default function Dashboard() {
                             )}
                           </td>
                           <td className="px-3 py-2.5">
-                            <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-green-500 text-white">{c.status}</span>
+                            <span className={`px-2.5 py-1 rounded-md text-xs font-bold text-white ${c.status === 'active' ? 'bg-green-500' : c.status === 'learning' ? 'bg-amber-500' : c.status === 'not_delivering' || c.status === 'inactive' ? 'bg-red-400' : 'bg-gray-400'}`}>{c.status}</span>
                           </td>
                         </tr>
                       ))}
