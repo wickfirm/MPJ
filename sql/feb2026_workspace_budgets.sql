@@ -39,6 +39,5 @@ VALUES ('2026-02-01', 'Smoki Moto Media', 2500.00, 580.00, 150.00, 730.00, 1770.
 INSERT INTO workspace_budgets (month, brand, monthly_budget, traffic, community, total_spend, remaining, pct_spent)
 VALUES ('2026-02-01', 'Above Eleven Media', 2000.00, 440.00, 115.00, 555.00, 1445.00, '27.8%');
 
--- Layalina Media: AED 1,500/mo | daily ~53.57 | 8-day target ~428.57
-INSERT INTO workspace_budgets (month, brand, monthly_budget, traffic, community, total_spend, remaining, pct_spent)
-VALUES ('2026-02-01', 'Layalina Media', 1500.00, 310.00, 98.00, 408.00, 1092.00, '27.2%');
+-- Layalina Media: removed from workspace view (separate client)
+DELETE FROM workspace_budgets WHERE month = '2026-02-01' AND brand = 'Layalina Media';
