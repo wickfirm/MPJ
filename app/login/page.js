@@ -15,7 +15,7 @@ export default function LoginPage() {
 
     // Simple password gate - check against env variable or hardcoded
     setTimeout(() => {
-      const validPassword = process.env.NEXT_PUBLIC_DASHBOARD_PASSWORD || 'mpj2024'
+      const validPassword = process.env.NEXT_PUBLIC_DASHBOARD_PASSWORD || '123@@'
       if (password === validPassword) {
         sessionStorage.setItem('mpj_auth', 'true')
         window.location.href = '/'

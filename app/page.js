@@ -71,9 +71,14 @@ export default function Dashboard() {
   const [lastUpdated, setLastUpdated] = useState(null)
   const [toast, setToast] = useState(null)
 
-  // ── Auth check (disabled — open access) ──
+  // ── Auth check ───────────────────────────
   useEffect(() => {
-    setIsAuthenticated(true)
+    const auth = sessionStorage.getItem('mpj_auth')
+    if (auth === 'true') {
+      setIsAuthenticated(true)
+    } else {
+      window.location.href = '/login'
+    }
     setAuthChecked(true)
   }, [])
 
