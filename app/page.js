@@ -876,17 +876,57 @@ export default function Dashboard() {
                             </tr>
                           </thead>
                           <tbody>
-                            {currentData.meta.ads.map((a, i) => {
+                            {(() => {
+                              // Build lookup: for each ad, find best-matching adSet and campaign by longest common prefix
+                              const adSets = currentData.meta.adSets || []
+                              const campaigns = currentData.meta.campaigns || []
+                              const findParent = (arr, adName) => {
+                                let best = null, bestLen = 0
+                                arr.forEach(p => {
+                                  const shorter = Math.min(p.name.length, adName.length)
+                                  let common = 0
+                                  for (let i = 0; i < shorter; i++) {
+                                    if (p.name[i] === adName[i]) common++
+                                    else break
+                                  }
+                                  if (common > bestLen) { bestLen = common; best = p.name }
+                                })
+                                return best
+                              }
+                              return currentData.meta.ads.map((a, i) => {
                               const noteKey = getNoteKey(selectedVenue, selectedWeek, a.name)
                               const noteVal = noteKey ? (adNotes[noteKey] || '') : ''
                               const isSaving = savingNote === noteKey
+                              const matchedAdSet = findParent(adSets, a.name)
+                              const matchedCampaign = findParent(campaigns, a.name)
                               return (
                                 <tr key={i} className="border-t hover:bg-gray-50/50 transition-colors">
                                   <td className="px-2 py-2 hidden sm:table-cell">
                                     <CreativeThumb creative={getCreativeForAd(selectedVenue, a.name, currentData.weekStart)} size={36} />
                                   </td>
                                   <td className="px-3 py-2.5 max-w-[200px] font-medium">
-                                    <span className="block truncate cursor-default" title={a.name}>{a.name}</span>
+                                    <div className="relative group/adname">
+                                      <span className="block truncate cursor-default">{a.name}</span>
+                                      {/* Hover tooltip */}
+                                      <div className="absolute left-0 top-full mt-1 z-50 hidden group-hover/adname:block w-72 bg-gray-900 text-white text-xs rounded-lg shadow-xl p-3 space-y-1.5 pointer-events-none">
+                                        <div>
+                                          <span className="text-gray-400 uppercase tracking-wide text-[10px]">Ad</span>
+                                          <p className="font-medium leading-snug mt-0.5">{a.name}</p>
+                                        </div>
+                                        {matchedAdSet && (
+                                          <div className="border-t border-gray-700 pt-1.5">
+                                            <span className="text-gray-400 uppercase tracking-wide text-[10px]">Ad Set</span>
+                                            <p className="leading-snug mt-0.5 text-gray-200">{matchedAdSet}</p>
+                                          </div>
+                                        )}
+                                        {matchedCampaign && (
+                                          <div className="border-t border-gray-700 pt-1.5">
+                                            <span className="text-gray-400 uppercase tracking-wide text-[10px]">Campaign</span>
+                                            <p className="leading-snug mt-0.5 text-gray-200">{matchedCampaign}</p>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
                                   </td>
                                   <td className="px-3 py-2.5 text-right tabular-nums">{formatInt(a.impressions)}</td>
                                   <td className="px-3 py-2.5 text-right tabular-nums">{a.ctr}</td>
@@ -924,7 +964,7 @@ export default function Dashboard() {
                                   </td>
                                 </tr>
                               )
-                            })}
+                            })})()}
                           </tbody>
                         </table>
                       </div>
