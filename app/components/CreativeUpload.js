@@ -23,7 +23,7 @@ export default function CreativeUpload({ venues, weeklyReports, onSuccess, onClo
     if (!selectedVenue || !weeklyReports[selectedVenue]) return []
     const months = new Set()
     Object.keys(weeklyReports[selectedVenue]).forEach(weekKey => {
-      const startDate = weekKey.split(' → ')[0]
+      const startDate = weekKey.split('_')[0]
       if (startDate) months.add(startDate.substring(0, 7))
     })
     return Array.from(months).sort().reverse()
@@ -34,7 +34,7 @@ export default function CreativeUpload({ venues, weeklyReports, onSuccess, onClo
     if (!selectedVenue || !selectedMonth || !weeklyReports[selectedVenue]) return []
     const names = new Set()
     Object.entries(weeklyReports[selectedVenue]).forEach(([weekKey, report]) => {
-      const startDate = weekKey.split(' → ')[0]
+      const startDate = weekKey.split('_')[0]
       if (startDate && startDate.startsWith(selectedMonth)) {
         const meta = report?.meta_data
         if (meta?.ads) {
