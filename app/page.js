@@ -63,6 +63,8 @@ export default function Dashboard() {
   const [socialMediaData, setSocialMediaData] = useState([])
   const [adNotes, setAdNotes] = useState({})         // { "venueId_weekKey_adName": "note text" }
   const [savingNote, setSavingNote] = useState(null)  // key of note currently saving
+  const [venueNotes, setVenueNotes] = useState({})   // { "venueId_weekKey": "note text" }
+  const [savingVenueNote, setSavingVenueNote] = useState(false)
 
   // UI state
   const [loading, setLoading] = useState(true)
@@ -171,8 +173,19 @@ export default function Dashboard() {
       const notesMap = {}
       ;(adNotesRes.data || []).forEach(n => {
         notesMap[`${n.venue_id}_${n.week_key}_${n.ad_name}`] = n.note || ''
+        // Also load venue-level notes (ad_name === '__venue__')
+        if (n.ad_name === '__venue__') {
+          setVenueNotes(prev => ({ ...prev, [`${n.venue_id}_${n.week_key}`]: n.note || '' }))
+        }
       })
       setAdNotes(notesMap)
+
+      // Build venue notes map from same ad_notes table (ad_name = '__venue__')
+      const venueNotesMap = {}
+      ;(adNotesRes.data || []).filter(n => n.ad_name === '__venue__').forEach(n => {
+        venueNotesMap[`${n.venue_id}_${n.week_key}`] = n.note || ''
+      })
+      setVenueNotes(venueNotesMap)
 
       setLastUpdated(new Date())
 
@@ -334,6 +347,29 @@ export default function Dashboard() {
       setToast({ message: 'Failed to save note', type: 'error' })
     } finally {
       setSavingNote(null)
+    }
+  }, [venues])
+
+  const saveVenueNote = useCallback(async (venueName, weekKey, note) => {
+    const venue = venues.find(v => v.name === venueName)
+    if (!venue) return
+    const key = `${venue.id}_${weekKey}`
+    setSavingVenueNote(true)
+    try {
+      const { error } = await supabase.from('ad_notes').upsert({
+        venue_id: venue.id,
+        week_key: weekKey,
+        ad_name: '__venue__',
+        note: note,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'venue_id,week_key,ad_name' })
+      if (error) throw error
+      setVenueNotes(prev => ({ ...prev, [key]: note }))
+    } catch (err) {
+      console.error('Failed to save venue note:', err)
+      setToast({ message: 'Failed to save note', type: 'error' })
+    } finally {
+      setSavingVenueNote(false)
     }
   }, [venues])
 
@@ -789,6 +825,39 @@ export default function Dashboard() {
                 </button>
               </div>
             </div>
+
+            {/* ── Meeting Notes Box ── */}
+            {(() => {
+              const venue = venues.find(v => v.name === selectedVenue)
+              const noteKey = venue ? `${venue.id}_${selectedWeek}` : null
+              const noteVal = noteKey ? (venueNotes[noteKey] || '') : ''
+              return (
+                <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-xs font-semibold text-gray-600 flex items-center gap-1.5">
+                      <MessageSquare size={13} className="text-mpj-purple" />
+                      Meeting Notes — {selectedVenue}
+                    </label>
+                    {savingVenueNote && <span className="text-[10px] text-mpj-purple animate-pulse">saving...</span>}
+                  </div>
+                  <textarea
+                    key={noteKey}
+                    defaultValue={noteVal}
+                    placeholder="Add notes for your meeting here — context, action items, observations..."
+                    rows={3}
+                    onBlur={(e) => {
+                      const val = e.target.value
+                      if (val !== noteVal) saveVenueNote(selectedVenue, selectedWeek, val)
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && e.metaKey) e.target.blur()
+                    }}
+                    className="w-full text-sm px-3 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-mpj-purple/30 focus:border-mpj-purple resize-none bg-gray-50 hover:bg-white transition-colors placeholder:text-gray-400"
+                  />
+                  <p className="text-[10px] text-gray-400 mt-1">Auto-saves on blur · Cmd+Enter to save</p>
+                </div>
+              )
+            })()}
 
             {compareMode && previousData && (
               <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 animate-slide-down">
