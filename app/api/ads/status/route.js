@@ -4,7 +4,9 @@ import { createClient } from '@supabase/supabase-js'
 function getSupabase() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_KEY
   )
 }
 
@@ -19,6 +21,8 @@ export async function PATCH(request) {
 
     const sb = getSupabase()
 
+    console.log('[status] calling RPC with:', { venue_id, week_start, week_end, ad_name, status })
+
     const { data, error } = await sb.rpc('update_ad_status', {
       p_venue_id:   venue_id,
       p_week_start: week_start,
@@ -26,6 +30,8 @@ export async function PATCH(request) {
       p_ad_name:    ad_name,
       p_status:     status,
     })
+
+    console.log('[status] RPC result:', { data, error })
 
     if (error) throw new Error(error.message)
     if (!data) return NextResponse.json({ error: 'Report not found' }, { status: 404 })

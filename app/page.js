@@ -318,7 +318,9 @@ export default function Dashboard() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ venue_id: venue.id, week_start: weekStart, week_end: weekEnd, ad_name: adName, status: newStatus })
       })
-      if (!res.ok) throw new Error('Failed to save')
+      const resBody = await res.json().catch(() => ({}))
+      console.log('[toggleAdStatus] response:', res.status, resBody, { venue_id: venue.id, week_start: weekStart, week_end: weekEnd, ad_name: adName, status: newStatus })
+      if (!res.ok) throw new Error(resBody?.error || 'Failed to save')
       setToast({ message: `Ad marked ${newStatus}`, type: 'success' })
     } catch {
       setToast({ message: 'Failed to update status', type: 'error' })
