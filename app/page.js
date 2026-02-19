@@ -529,8 +529,6 @@ export default function Dashboard() {
                       <th className="text-left px-3 py-2.5 font-semibold text-gray-600">Brand</th>
                       <th className="text-left px-3 py-2.5 font-semibold text-gray-600 hidden sm:table-cell">POC</th>
                       <th className="text-right px-3 py-2.5 font-semibold text-gray-600">Monthly Budget</th>
-                      <th className="text-right px-3 py-2.5 font-semibold text-gray-600 hidden md:table-cell">Traffic</th>
-                      <th className="text-right px-3 py-2.5 font-semibold text-gray-600 hidden md:table-cell">Community</th>
                       <th className="text-right px-3 py-2.5 font-semibold text-gray-600">Total Spend</th>
                       <th className="text-right px-3 py-2.5 font-semibold text-gray-600 hidden sm:table-cell">Remaining</th>
                       <th className="text-right px-3 py-2.5 font-semibold text-gray-600">% Spent</th>
@@ -542,8 +540,6 @@ export default function Dashboard() {
                         <td className="px-3 py-2.5 font-medium text-gray-900">{w.brand}</td>
                         <td className="px-3 py-2.5 text-gray-600 hidden sm:table-cell">{getBrandPOC(w.brand)}</td>
                         <td className="px-3 py-2.5 text-right tabular-nums">AED {formatNum(w.monthly_budget)}</td>
-                        <td className="px-3 py-2.5 text-right tabular-nums hidden md:table-cell">AED {formatNum(w.traffic)}</td>
-                        <td className="px-3 py-2.5 text-right tabular-nums hidden md:table-cell">AED {formatNum(w.community)}</td>
                         <td className="px-3 py-2.5 text-right tabular-nums">AED {formatNum(w.total_spend)}</td>
                         <td className={`px-3 py-2.5 text-right tabular-nums hidden sm:table-cell font-medium ${parseFloat(w.remaining) < 0 ? 'text-red-600' : 'text-green-600'}`}>
                           AED {formatNum(w.remaining)}
@@ -557,8 +553,6 @@ export default function Dashboard() {
                         <td className="px-3 py-3 text-mpj-purple">TOTAL</td>
                         <td className="hidden sm:table-cell"></td>
                         <td className="px-3 py-3 text-right tabular-nums">AED {formatNum(workspaceTotals.budget)}</td>
-                        <td className="px-3 py-3 text-right tabular-nums hidden md:table-cell">AED {formatNum(workspaceTotals.traffic)}</td>
-                        <td className="px-3 py-3 text-right tabular-nums hidden md:table-cell">AED {formatNum(workspaceTotals.community)}</td>
                         <td className="px-3 py-3 text-right tabular-nums">AED {formatNum(workspaceTotals.spend)}</td>
                         <td className={`px-3 py-3 text-right tabular-nums hidden sm:table-cell ${workspaceTotals.remaining < 0 ? 'text-red-600' : 'text-green-600'}`}>
                           AED {formatNum(workspaceTotals.remaining)}
@@ -958,64 +952,201 @@ export default function Dashboard() {
               </CollapsibleSection>
             )}
 
-            {currentData.revenue && (
-              <CollapsibleSection title="Revenue & Reservations (7rooms)" icon={DollarSign}>
-                <div className="table-responsive">
-                  <table className="w-full text-sm">
-                    <thead className="bg-gray-50 border-b">
-                      <tr>
-                        <th className="text-left px-3 py-2.5 font-semibold text-gray-600 w-32">Category</th>
-                        <th className="text-left px-3 py-2.5 font-semibold text-gray-600">Metric / Channel</th>
-                        <th className="text-right px-3 py-2.5 font-semibold text-gray-600">Revenue (AED)</th>
-                        <th className="text-right px-3 py-2.5 font-semibold text-gray-600 hidden sm:table-cell">Reservations</th>
-                        <th className="text-right px-3 py-2.5 font-semibold text-gray-600 hidden md:table-cell">Avg. Spend</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr className="border-t bg-gray-50/80">
-                        <td className="px-3 py-2.5 font-semibold text-mpj-purple">Overall</td>
-                        <td className="px-3 py-2.5">Total Business</td>
-                        <td className="px-3 py-2.5 text-right font-medium tabular-nums">{formatNum(currentData.revenue.totalBusiness)}</td>
-                        <td className="px-3 py-2.5 text-right font-medium tabular-nums hidden sm:table-cell">{formatInt(currentData.revenue.totalReservations)}</td>
-                        <td className="px-3 py-2.5 text-right tabular-nums hidden md:table-cell">{calcAvgSpend(currentData.revenue.totalBusiness, currentData.revenue.totalReservations)}</td>
-                      </tr>
-                      <tr className="border-t">
-                        <td></td>
-                        <td className="px-3 py-2.5">Total Online</td>
-                        <td className="px-3 py-2.5 text-right tabular-nums">{formatNum(currentData.revenue.totalOnline)}</td>
-                        <td className="px-3 py-2.5 text-right tabular-nums hidden sm:table-cell">{formatInt(currentData.revenue.onlineReservations)}</td>
-                        <td className="px-3 py-2.5 text-right tabular-nums hidden md:table-cell">{calcAvgSpend(currentData.revenue.totalOnline, currentData.revenue.onlineReservations)}</td>
-                      </tr>
-                      <tr className="border-t">
-                        <td></td>
-                        <td className="px-3 py-2.5">% of Total (Online)</td>
-                        <td className="px-3 py-2.5 text-right tabular-nums">{calcOnlinePercent(currentData).rev}</td>
-                        <td className="px-3 py-2.5 text-right tabular-nums hidden sm:table-cell">{calcOnlinePercent(currentData).res}</td>
-                        <td className="px-3 py-2.5 text-right hidden md:table-cell">--</td>
-                      </tr>
-                      {currentData.revenue.channels && Object.entries(currentData.revenue.channels).map(([ch, v], i) => (
-                        <tr key={ch} className={`border-t ${i === 0 ? 'bg-gray-50/80' : ''}`}>
-                          <td className="px-3 py-2.5 font-semibold text-mpj-purple">{i === 0 ? 'Online' : ''}</td>
-                          <td className="px-3 py-2.5">{ch}</td>
-                          <td className="px-3 py-2.5 text-right tabular-nums">{formatNum(v.revenue)}</td>
-                          <td className="px-3 py-2.5 text-right tabular-nums hidden sm:table-cell">{v.reservations}</td>
-                          <td className="px-3 py-2.5 text-right tabular-nums hidden md:table-cell">{calcAvgSpend(v.revenue, v.reservations)}</td>
-                        </tr>
-                      ))}
-                      {currentData.revenue.offline && Object.entries(currentData.revenue.offline).map(([ch, v], i) => (
-                        <tr key={ch} className={`border-t ${i === 0 ? 'bg-gray-50/80' : ''}`}>
-                          <td className="px-3 py-2.5 font-semibold text-mpj-purple">{i === 0 ? 'Offline' : ''}</td>
-                          <td className="px-3 py-2.5">{ch}</td>
-                          <td className="px-3 py-2.5 text-right tabular-nums">{formatNum(v.revenue)}</td>
-                          <td className="px-3 py-2.5 text-right tabular-nums hidden sm:table-cell">{v.reservations}</td>
-                          <td className="px-3 py-2.5 text-right tabular-nums hidden md:table-cell">{calcAvgSpend(v.revenue, v.reservations)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </CollapsibleSection>
-            )}
+            {currentData.revenue && (() => {
+              const rev = currentData.revenue
+              const onlinePct = rev.totalBusiness > 0 ? ((rev.totalOnline / rev.totalBusiness) * 100) : 0
+              const resPct = rev.totalReservations > 0 ? ((rev.onlineReservations / rev.totalReservations) * 100) : 0
+              const roas = currentData.adSpend > 0 ? (rev.totalOnline / currentData.adSpend) : null
+              const offlineTotal = rev.totalBusiness - rev.totalOnline
+              const donutData = [
+                { name: 'Online', value: rev.totalOnline },
+                { name: 'Offline', value: offlineTotal }
+              ]
+              const onlineChannels = rev.channels
+                ? Object.entries(rev.channels)
+                    .filter(([, v]) => v.revenue > 0)
+                    .sort((a, b) => b[1].revenue - a[1].revenue)
+                : []
+              const topChannel = onlineChannels[0]
+
+              // Walk In rank context
+              const walkInRevenue = rev.offline?.['Walk In']?.revenue || 0
+              const onlineVsWalkIn = walkInRevenue > 0
+                ? ((rev.totalOnline / walkInRevenue) * 100).toFixed(0)
+                : null
+
+              return (
+                <CollapsibleSection title="Revenue & Reservations (7rooms)" icon={DollarSign}>
+                  <div className="space-y-5">
+
+                    {/* ── KPI Summary Cards ── */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      <div className="bg-gradient-to-br from-mpj-purple/10 to-mpj-purple/5 border border-mpj-purple/20 rounded-xl p-3.5">
+                        <p className="text-xs font-medium text-mpj-purple/70 mb-1">Online Revenue Share</p>
+                        <p className="text-2xl font-bold text-mpj-purple">{onlinePct.toFixed(1)}%</p>
+                        <p className="text-xs text-gray-500 mt-0.5">of total business</p>
+                      </div>
+                      <div className="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 rounded-xl p-3.5">
+                        <p className="text-xs font-medium text-green-700 mb-1">Online Bookings Share</p>
+                        <p className="text-2xl font-bold text-green-700">{resPct.toFixed(1)}%</p>
+                        <p className="text-xs text-gray-500 mt-0.5">of total reservations</p>
+                      </div>
+                      <div className="bg-gradient-to-br from-blue-50 to-sky-50 border border-blue-200 rounded-xl p-3.5">
+                        <p className="text-xs font-medium text-blue-700 mb-1">Online Revenue</p>
+                        <p className="text-2xl font-bold text-blue-700">AED {rev.totalOnline >= 1000 ? (rev.totalOnline / 1000).toFixed(0) + 'K' : formatNum(rev.totalOnline)}</p>
+                        <p className="text-xs text-gray-500 mt-0.5">{formatInt(rev.onlineReservations)} reservations</p>
+                      </div>
+                      <div className={`rounded-xl p-3.5 border ${roas ? 'bg-gradient-to-br from-amber-50 to-yellow-50 border-amber-200' : 'bg-gray-50 border-gray-200'}`}>
+                        <p className={`text-xs font-medium mb-1 ${roas ? 'text-amber-700' : 'text-gray-500'}`}>ROAS</p>
+                        <p className={`text-2xl font-bold ${roas ? 'text-amber-700' : 'text-gray-400'}`}>{roas ? roas.toFixed(2) + 'x' : '—'}</p>
+                        <p className="text-xs text-gray-500 mt-0.5">{roas ? 'online rev / ad spend' : 'no ad spend data'}</p>
+                      </div>
+                    </div>
+
+                    {/* ── Insight Callouts ── */}
+                    <div className="flex flex-wrap gap-2">
+                      {topChannel && (
+                        <div className="flex items-center gap-2 bg-mpj-purple/8 border border-mpj-purple/20 rounded-lg px-3 py-2 text-sm">
+                          <span className="text-mpj-purple font-bold">★</span>
+                          <span className="text-gray-700">Top online channel: <strong className="text-mpj-purple">{topChannel[0]}</strong> — AED {formatNum(topChannel[1].revenue)} across {topChannel[1].reservations} reservations</span>
+                        </div>
+                      )}
+                      {onlineVsWalkIn && (
+                        <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-lg px-3 py-2 text-sm">
+                          <span className="text-green-600 font-bold">↑</span>
+                          <span className="text-gray-700">Online is <strong className="text-green-700">{onlineVsWalkIn}%</strong> of Walk-In revenue — the #2 revenue source</span>
+                        </div>
+                      )}
+                      {roas && (
+                        <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-sm">
+                          <span className="text-amber-600 font-bold">💰</span>
+                          <span className="text-gray-700">Every <strong>AED 1</strong> in Meta spend generated <strong className="text-amber-700">AED {roas.toFixed(2)}</strong> in tracked online revenue</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* ── Charts Row ── */}
+                    <div className="grid md:grid-cols-2 gap-4">
+                      {/* Donut: Online vs Offline */}
+                      <div className="bg-gray-50 rounded-xl p-4">
+                        <h4 className="text-sm font-semibold text-gray-700 mb-3">Revenue Split</h4>
+                        <ResponsiveContainer width="100%" height={180}>
+                          <PieChart>
+                            <Pie
+                              data={donutData}
+                              cx="50%" cy="50%"
+                              innerRadius={50} outerRadius={75}
+                              dataKey="value"
+                              label={({ name, percent }) => `${name} ${(percent * 100).toFixed(1)}%`}
+                              labelLine={{ strokeWidth: 1 }}
+                            >
+                              <Cell fill="#76527c" />
+                              <Cell fill="#e5e7eb" />
+                            </Pie>
+                            <Tooltip formatter={(v) => 'AED ' + formatNum(v)} />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      </div>
+
+                      {/* Bar: Online channels ranked */}
+                      {onlineChannels.length > 0 && (
+                        <div className="bg-gray-50 rounded-xl p-4">
+                          <h4 className="text-sm font-semibold text-gray-700 mb-3">Online Channels by Revenue</h4>
+                          <ResponsiveContainer width="100%" height={180}>
+                            <BarChart data={onlineChannels.map(([name, v]) => ({ name, revenue: v.revenue }))} layout="vertical" margin={{ left: 8, right: 16 }}>
+                              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" horizontal={false} />
+                              <XAxis type="number" tickFormatter={(v) => v >= 1000 ? (v/1000).toFixed(0)+'K' : v} tick={{ fontSize: 10 }} />
+                              <YAxis dataKey="name" type="category" width={100} tick={{ fontSize: 10 }} />
+                              <Tooltip formatter={(v) => 'AED ' + formatNum(v)} />
+                              <Bar dataKey="revenue" fill="#76527c" radius={[0, 4, 4, 0]} />
+                            </BarChart>
+                          </ResponsiveContainer>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* ── Detail Table ── */}
+                    <div className="table-responsive">
+                      <table className="w-full text-sm">
+                        <thead className="bg-gray-50 border-b">
+                          <tr>
+                            <th className="text-left px-3 py-2.5 font-semibold text-gray-600 w-32">Category</th>
+                            <th className="text-left px-3 py-2.5 font-semibold text-gray-600">Metric / Channel</th>
+                            <th className="text-right px-3 py-2.5 font-semibold text-gray-600">Revenue (AED)</th>
+                            <th className="text-right px-3 py-2.5 font-semibold text-gray-600 hidden sm:table-cell">Reservations</th>
+                            <th className="text-right px-3 py-2.5 font-semibold text-gray-600 hidden md:table-cell">Avg. Spend</th>
+                            <th className="text-right px-3 py-2.5 font-semibold text-gray-600 hidden md:table-cell">% of Total</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {/* Total row */}
+                          <tr className="border-t bg-gray-50/80">
+                            <td className="px-3 py-2.5 font-semibold text-mpj-purple">Overall</td>
+                            <td className="px-3 py-2.5">Total Business</td>
+                            <td className="px-3 py-2.5 text-right font-medium tabular-nums">{formatNum(rev.totalBusiness)}</td>
+                            <td className="px-3 py-2.5 text-right font-medium tabular-nums hidden sm:table-cell">{formatInt(rev.totalReservations)}</td>
+                            <td className="px-3 py-2.5 text-right tabular-nums hidden md:table-cell">{calcAvgSpend(rev.totalBusiness, rev.totalReservations)}</td>
+                            <td className="px-3 py-2.5 text-right hidden md:table-cell">100%</td>
+                          </tr>
+                          {/* Online total */}
+                          <tr className="border-t">
+                            <td className="px-3 py-2.5 font-semibold text-mpj-purple">Online</td>
+                            <td className="px-3 py-2.5 font-medium">Total Online</td>
+                            <td className="px-3 py-2.5 text-right tabular-nums font-medium">{formatNum(rev.totalOnline)}</td>
+                            <td className="px-3 py-2.5 text-right tabular-nums hidden sm:table-cell">{formatInt(rev.onlineReservations)}</td>
+                            <td className="px-3 py-2.5 text-right tabular-nums hidden md:table-cell">{calcAvgSpend(rev.totalOnline, rev.onlineReservations)}</td>
+                            <td className="px-3 py-2.5 text-right hidden md:table-cell">
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-mpj-purple/10 text-mpj-purple">{onlinePct.toFixed(1)}%</span>
+                            </td>
+                          </tr>
+                          {/* Online channels */}
+                          {rev.channels && Object.entries(rev.channels).map(([ch, v]) => (
+                            <tr key={ch} className="border-t">
+                              <td></td>
+                              <td className="px-3 py-2 pl-6 text-gray-600">↳ {ch}</td>
+                              <td className="px-3 py-2 text-right tabular-nums text-gray-700">{formatNum(v.revenue)}</td>
+                              <td className="px-3 py-2 text-right tabular-nums hidden sm:table-cell text-gray-600">{v.reservations}</td>
+                              <td className="px-3 py-2 text-right tabular-nums hidden md:table-cell text-gray-600">{calcAvgSpend(v.revenue, v.reservations)}</td>
+                              <td className="px-3 py-2 text-right hidden md:table-cell text-gray-500 text-xs">{rev.totalBusiness > 0 ? ((v.revenue / rev.totalBusiness) * 100).toFixed(1) + '%' : '—'}</td>
+                            </tr>
+                          ))}
+                          {/* Walk In — highlighted as #1 offline, right after online */}
+                          {rev.offline?.['Walk In'] && (() => {
+                            const wi = rev.offline['Walk In']
+                            return (
+                              <tr className="border-t bg-gray-50/60">
+                                <td className="px-3 py-2.5 font-semibold text-gray-500">Offline</td>
+                                <td className="px-3 py-2.5 font-medium text-gray-700">
+                                  Walk In
+                                  <span className="ml-2 text-xs font-normal text-gray-400">#1 offline source</span>
+                                </td>
+                                <td className="px-3 py-2.5 text-right tabular-nums">{formatNum(wi.revenue)}</td>
+                                <td className="px-3 py-2.5 text-right tabular-nums hidden sm:table-cell">{wi.reservations}</td>
+                                <td className="px-3 py-2.5 text-right tabular-nums hidden md:table-cell">{calcAvgSpend(wi.revenue, wi.reservations)}</td>
+                                <td className="px-3 py-2.5 text-right hidden md:table-cell text-gray-500 text-xs">{rev.totalBusiness > 0 ? ((wi.revenue / rev.totalBusiness) * 100).toFixed(1) + '%' : '—'}</td>
+                              </tr>
+                            )
+                          })()}
+                          {/* Remaining offline channels */}
+                          {rev.offline && Object.entries(rev.offline)
+                            .filter(([ch]) => ch !== 'Walk In')
+                            .map(([ch, v]) => (
+                              <tr key={ch} className="border-t">
+                                <td></td>
+                                <td className="px-3 py-2 pl-6 text-gray-600">↳ {ch}</td>
+                                <td className="px-3 py-2 text-right tabular-nums text-gray-700">{formatNum(v.revenue)}</td>
+                                <td className="px-3 py-2 text-right tabular-nums hidden sm:table-cell text-gray-600">{v.reservations}</td>
+                                <td className="px-3 py-2 text-right tabular-nums hidden md:table-cell text-gray-600">{calcAvgSpend(v.revenue, v.reservations)}</td>
+                                <td className="px-3 py-2 text-right hidden md:table-cell text-gray-500 text-xs">{rev.totalBusiness > 0 ? ((v.revenue / rev.totalBusiness) * 100).toFixed(1) + '%' : '—'}</td>
+                              </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </CollapsibleSection>
+              )
+            })()}
 
             {currentData.programmatic && (
               <CollapsibleSection title="Programmatic Performance" color="#4a5568" icon={Target}>
