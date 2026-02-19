@@ -9,60 +9,106 @@
     font-feature-settings: "cv11", "ss01";
   }
 
-  /* Smooth scrolling */
   html {
     scroll-behavior: smooth;
   }
 
-  /* Better focus rings */
   *:focus-visible {
     @apply outline-2 outline-offset-2 outline-mpj-purple ring-0;
+  }
+
+  /* Better default select appearance */
+  select {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+    background-position: right 0.5rem center;
+    background-repeat: no-repeat;
+    background-size: 1.25em 1.25em;
+    padding-right: 2.5rem;
+    appearance: none;
+    -webkit-appearance: none;
   }
 }
 
 /* ── Components ─────────────────────────────── */
 @layer components {
-  /* Skeleton loader */
+
+  /* ── Skeleton ── */
   .skeleton {
-    @apply relative overflow-hidden bg-gray-200 rounded;
+    @apply relative overflow-hidden bg-gray-200 rounded-lg;
   }
   .skeleton::after {
     content: '';
     @apply absolute inset-0;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.5), transparent);
-    animation: shimmer 1.5s infinite;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(255,255,255,0.55) 40%,
+      rgba(255,255,255,0.55) 60%,
+      transparent 100%
+    );
+    animation: shimmer 1.8s ease-in-out infinite;
   }
 
-  /* Toast notification */
+  /* ── Toast ── */
   .toast {
-    @apply fixed bottom-6 right-6 z-50 px-5 py-3 rounded-lg shadow-lg text-white text-sm font-medium;
-    @apply animate-slide-up;
+    @apply fixed top-5 right-5 z-[200] flex items-center gap-3 px-4 py-3.5 rounded-2xl shadow-toast text-white text-sm font-medium;
+    min-width: 280px;
+    max-width: 400px;
+    backdrop-filter: blur(8px);
   }
-  .toast-error { @apply bg-red-500; }
-  .toast-success { @apply bg-green-600; }
-  .toast-info { @apply bg-blue-600; }
+  .toast-error   { background: linear-gradient(135deg, #ef4444, #dc2626); }
+  .toast-success { background: linear-gradient(135deg, #22c55e, #16a34a); }
+  .toast-info    { background: linear-gradient(135deg, #3b82f6, #2563eb); }
 
-  /* Responsive table wrapper */
-  .table-responsive {
-    @apply overflow-x-auto -mx-6 px-6;
-    -webkit-overflow-scrolling: touch;
+  /* ── Card base ── */
+  .card {
+    @apply bg-white rounded-card border border-gray-100 shadow-card transition-all duration-200;
   }
-
-  /* Card hover effect */
-  .card-hover {
-    @apply transition-all duration-200 ease-out;
-  }
-  .card-hover:hover {
-    @apply shadow-md -translate-y-0.5;
+  .card:hover {
+    @apply shadow-card-hover -translate-y-px;
   }
 
   /* KPI card */
   .kpi-card {
-    @apply bg-white p-5 rounded-xl shadow-sm border border-gray-100;
-    @apply transition-all duration-200 ease-out;
+    @apply card cursor-default group p-5;
   }
   .kpi-card:hover {
-    @apply shadow-md border-mpj-purple/20;
+    @apply shadow-card-hover border-mpj-purple/20 -translate-y-0.5;
+  }
+
+  /* ── Table ── */
+  .table-responsive {
+    @apply overflow-x-auto -mx-6 px-6;
+    -webkit-overflow-scrolling: touch;
+    /* Fade hint on right edge when scrollable */
+    background: linear-gradient(to right, white 30%, rgba(255,255,255,0)) local,
+                linear-gradient(to right, rgba(255,255,255,0), white 70%) local,
+                radial-gradient(farthest-side at 0 50%, rgba(0,0,0,0.08), transparent) scroll,
+                radial-gradient(farthest-side at 100% 50%, rgba(0,0,0,0.08), transparent) scroll;
+    background-attachment: local, local, scroll, scroll;
+    background-size: 40px 100%, 40px 100%, 14px 100%, 14px 100%;
+    background-repeat: no-repeat;
+    background-position: left, right, left, right;
+  }
+
+  /* Badge / pill */
+  .badge {
+    @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold;
+  }
+  .badge-green  { @apply bg-green-100 text-green-800; }
+  .badge-red    { @apply bg-red-100 text-red-700; }
+  .badge-amber  { @apply bg-amber-100 text-amber-800; }
+  .badge-gray   { @apply bg-gray-100 text-gray-600; }
+  .badge-purple { @apply bg-mpj-purple/10 text-mpj-purple; }
+
+  /* Insight pill */
+  .insight-pill {
+    @apply flex items-center gap-2 px-3 py-2 rounded-xl border text-sm;
+  }
+
+  /* Header gradient */
+  .header-gradient {
+    background: linear-gradient(135deg, #5c3f62 0%, #76527c 50%, #9a7a9f 100%);
   }
 }
 
@@ -72,19 +118,28 @@
     text-wrap: balance;
   }
 
-  /* Hide scrollbar but allow scroll */
-  .scrollbar-hide::-webkit-scrollbar {
-    display: none;
-  }
+  .scrollbar-hide::-webkit-scrollbar { display: none; }
   .scrollbar-hide {
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
+
+  /* Glassmorphism helper */
+  .glass {
+    background: rgba(255,255,255,0.8);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  /* Subtle inset shadow for input fields */
+  .input-shadow {
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.06);
+  }
 }
 
-/* ── Animations ─────────────────────────────── */
+/* ── Keyframes ──────────────────────────────── */
 @keyframes shimmer {
-  0% { transform: translateX(-100%); }
+  0%   { transform: translateX(-100%); }
   100% { transform: translateX(100%); }
 }
 
@@ -92,7 +147,9 @@
 @media print {
   .no-print { display: none !important; }
   body { background: white; }
-  .shadow, .shadow-sm, .shadow-md, .shadow-lg { box-shadow: none !important; }
+  .shadow, .shadow-sm, .shadow-md, .shadow-lg, .shadow-card, .shadow-card-hover {
+    box-shadow: none !important;
+  }
 }
 
 /* ── Reduced motion ─────────────────────────── */

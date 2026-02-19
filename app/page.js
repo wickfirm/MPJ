@@ -20,6 +20,25 @@ import SocialMediaInsights from './components/SocialMediaInsights'
 const COLORS = ['#76527c', '#d8ee91', '#D0E4E7', '#9f7aea', '#68d391', '#fc8181']
 const AUTO_REFRESH_MS = 5 * 60 * 1000 // 5 minutes
 
+// ── Custom chart tooltip ──────────────────────
+const ChartTooltip = ({ active, payload, label, prefix = 'AED ', suffix = '' }) => {
+  if (!active || !payload?.length) return null
+  return (
+    <div className="bg-gray-900 text-white text-xs rounded-xl shadow-tooltip px-3 py-2.5 border border-white/10" style={{ minWidth: 130 }}>
+      {label && <p className="text-gray-400 mb-1.5 font-medium truncate max-w-[180px]">{label}</p>}
+      {payload.map((p, i) => (
+        <div key={i} className="flex items-center gap-2 mt-0.5">
+          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: p.color || p.fill || '#76527c' }} />
+          <span className="text-gray-300 truncate">{p.name}</span>
+          <span className="font-semibold text-white ml-auto pl-2 tabular-nums">
+            {prefix}{typeof p.value === 'number' ? p.value.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) : p.value}{suffix}
+          </span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 const SLA_DATA = [
   { type: 'Monthly Report - GM', timeline: '5 working days after receiving the 7rooms report once the month is over' },
   { type: 'Monthly Report - Internal', timeline: '5 working days after receiving the 7rooms report once the month is over' },
@@ -489,12 +508,12 @@ export default function Dashboard() {
 
   // ── Render ─────────────────────────────
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[#f7f7f9]">
       {/* Toast */}
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
 
       {/* ── Header ──────────────────────── */}
-      <header className="bg-mpj-purple text-white px-4 md:px-6 py-4 no-print">
+      <header className="header-gradient text-white px-4 md:px-6 py-4 no-print shadow-md">
         <div className="max-w-7xl mx-auto flex justify-between items-center flex-wrap gap-3">
           <div>
             <h1 className="text-lg md:text-xl font-bold tracking-tight">MPJ F&Bs Performance Dashboard</h1>
@@ -521,7 +540,7 @@ export default function Dashboard() {
             <button
               onClick={() => fetchData(true)}
               disabled={refreshing}
-              className="flex items-center gap-1.5 px-3 py-2 bg-white/15 rounded-lg hover:bg-white/25 text-xs md:text-sm cursor-pointer disabled:opacity-50 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-2 bg-white/15 hover:bg-white/25 rounded-xl text-xs md:text-sm cursor-pointer disabled:opacity-50 transition-all duration-200 backdrop-blur-sm border border-white/10"
               aria-label="Refresh data"
             >
               <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
@@ -529,7 +548,7 @@ export default function Dashboard() {
             </button>
             <button
               onClick={exportToCSV}
-              className="flex items-center gap-1.5 px-3 py-2 bg-white/15 rounded-lg hover:bg-white/25 text-xs md:text-sm cursor-pointer transition-colors"
+              className="flex items-center gap-1.5 px-3 py-2 bg-white/15 hover:bg-white/25 rounded-xl text-xs md:text-sm cursor-pointer transition-all duration-200 backdrop-blur-sm border border-white/10"
               aria-label="Export to CSV"
             >
               <Download size={14} />
@@ -537,7 +556,7 @@ export default function Dashboard() {
             </button>
             <button
               onClick={handleLogout}
-              className="flex items-center gap-1.5 px-3 py-2 bg-white/15 rounded-lg hover:bg-white/25 text-xs md:text-sm cursor-pointer transition-colors"
+              className="flex items-center gap-1.5 px-3 py-2 bg-white/10 hover:bg-red-500/40 rounded-xl text-xs md:text-sm cursor-pointer transition-all duration-200 backdrop-blur-sm border border-white/10"
               aria-label="Log out"
             >
               <LogOut size={14} />
@@ -547,21 +566,21 @@ export default function Dashboard() {
       </header>
 
       {/* ── Tabs ────────────────────────── */}
-      <nav className="bg-white border-b sticky top-0 z-30 no-print" aria-label="Dashboard sections">
-        <div className="max-w-7xl mx-auto flex gap-0.5 px-4 md:px-6 overflow-x-auto scrollbar-hide">
+      <nav className="bg-white border-b sticky top-0 z-30 no-print shadow-sm" aria-label="Dashboard sections">
+        <div className="max-w-7xl mx-auto flex gap-1 px-4 md:px-6 py-2 overflow-x-auto scrollbar-hide">
           {tabs.map(tab => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-1.5 px-3 md:px-4 py-3 text-xs md:text-sm font-medium border-b-2 transition-colors whitespace-nowrap cursor-pointer ${
+              className={`flex items-center gap-1.5 px-3.5 py-2 text-xs md:text-sm font-medium rounded-xl transition-all duration-200 whitespace-nowrap cursor-pointer ${
                 activeTab === tab.id
-                  ? 'border-mpj-purple text-mpj-purple'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-200'
+                  ? 'bg-mpj-purple text-white shadow-sm'
+                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
               }`}
               aria-selected={activeTab === tab.id}
               role="tab"
             >
-              <tab.icon size={15} />
+              <tab.icon size={14} />
               {tab.label}
             </button>
           ))}
@@ -575,30 +594,30 @@ export default function Dashboard() {
         {activeTab === 'workspace' && (
           <div className="space-y-4 animate-fade-in">
             {/* Month Selector */}
-            <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-center gap-4 flex-wrap">
+            <div className="card p-4 flex items-center gap-4 flex-wrap">
               <div className="min-w-[200px]">
-                <label htmlFor="budget-month-select" className="block text-xs font-medium text-gray-500 mb-1">Select Month</label>
+                <label htmlFor="budget-month-select" className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Month</label>
                 <select
                   id="budget-month-select"
                   value={selectedBudgetMonth || ''}
                   onChange={(e) => setSelectedBudgetMonth(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg font-medium text-sm focus:outline-none focus:ring-2 focus:ring-mpj-purple/30 focus:border-mpj-purple cursor-pointer"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-xl font-medium text-sm focus:outline-none focus:ring-2 focus:ring-mpj-purple/30 focus:border-mpj-purple cursor-pointer bg-white input-shadow"
                 >
                   {workspaceMonths.map(m => (
                     <option key={m} value={m}>{formatMonth(m)}</option>
                   ))}
                 </select>
               </div>
-              <div className="flex gap-1 flex-wrap">
+              <div className="flex gap-1.5 flex-wrap">
                 {workspaceMonths.map(m => {
                   const isActive = m === selectedBudgetMonth
-                  const monthLabel = new Date(m + 'T00:00:00').toLocaleDateString('en-US', { month: 'short' })
+                  const monthLabel = new Date(m + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
                   return (
                     <button
                       key={m}
                       onClick={() => setSelectedBudgetMonth(m)}
-                      className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
-                        isActive ? 'bg-mpj-purple text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all duration-200 cursor-pointer ${
+                        isActive ? 'bg-mpj-purple text-white shadow-sm' : 'bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700'
                       }`}
                     >
                       {monthLabel}
@@ -611,40 +630,46 @@ export default function Dashboard() {
             <CollapsibleSection title={`Budget Workspace — ${selectedBudgetMonth ? formatMonth(selectedBudgetMonth) : 'All Brands'}`} icon={DollarSign}>
               <div className="table-responsive">
                 <table className="w-full text-sm">
-                  <thead className="bg-gray-50 border-b">
-                    <tr>
-                      <th className="text-left px-3 py-2.5 font-semibold text-gray-600">Brand</th>
-                      <th className="text-left px-3 py-2.5 font-semibold text-gray-600 hidden sm:table-cell">POC</th>
-                      <th className="text-right px-3 py-2.5 font-semibold text-gray-600">Monthly Budget</th>
-                      <th className="text-right px-3 py-2.5 font-semibold text-gray-600">Total Spend</th>
-                      <th className="text-right px-3 py-2.5 font-semibold text-gray-600 hidden sm:table-cell">Remaining</th>
-                      <th className="text-right px-3 py-2.5 font-semibold text-gray-600">% Spent</th>
+                  <thead>
+                    <tr className="bg-mpj-purple-xlight border-b border-mpj-purple/10">
+                      <th className="text-left px-3 py-3 font-semibold text-mpj-purple text-xs uppercase tracking-wider">Brand</th>
+                      <th className="text-left px-3 py-3 font-semibold text-mpj-purple text-xs uppercase tracking-wider hidden sm:table-cell">POC</th>
+                      <th className="text-right px-3 py-3 font-semibold text-mpj-purple text-xs uppercase tracking-wider">Budget</th>
+                      <th className="text-right px-3 py-3 font-semibold text-mpj-purple text-xs uppercase tracking-wider">Spend</th>
+                      <th className="text-right px-3 py-3 font-semibold text-mpj-purple text-xs uppercase tracking-wider hidden sm:table-cell">Remaining</th>
+                      <th className="text-right px-3 py-3 font-semibold text-mpj-purple text-xs uppercase tracking-wider">% Spent</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredWorkspaceData.map((w, i) => (
-                      <tr key={i} className="border-t hover:bg-gray-50/50 transition-colors">
-                        <td className="px-3 py-2.5 font-medium text-gray-900">{w.brand}</td>
-                        <td className="px-3 py-2.5 text-gray-600 hidden sm:table-cell">{getBrandPOC(w.brand)}</td>
-                        <td className="px-3 py-2.5 text-right tabular-nums">AED {formatNum(w.monthly_budget)}</td>
-                        <td className="px-3 py-2.5 text-right tabular-nums">AED {formatNum(w.total_spend)}</td>
-                        <td className={`px-3 py-2.5 text-right tabular-nums hidden sm:table-cell font-medium ${parseFloat(w.remaining) < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                      <tr key={i} className={`border-t border-gray-100 hover:bg-mpj-purple-xlight/60 transition-colors duration-150 ${i % 2 === 1 ? 'bg-gray-50/40' : ''}`}>
+                        <td className="px-3 py-3 font-semibold text-gray-900">{w.brand}</td>
+                        <td className="px-3 py-3 text-gray-500 hidden sm:table-cell text-sm">{getBrandPOC(w.brand)}</td>
+                        <td className="px-3 py-3 text-right tabular-nums text-gray-700 text-sm">AED {formatNum(w.monthly_budget)}</td>
+                        <td className="px-3 py-3 text-right tabular-nums font-semibold text-gray-900 text-sm">AED {formatNum(w.total_spend)}</td>
+                        <td className={`px-3 py-3 text-right tabular-nums hidden sm:table-cell text-sm font-semibold ${parseFloat(w.remaining) < 0 ? 'text-red-600' : 'text-green-600'}`}>
                           AED {formatNum(w.remaining)}
                         </td>
-                        <td className="px-3 py-2.5 text-right font-semibold">{w.pct_spent}</td>
+                        <td className="px-3 py-3 text-right">
+                          <span className={`badge ${parseFloat(w.pct_spent) > 90 ? 'badge-red' : parseFloat(w.pct_spent) > 70 ? 'badge-amber' : 'badge-green'}`}>
+                            {w.pct_spent}
+                          </span>
+                        </td>
                       </tr>
                     ))}
                     {/* Totals Row */}
                     {filteredWorkspaceData.length > 0 && (
-                      <tr className="border-t-2 border-mpj-purple/30 bg-gray-50 font-semibold">
+                      <tr className="border-t-2 border-mpj-purple/20 bg-mpj-purple-xlight font-bold">
                         <td className="px-3 py-3 text-mpj-purple">TOTAL</td>
                         <td className="hidden sm:table-cell"></td>
-                        <td className="px-3 py-3 text-right tabular-nums">AED {formatNum(workspaceTotals.budget)}</td>
-                        <td className="px-3 py-3 text-right tabular-nums">AED {formatNum(workspaceTotals.spend)}</td>
+                        <td className="px-3 py-3 text-right tabular-nums text-gray-700">AED {formatNum(workspaceTotals.budget)}</td>
+                        <td className="px-3 py-3 text-right tabular-nums text-gray-900">AED {formatNum(workspaceTotals.spend)}</td>
                         <td className={`px-3 py-3 text-right tabular-nums hidden sm:table-cell ${workspaceTotals.remaining < 0 ? 'text-red-600' : 'text-green-600'}`}>
                           AED {formatNum(workspaceTotals.remaining)}
                         </td>
-                        <td className="px-3 py-3 text-right">{workspaceTotals.budget > 0 ? ((workspaceTotals.spend / workspaceTotals.budget) * 100).toFixed(1) + '%' : '0.0%'}</td>
+                        <td className="px-3 py-3 text-right">
+                          <span className="badge badge-purple">{workspaceTotals.budget > 0 ? ((workspaceTotals.spend / workspaceTotals.budget) * 100).toFixed(1) + '%' : '0.0%'}</span>
+                        </td>
                       </tr>
                     )}
                   </tbody>
@@ -734,7 +759,7 @@ export default function Dashboard() {
                         <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                         <XAxis dataKey="month" tick={{ fontSize: 11 }} />
                         <YAxis tickFormatter={formatK} tick={{ fontSize: 11 }} />
-                        <Tooltip formatter={(v) => 'AED ' + formatNum(v)} />
+                        <Tooltip content={<ChartTooltip />} />
                         <Legend />
                         <Bar dataKey="ad_spend" fill="#76527c" name="Ad Spend" radius={[4, 4, 0, 0]} />
                         <Bar dataKey="revenue" fill="#d8ee91" name="Revenue" radius={[4, 4, 0, 0]} />
@@ -748,7 +773,7 @@ export default function Dashboard() {
                         <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                         <XAxis dataKey="month" tick={{ fontSize: 11 }} />
                         <YAxis tick={{ fontSize: 11 }} />
-                        <Tooltip />
+                        <Tooltip content={<ChartTooltip prefix="" suffix="" />} />
                         <Line type="monotone" dataKey="reservations" stroke="#76527c" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
                       </ReLineChart>
                     </ResponsiveContainer>
@@ -766,7 +791,7 @@ export default function Dashboard() {
                       <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                       <XAxis type="number" tickFormatter={formatK} tick={{ fontSize: 11 }} />
                       <YAxis dataKey="name" type="category" width={90} tick={{ fontSize: 10 }} />
-                      <Tooltip formatter={(v) => 'AED ' + formatNum(v)} />
+                      <Tooltip content={<ChartTooltip />} />
                       <Bar dataKey="spend" fill="#76527c" radius={[0, 4, 4, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
@@ -778,7 +803,7 @@ export default function Dashboard() {
                       <Pie data={executiveMetrics.pocPieData} cx="50%" cy="50%" outerRadius={80} innerRadius={40} dataKey="value" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={{ strokeWidth: 1 }}>
                         {executiveMetrics.pocPieData.map((e, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                       </Pie>
-                      <Tooltip formatter={(v) => 'AED ' + formatNum(v)} />
+                      <Tooltip content={<ChartTooltip />} />
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
@@ -790,34 +815,37 @@ export default function Dashboard() {
         {/* VENUE VIEW TAB */}
         {activeTab === 'venue' && currentData && (
           <div className="space-y-4 animate-fade-in">
-            <div className="flex items-center gap-3 flex-wrap bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
+            <div className="flex items-center gap-3 flex-wrap card p-4">
               <div className="flex-1 min-w-[180px]">
-                <label htmlFor="venue-select" className="block text-xs font-medium text-gray-500 mb-1">Venue</label>
+                <label htmlFor="venue-select" className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Venue</label>
                 <select
                   id="venue-select"
                   value={selectedVenue}
                   onChange={(e) => setSelectedVenue(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg font-medium text-sm focus:outline-none focus:ring-2 focus:ring-mpj-purple/30 focus:border-mpj-purple cursor-pointer"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-xl font-medium text-sm focus:outline-none focus:ring-2 focus:ring-mpj-purple/30 focus:border-mpj-purple cursor-pointer bg-white input-shadow"
                 >
                   {venues.map(v => <option key={v.id} value={v.name}>{v.name}</option>)}
                 </select>
               </div>
               <div className="flex-1 min-w-[200px]">
-                <label htmlFor="week-select" className="block text-xs font-medium text-gray-500 mb-1">Reporting Week</label>
+                <label htmlFor="week-select" className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Reporting Week</label>
                 <select
                   id="week-select"
                   value={selectedWeek}
                   onChange={(e) => setSelectedWeek(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg font-medium text-sm focus:outline-none focus:ring-2 focus:ring-mpj-purple/30 focus:border-mpj-purple cursor-pointer"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-xl font-medium text-sm focus:outline-none focus:ring-2 focus:ring-mpj-purple/30 focus:border-mpj-purple cursor-pointer bg-white input-shadow"
                 >
                   {allWeeks.map(w => <option key={w.key} value={w.key}>{w.label}</option>)}
                 </select>
               </div>
-              <div className="flex items-end pb-0.5 gap-3">
-                <span className="text-xs text-gray-500">POC: <strong className="text-mpj-purple">{currentData.poc}</strong></span>
+              <div className="flex items-end gap-3 pb-0.5">
+                <div className="flex flex-col gap-1">
+                  <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">POC</span>
+                  <span className="text-sm font-bold text-mpj-purple bg-mpj-purple-xlight px-2.5 py-1 rounded-lg">{currentData.poc}</span>
+                </div>
                 <button
                   onClick={() => setShowUploadModal(true)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-mpj-purple/10 hover:bg-mpj-purple/20 text-mpj-purple rounded-lg text-xs font-medium transition-colors"
+                  className="flex items-center gap-1.5 px-3.5 py-2 bg-mpj-purple text-white hover:bg-mpj-purple-dark rounded-xl text-xs font-semibold transition-all duration-200 shadow-sm hover:shadow-md"
                   title="Upload ad creative image"
                 >
                   <Upload size={13} />
@@ -832,18 +860,25 @@ export default function Dashboard() {
               const noteKey = venue ? `${venue.id}_${selectedWeek}` : null
               const noteVal = noteKey ? (venueNotes[noteKey] || '') : ''
               return (
-                <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-                  <div className="flex items-center justify-between mb-2">
+                <div className="card p-4 border-l-4 border-l-mpj-purple">
+                  <div className="flex items-center justify-between mb-2.5">
                     <label className="text-xs font-semibold text-gray-600 flex items-center gap-1.5">
-                      <MessageSquare size={13} className="text-mpj-purple" />
-                      Meeting Notes — {selectedVenue}
+                      <div className="w-5 h-5 rounded-lg bg-mpj-purple/10 flex items-center justify-center">
+                        <MessageSquare size={11} className="text-mpj-purple" />
+                      </div>
+                      Meeting Notes — <span className="text-mpj-purple">{selectedVenue}</span>
                     </label>
-                    {savingVenueNote && <span className="text-[10px] text-mpj-purple animate-pulse">saving...</span>}
+                    {savingVenueNote && (
+                      <span className="text-[10px] text-mpj-purple animate-pulse flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-mpj-purple animate-ping inline-block" />
+                        saving...
+                      </span>
+                    )}
                   </div>
                   <textarea
                     key={noteKey}
                     defaultValue={noteVal}
-                    placeholder="Add notes for your meeting here — context, action items, observations..."
+                    placeholder="Add notes for your meeting — context, action items, observations..."
                     rows={3}
                     onBlur={(e) => {
                       const val = e.target.value
@@ -852,9 +887,12 @@ export default function Dashboard() {
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' && e.metaKey) e.target.blur()
                     }}
-                    className="w-full text-sm px-3 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-mpj-purple/30 focus:border-mpj-purple resize-none bg-gray-50 hover:bg-white transition-colors placeholder:text-gray-400"
+                    className="w-full text-sm px-3 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-mpj-purple/30 focus:border-mpj-purple resize-none bg-gray-50/80 hover:bg-white transition-colors placeholder:text-gray-300 input-shadow"
                   />
-                  <p className="text-[10px] text-gray-400 mt-1">Auto-saves on blur · Cmd+Enter to save</p>
+                  <p className="text-[10px] text-gray-400 mt-1.5 flex items-center gap-1">
+                    <span className="w-3 h-3 rounded bg-gray-200 inline-flex items-center justify-center text-[8px] font-bold text-gray-500">⌘</span>
+                    Enter to save · auto-saves on click away
+                  </p>
                 </div>
               )
             })()}
@@ -981,17 +1019,17 @@ export default function Dashboard() {
                       </h4>
                       <div className="table-responsive">
                         <table className="w-full text-sm">
-                          <thead className="bg-gray-50 border-b">
-                            <tr>
-                              <th className="px-2 py-2.5 font-semibold text-gray-600 w-12 hidden sm:table-cell">Ad</th>
-                              <th className="text-left px-3 py-2.5 font-semibold text-gray-600">Ad Name</th>
-                              <th className="text-right px-3 py-2.5 font-semibold text-gray-600">Impressions</th>
-                              <th className="text-right px-3 py-2.5 font-semibold text-gray-600">CTR</th>
-                              <th className="text-right px-3 py-2.5 font-semibold text-gray-600 hidden md:table-cell">Link Clicks</th>
-                              <th className="text-right px-3 py-2.5 font-semibold text-gray-600 hidden md:table-cell">Engagement</th>
-                              <th className="text-center px-3 py-2.5 font-semibold text-gray-600">Status <span className="text-[10px] font-normal text-gray-400">(click to toggle)</span></th>
-                              <th className="text-left px-3 py-2.5 font-semibold text-gray-600 min-w-[180px]">
-                                <span className="flex items-center gap-1"><MessageSquare size={12} /> Notes</span>
+                          <thead>
+                            <tr className="bg-mpj-purple-xlight border-b border-mpj-purple/10">
+                              <th className="px-2 py-3 w-12 hidden sm:table-cell"></th>
+                              <th className="text-left px-3 py-3 font-semibold text-mpj-purple text-xs uppercase tracking-wider">Ad Name</th>
+                              <th className="text-right px-3 py-3 font-semibold text-mpj-purple text-xs uppercase tracking-wider">Impressions</th>
+                              <th className="text-right px-3 py-3 font-semibold text-mpj-purple text-xs uppercase tracking-wider">CTR</th>
+                              <th className="text-right px-3 py-3 font-semibold text-mpj-purple text-xs uppercase tracking-wider hidden md:table-cell">Link Clicks</th>
+                              <th className="text-right px-3 py-3 font-semibold text-mpj-purple text-xs uppercase tracking-wider hidden md:table-cell">Engagement</th>
+                              <th className="text-center px-3 py-3 font-semibold text-mpj-purple text-xs uppercase tracking-wider">Status <span className="normal-case font-normal text-gray-400 ml-1">(click)</span></th>
+                              <th className="text-left px-3 py-3 font-semibold text-mpj-purple text-xs uppercase tracking-wider min-w-[180px]">
+                                <span className="flex items-center gap-1 normal-case font-semibold"><MessageSquare size={11} /> Notes</span>
                               </th>
                             </tr>
                           </thead>
@@ -1020,7 +1058,7 @@ export default function Dashboard() {
                               const matchedAdSet = findParent(adSets, a.name)
                               const matchedCampaign = findParent(campaigns, a.name)
                               return (
-                                <tr key={i} className="border-t hover:bg-gray-50/50 transition-colors">
+                                <tr key={i} className={`border-t border-gray-100 hover:bg-mpj-purple-xlight/60 transition-colors duration-150 ${i % 2 === 1 ? 'bg-gray-50/30' : ''}`}>
                                   <td className="px-2 py-2 hidden sm:table-cell">
                                     <CreativeThumb creative={getCreativeForAd(selectedVenue, a.name, currentData.weekStart)} size={36} />
                                   </td>
@@ -1056,8 +1094,21 @@ export default function Dashboard() {
                                     <button
                                       onClick={() => toggleAdStatus(selectedVenue, selectedWeek, a.name, a.status)}
                                       title="Click to toggle active / inactive"
-                                      className={`px-2.5 py-1 rounded-md text-xs font-bold text-white transition-opacity hover:opacity-75 cursor-pointer ${a.status === 'active' ? 'bg-green-500' : a.status === 'learning' ? 'bg-amber-500' : a.status === 'not_delivering' || a.status === 'inactive' ? 'bg-red-400' : 'bg-gray-400'}`}
+                                      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold transition-all duration-200 cursor-pointer hover:scale-105 active:scale-95 border ${
+                                        a.status === 'active'
+                                          ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100'
+                                          : a.status === 'learning'
+                                            ? 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'
+                                            : a.status === 'not_delivering' || a.status === 'inactive'
+                                              ? 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100'
+                                              : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100'
+                                      }`}
                                     >
+                                      <span className={`w-1.5 h-1.5 rounded-full ${
+                                        a.status === 'active' ? 'bg-green-500' :
+                                        a.status === 'learning' ? 'bg-amber-500' :
+                                        a.status === 'not_delivering' || a.status === 'inactive' ? 'bg-red-400' : 'bg-gray-400'
+                                      }`} />
                                       {a.status || 'unknown'}
                                     </button>
                                   </td>
@@ -1172,21 +1223,21 @@ export default function Dashboard() {
                     {/* ── Insight Callouts ── */}
                     <div className="flex flex-wrap gap-2">
                       {topChannel && (
-                        <div className="flex items-center gap-2 bg-mpj-purple/8 border border-mpj-purple/20 rounded-lg px-3 py-2 text-sm">
-                          <span className="text-mpj-purple font-bold">★</span>
-                          <span className="text-gray-700">Top online channel: <strong className="text-mpj-purple">{topChannel[0]}</strong> — AED {formatNum(topChannel[1].revenue)} across {topChannel[1].reservations} reservations</span>
+                        <div className="insight-pill bg-mpj-purple-xlight border-mpj-purple/20 text-gray-700">
+                          <span className="w-6 h-6 rounded-lg bg-mpj-purple flex items-center justify-center text-white text-xs flex-shrink-0">★</span>
+                          Top channel: <strong className="text-mpj-purple">{topChannel[0]}</strong> — AED {formatNum(topChannel[1].revenue)} · {topChannel[1].reservations} reservations
                         </div>
                       )}
                       {onlineVsWalkIn && (
-                        <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-lg px-3 py-2 text-sm">
-                          <span className="text-green-600 font-bold">↑</span>
-                          <span className="text-gray-700">Online is <strong className="text-green-700">{onlineVsWalkIn}%</strong> of Walk-In revenue — the #2 revenue source</span>
+                        <div className="insight-pill bg-green-50 border-green-200 text-gray-700">
+                          <span className="w-6 h-6 rounded-lg bg-green-500 flex items-center justify-center text-white text-xs flex-shrink-0">↑</span>
+                          Online is <strong className="text-green-700 mx-1">{onlineVsWalkIn}%</strong> of Walk-In revenue
                         </div>
                       )}
                       {roas && (
-                        <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-sm">
-                          <span className="text-amber-600 font-bold">💰</span>
-                          <span className="text-gray-700">Every <strong>AED 1</strong> in Meta spend generated <strong className="text-amber-700">AED {roas.toFixed(2)}</strong> in tracked online revenue</span>
+                        <div className="insight-pill bg-amber-50 border-amber-200 text-gray-700">
+                          <span className="w-6 h-6 rounded-lg bg-amber-500 flex items-center justify-center text-white text-xs flex-shrink-0">₿</span>
+                          AED 1 spend → <strong className="text-amber-700 mx-1">AED {roas.toFixed(2)}</strong> online revenue
                         </div>
                       )}
                     </div>
@@ -1194,7 +1245,7 @@ export default function Dashboard() {
                     {/* ── Charts Row ── */}
                     <div className="grid md:grid-cols-2 gap-4">
                       {/* Donut: Online vs Offline */}
-                      <div className="bg-gray-50 rounded-xl p-4">
+                      <div className="bg-gray-50/80 rounded-2xl p-4 border border-gray-100">
                         <h4 className="text-sm font-semibold text-gray-700 mb-3">Revenue Split</h4>
                         <ResponsiveContainer width="100%" height={180}>
                           <PieChart>
@@ -1209,21 +1260,21 @@ export default function Dashboard() {
                               <Cell fill="#76527c" />
                               <Cell fill="#e5e7eb" />
                             </Pie>
-                            <Tooltip formatter={(v) => 'AED ' + formatNum(v)} />
+                            <Tooltip content={<ChartTooltip />} />
                           </PieChart>
                         </ResponsiveContainer>
                       </div>
 
                       {/* Bar: Online channels ranked */}
                       {onlineChannels.length > 0 && (
-                        <div className="bg-gray-50 rounded-xl p-4">
+                        <div className="bg-gray-50/80 rounded-2xl p-4 border border-gray-100">
                           <h4 className="text-sm font-semibold text-gray-700 mb-3">Online Channels by Revenue</h4>
                           <ResponsiveContainer width="100%" height={180}>
                             <BarChart data={onlineChannels.map(([name, v]) => ({ name, revenue: v.revenue }))} layout="vertical" margin={{ left: 8, right: 16 }}>
                               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" horizontal={false} />
                               <XAxis type="number" tickFormatter={(v) => v >= 1000 ? (v/1000).toFixed(0)+'K' : v} tick={{ fontSize: 10 }} />
                               <YAxis dataKey="name" type="category" width={100} tick={{ fontSize: 10 }} />
-                              <Tooltip formatter={(v) => 'AED ' + formatNum(v)} />
+                              <Tooltip content={<ChartTooltip />} />
                               <Bar dataKey="revenue" fill="#76527c" radius={[0, 4, 4, 0]} />
                             </BarChart>
                           </ResponsiveContainer>
