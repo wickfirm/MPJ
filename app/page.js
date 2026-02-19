@@ -885,7 +885,9 @@ export default function Dashboard() {
                                   <td className="px-2 py-2 hidden sm:table-cell">
                                     <CreativeThumb creative={getCreativeForAd(selectedVenue, a.name, currentData.weekStart)} size={36} />
                                   </td>
-                                  <td className="px-3 py-2.5 max-w-[200px] truncate font-medium">{a.name}</td>
+                                  <td className="px-3 py-2.5 max-w-[200px] font-medium">
+                                    <span className="block truncate cursor-default" title={a.name}>{a.name}</span>
+                                  </td>
                                   <td className="px-3 py-2.5 text-right tabular-nums">{formatInt(a.impressions)}</td>
                                   <td className="px-3 py-2.5 text-right tabular-nums">{a.ctr}</td>
                                   <td className="px-3 py-2.5 text-right tabular-nums hidden md:table-cell">{formatInt(a.linkClicks)}</td>
