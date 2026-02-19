@@ -257,6 +257,57 @@ export default function Dashboard() {
     setToast({ message: 'Creative deleted', type: 'success' })
   }, [])
 
+  // Toggle ad status (active ↔ inactive) and persist to DB
+  const toggleAdStatus = useCallback(async (venueName, weekKey, adName, currentStatus) => {
+    const venue = venues.find(v => v.name === venueName)
+    if (!venue) return
+    const [weekStart, weekEnd] = weekKey.split('_')
+    const newStatus = currentStatus === 'active' ? 'inactive' : 'active'
+
+    // Optimistic update
+    setWeeklyReports(prev => {
+      const report = prev[venueName]?.[weekKey]
+      if (!report?.meta_data?.ads) return prev
+      const updatedAds = report.meta_data.ads.map(a =>
+        a.name === adName ? { ...a, status: newStatus } : a
+      )
+      return {
+        ...prev,
+        [venueName]: {
+          ...prev[venueName],
+          [weekKey]: { ...report, meta_data: { ...report.meta_data, ads: updatedAds } }
+        }
+      }
+    })
+
+    try {
+      const res = await fetch('/api/ads/status', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ venue_id: venue.id, week_start: weekStart, week_end: weekEnd, ad_name: adName, status: newStatus })
+      })
+      if (!res.ok) throw new Error('Failed to save')
+      setToast({ message: `Ad marked ${newStatus}`, type: 'success' })
+    } catch {
+      setToast({ message: 'Failed to update status', type: 'error' })
+      // Revert optimistic update
+      setWeeklyReports(prev => {
+        const report = prev[venueName]?.[weekKey]
+        if (!report?.meta_data?.ads) return prev
+        const revertedAds = report.meta_data.ads.map(a =>
+          a.name === adName ? { ...a, status: currentStatus } : a
+        )
+        return {
+          ...prev,
+          [venueName]: {
+            ...prev[venueName],
+            [weekKey]: { ...report, meta_data: { ...report.meta_data, ads: revertedAds } }
+          }
+        }
+      })
+    }
+  }, [venues])
+
   // ── Ad Notes helpers ──────────────────
   const getNoteKey = useCallback((venueName, weekKey, adName) => {
     const venue = venues.find(v => v.name === venueName)
@@ -869,7 +920,7 @@ export default function Dashboard() {
                               <th className="text-right px-3 py-2.5 font-semibold text-gray-600">CTR</th>
                               <th className="text-right px-3 py-2.5 font-semibold text-gray-600 hidden md:table-cell">Link Clicks</th>
                               <th className="text-right px-3 py-2.5 font-semibold text-gray-600 hidden md:table-cell">Engagement</th>
-                              <th className="text-center px-3 py-2.5 font-semibold text-gray-600">Status</th>
+                              <th className="text-center px-3 py-2.5 font-semibold text-gray-600">Status <span className="text-[10px] font-normal text-gray-400">(click to toggle)</span></th>
                               <th className="text-left px-3 py-2.5 font-semibold text-gray-600 min-w-[180px]">
                                 <span className="flex items-center gap-1"><MessageSquare size={12} /> Notes</span>
                               </th>
@@ -933,9 +984,13 @@ export default function Dashboard() {
                                   <td className="px-3 py-2.5 text-right tabular-nums hidden md:table-cell">{formatInt(a.linkClicks)}</td>
                                   <td className="px-3 py-2.5 text-right tabular-nums hidden md:table-cell">{formatInt(a.engagement)}</td>
                                   <td className="px-3 py-2.5 text-center">
-                                    {a.status && (
-                                      <span className={`px-2.5 py-1 rounded-md text-xs font-bold text-white ${a.status === 'active' ? 'bg-green-500' : a.status === 'learning' ? 'bg-amber-500' : a.status === 'not_delivering' || a.status === 'inactive' ? 'bg-red-400' : 'bg-gray-400'}`}>{a.status}</span>
-                                    )}
+                                    <button
+                                      onClick={() => toggleAdStatus(selectedVenue, selectedWeek, a.name, a.status)}
+                                      title="Click to toggle active / inactive"
+                                      className={`px-2.5 py-1 rounded-md text-xs font-bold text-white transition-opacity hover:opacity-75 cursor-pointer ${a.status === 'active' ? 'bg-green-500' : a.status === 'learning' ? 'bg-amber-500' : a.status === 'not_delivering' || a.status === 'inactive' ? 'bg-red-400' : 'bg-gray-400'}`}
+                                    >
+                                      {a.status || 'unknown'}
+                                    </button>
                                   </td>
                                   <td className="px-3 py-1.5">
                                     <div className="relative">
