@@ -84,6 +84,7 @@ export default function Dashboard() {
   const [savingNote, setSavingNote] = useState(null)  // key of note currently saving
   const [venueNotes, setVenueNotes] = useState({})   // { "venueId_weekKey": "note text" }
   const [savingVenueNote, setSavingVenueNote] = useState(false)
+  const [adStatuses, setAdStatuses] = useState({})   // { "venueId_weekStart_weekEnd_adName": bool }
 
   // UI state
   const [loading, setLoading] = useState(true)
@@ -110,7 +111,7 @@ export default function Dashboard() {
     setError(null)
 
     try {
-      const [venuesRes, reportsRes, campaignsRes, workspaceRes, monthlyRes, creativesRes, socialRes, adNotesRes] = await Promise.all([
+      const [venuesRes, reportsRes, campaignsRes, workspaceRes, monthlyRes, creativesRes, socialRes, adNotesRes, adStatusesRes] = await Promise.all([
         supabase.from('venues').select('*').order('name'),
         supabase.from('weekly_reports').select('*, venues(name, poc)').order('week_end', { ascending: false }),
         supabase.from('live_campaigns').select('*, venues(name)'),
@@ -119,10 +120,11 @@ export default function Dashboard() {
         supabase.from('ad_creatives').select('*, venues(name)').order('created_at', { ascending: false }),
         supabase.from('social_media_monthly').select('*, venues(name)').order('month', { ascending: false }),
         supabase.from('ad_notes').select('*'),
+        supabase.from('ad_statuses').select('*'),
       ])
 
       // Check for errors
-      const errors = [venuesRes, reportsRes, campaignsRes, workspaceRes, monthlyRes, creativesRes, socialRes, adNotesRes]
+      const errors = [venuesRes, reportsRes, campaignsRes, workspaceRes, monthlyRes, creativesRes, socialRes, adNotesRes, adStatusesRes]
         .filter(r => r.error)
         .map(r => r.error.message)
 
@@ -199,6 +201,13 @@ export default function Dashboard() {
       })
       setAdNotes(notesMap)
 
+      // Build ad_statuses lookup map: "venueId_weekStart_weekEnd_adName" -> is_active (bool)
+      const statusesMap = {}
+      ;(adStatusesRes.data || []).forEach(s => {
+        statusesMap[`${s.venue_id}_${s.week_start}_${s.week_end}_${s.ad_name}`] = s.is_active
+      })
+      setAdStatuses(statusesMap)
+
       // Build venue notes map from same ad_notes table (ad_name = '__venue__')
       const venueNotesMap = {}
       ;(adNotesRes.data || []).filter(n => n.ad_name === '__venue__').forEach(n => {
@@ -244,11 +253,24 @@ export default function Dashboard() {
   const getVenueData = useCallback((venueName, weekKey) => {
     const venue = venues.find(v => v.name === venueName)
     const report = weeklyReports[venueName]?.[weekKey]
+    const [weekStart, weekEnd] = weekKey ? weekKey.split('_') : ['', '']
+
+    // Merge ad_statuses overrides into the ads array
+    const applyStatuses = (ads) => {
+      if (!ads) return []
+      return sortByImpressions(ads).map(ad => {
+        const key = `${venue?.id}_${weekStart}_${weekEnd}_${ad.name}`
+        if (key in adStatuses) {
+          return { ...ad, status: adStatuses[key] ? 'active' : 'inactive' }
+        }
+        return ad
+      })
+    }
 
     const sortedMeta = report?.meta_data ? {
       campaigns: sortByImpressions(report.meta_data.campaigns),
       adSets: sortByImpressions(report.meta_data.adSets),
-      ads: sortByImpressions(report.meta_data.ads),
+      ads: applyStatuses(report.meta_data.ads),
       analysis: report.meta_data.analysis
     } : { campaigns: [], adSets: [], ads: [], analysis: null }
 
@@ -263,7 +285,7 @@ export default function Dashboard() {
       liveCampaigns: liveCampaigns[venueName] || [],
       poc: report?.poc || venue?.poc
     }
-  }, [venues, weeklyReports, liveCampaigns, sortByImpressions])
+  }, [venues, weeklyReports, liveCampaigns, sortByImpressions, adStatuses])
 
   // Get creative image for an ad (matches by venue name + ad name + month)
   const getCreativeForAd = useCallback((venueName, adName, weekStart) => {
@@ -289,28 +311,16 @@ export default function Dashboard() {
     setToast({ message: 'Creative deleted', type: 'success' })
   }, [])
 
-  // Toggle ad status (active ↔ inactive) and persist to DB
+  // Toggle ad status (active ↔ inactive) — persists to ad_statuses table
   const toggleAdStatus = useCallback(async (venueName, weekKey, adName, currentStatus) => {
     const venue = venues.find(v => v.name === venueName)
     if (!venue) return
     const [weekStart, weekEnd] = weekKey.split('_')
     const newStatus = currentStatus === 'active' ? 'inactive' : 'active'
+    const statusKey = `${venue.id}_${weekStart}_${weekEnd}_${adName}`
 
-    // Optimistic update
-    setWeeklyReports(prev => {
-      const report = prev[venueName]?.[weekKey]
-      if (!report?.meta_data?.ads) return prev
-      const updatedAds = report.meta_data.ads.map(a =>
-        a.name === adName ? { ...a, status: newStatus } : a
-      )
-      return {
-        ...prev,
-        [venueName]: {
-          ...prev[venueName],
-          [weekKey]: { ...report, meta_data: { ...report.meta_data, ads: updatedAds } }
-        }
-      }
-    })
+    // Optimistic update — flat map, no JSONB surgery
+    setAdStatuses(prev => ({ ...prev, [statusKey]: newStatus === 'active' }))
 
     try {
       const res = await fetch('/api/ads/status', {
@@ -319,26 +329,12 @@ export default function Dashboard() {
         body: JSON.stringify({ venue_id: venue.id, week_start: weekStart, week_end: weekEnd, ad_name: adName, status: newStatus })
       })
       const resBody = await res.json().catch(() => ({}))
-      console.log('[toggleAdStatus] response:', res.status, resBody, { venue_id: venue.id, week_start: weekStart, week_end: weekEnd, ad_name: adName, status: newStatus })
       if (!res.ok) throw new Error(resBody?.error || 'Failed to save')
       setToast({ message: `Ad marked ${newStatus}`, type: 'success' })
     } catch {
       setToast({ message: 'Failed to update status', type: 'error' })
       // Revert optimistic update
-      setWeeklyReports(prev => {
-        const report = prev[venueName]?.[weekKey]
-        if (!report?.meta_data?.ads) return prev
-        const revertedAds = report.meta_data.ads.map(a =>
-          a.name === adName ? { ...a, status: currentStatus } : a
-        )
-        return {
-          ...prev,
-          [venueName]: {
-            ...prev[venueName],
-            [weekKey]: { ...report, meta_data: { ...report.meta_data, ads: revertedAds } }
-          }
-        }
-      })
+      setAdStatuses(prev => ({ ...prev, [statusKey]: currentStatus === 'active' }))
     }
   }, [venues])
 

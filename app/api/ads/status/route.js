@@ -10,7 +10,7 @@ function getSupabase() {
   )
 }
 
-// PATCH: Toggle ad status inside meta_data.ads via SECURITY DEFINER RPC
+// PATCH: Upsert ad active/inactive status into ad_statuses table
 export async function PATCH(request) {
   try {
     const { venue_id, week_start, week_end, ad_name, status } = await request.json()
@@ -21,20 +21,16 @@ export async function PATCH(request) {
 
     const sb = getSupabase()
 
-    console.log('[status] calling RPC with:', { venue_id, week_start, week_end, ad_name, status })
-
-    const { data, error } = await sb.rpc('update_ad_status', {
-      p_venue_id:   venue_id,
-      p_week_start: week_start,
-      p_week_end:   week_end,
-      p_ad_name:    ad_name,
-      p_status:     status,
-    })
-
-    console.log('[status] RPC result:', { data, error })
+    const { error } = await sb.from('ad_statuses').upsert({
+      venue_id,
+      week_start,
+      week_end,
+      ad_name,
+      is_active: status === 'active',
+      updated_at: new Date().toISOString()
+    }, { onConflict: 'venue_id,week_start,week_end,ad_name' })
 
     if (error) throw new Error(error.message)
-    if (!data) return NextResponse.json({ error: 'Report not found' }, { status: 404 })
 
     return NextResponse.json({ success: true })
   } catch (err) {
