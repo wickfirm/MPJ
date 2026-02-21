@@ -85,6 +85,7 @@ export default function Dashboard() {
   const [venueNotes, setVenueNotes] = useState({})   // { "venueId_weekKey": "note text" }
   const [savingVenueNote, setSavingVenueNote] = useState(false)
   const [adStatuses, setAdStatuses] = useState({})   // { "venueId_weekStart_weekEnd_adName": bool }
+  const [venueTab, setVenueTab] = useState('overview')
 
   // UI state
   const [loading, setLoading] = useState(true)
@@ -812,7 +813,9 @@ export default function Dashboard() {
 
         {/* VENUE VIEW TAB */}
         {activeTab === 'venue' && currentData && (
-          <div className="space-y-4 animate-fade-in">
+          <div className="space-y-3 animate-fade-in">
+
+            {/* ── Control bar ── */}
             <div className="flex items-center gap-3 flex-wrap card p-4">
               <div className="flex-1 min-w-[180px]">
                 <label htmlFor="venue-select" className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Venue</label>
@@ -852,146 +855,124 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* ── Meeting Notes Box ── */}
-            {(() => {
-              const venue = venues.find(v => v.name === selectedVenue)
-              const noteKey = venue ? `${venue.id}_${selectedWeek}` : null
-              const noteVal = noteKey ? (venueNotes[noteKey] || '') : ''
+            {/* ── Inner tab bar ── */}
+            <div className="flex gap-1 bg-gray-100 rounded-xl p-1 flex-wrap">
+              {[
+                { id: 'overview', label: 'Overview',  icon: BarChart3 },
+                { id: 'meta',     label: 'Meta Ads',  icon: Megaphone },
+                { id: 'revenue',  label: 'Revenue',   icon: DollarSign },
+                { id: 'social',   label: 'Social',    icon: Instagram },
+                { id: 'notes',    label: 'Notes',     icon: MessageSquare },
+              ].map(t => (
+                <button
+                  key={t.id}
+                  onClick={() => setVenueTab(t.id)}
+                  className={`flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-lg transition-all duration-150 ${
+                    venueTab === t.id
+                      ? 'bg-white text-mpj-purple shadow-sm'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  <t.icon size={13} />
+                  {t.label}
+                </button>
+              ))}
+            </div>
+
+            {/* ══ OVERVIEW ══ */}
+            {venueTab === 'overview' && (() => {
+              const totalImpressions = currentData.meta.campaigns.reduce((s, c) => s + (c.impressions || 0), 0)
+              const totalLinkClicks  = currentData.meta.campaigns.reduce((s, c) => s + (c.linkClicks  || 0), 0)
+              const roas = currentData.adSpend > 0 && currentData.revenue?.totalOnline
+                ? (currentData.revenue.totalOnline / currentData.adSpend).toFixed(2)
+                : null
               return (
-                <div className="card p-4 border-l-4 border-l-mpj-purple">
-                  <div className="flex items-center justify-between mb-2.5">
-                    <label className="text-xs font-semibold text-gray-600 flex items-center gap-1.5">
-                      <div className="w-5 h-5 rounded-lg bg-mpj-purple/10 flex items-center justify-center">
-                        <MessageSquare size={11} className="text-mpj-purple" />
+                <div className="space-y-4">
+                  {/* KPI strip */}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                    {[
+                      { label: 'Ad Spend',     value: `AED ${currentData.adSpend >= 1000 ? (currentData.adSpend/1000).toFixed(1)+'K' : formatNum(currentData.adSpend)}`, color: 'text-mpj-purple' },
+                      { label: 'Impressions',  value: formatK(totalImpressions),  color: 'text-gray-800' },
+                      { label: 'Link Clicks',  value: formatInt(totalLinkClicks), color: 'text-gray-800' },
+                      { label: 'ROAS',         value: roas ? roas + 'x' : '—',   color: roas ? 'text-amber-600' : 'text-gray-400' },
+                      { label: 'Revenue',      value: currentData.revenue ? `AED ${currentData.revenue.totalBusiness >= 1000 ? (currentData.revenue.totalBusiness/1000).toFixed(0)+'K' : formatNum(currentData.revenue.totalBusiness)}` : '—', color: 'text-green-700' },
+                      { label: 'Reservations', value: currentData.revenue ? formatInt(currentData.revenue.totalReservations) : '—', color: 'text-blue-700' },
+                    ].map(kpi => (
+                      <div key={kpi.label} className="bg-white border border-gray-100 rounded-xl p-3.5 shadow-sm">
+                        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">{kpi.label}</p>
+                        <p className={`text-xl font-bold ${kpi.color}`}>{kpi.value}</p>
                       </div>
-                      Meeting Notes — <span className="text-mpj-purple">{selectedVenue}</span>
-                    </label>
-                    {savingVenueNote && (
-                      <span className="text-[10px] text-mpj-purple animate-pulse flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-mpj-purple animate-ping inline-block" />
-                        saving...
-                      </span>
-                    )}
+                    ))}
                   </div>
-                  <textarea
-                    key={noteKey}
-                    defaultValue={noteVal}
-                    placeholder="Add notes for your meeting — context, action items, observations..."
-                    rows={3}
-                    onBlur={(e) => {
-                      const val = e.target.value
-                      if (val !== noteVal) saveVenueNote(selectedVenue, selectedWeek, val)
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && e.metaKey) e.target.blur()
-                    }}
-                    className="w-full text-sm px-3 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-mpj-purple/30 focus:border-mpj-purple resize-none bg-gray-50/80 hover:bg-white transition-colors placeholder:text-gray-300 input-shadow"
-                  />
-                  <p className="text-[10px] text-gray-400 mt-1.5 flex items-center gap-1">
-                    <span className="w-3 h-3 rounded bg-gray-200 inline-flex items-center justify-center text-[8px] font-bold text-gray-500">⌘</span>
-                    Enter to save · auto-saves on click away
-                  </p>
+
+                  {/* Compare panel */}
+                  {compareMode && previousData && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                      <h3 className="font-semibold text-blue-900 mb-3 text-sm">Period Comparison</h3>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        <div>
+                          <p className="text-xs text-blue-600 font-medium">Impressions</p>
+                          <p className="font-semibold text-gray-900">{formatInt(totalImpressions)}</p>
+                          <DeltaBadge current={totalImpressions} previous={previousData.meta.campaigns.reduce((s, c) => s + (c.impressions || 0), 0)} />
+                        </div>
+                        <div>
+                          <p className="text-xs text-blue-600 font-medium">Revenue</p>
+                          <p className="font-semibold text-gray-900">AED {formatNum(currentData.revenue?.totalBusiness || 0)}</p>
+                          <DeltaBadge current={currentData.revenue?.totalBusiness || 0} previous={previousData.revenue?.totalBusiness || 0} />
+                        </div>
+                        <div>
+                          <p className="text-xs text-blue-600 font-medium">Reservations</p>
+                          <p className="font-semibold text-gray-900">{formatInt(currentData.revenue?.totalReservations || 0)}</p>
+                          <DeltaBadge current={currentData.revenue?.totalReservations || 0} previous={previousData.revenue?.totalReservations || 0} />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Analysis */}
+                  {currentData.meta?.analysis && (
+                    <div className="card p-5 space-y-4">
+                      <div className="flex items-start gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <Lightbulb size={16} className="text-blue-600" />
+                        </div>
+                        <div>
+                          <h4 className="font-semibold text-gray-900 mb-1.5 text-sm">Analysis Summary</h4>
+                          <p className="text-gray-600 text-sm leading-relaxed">{currentData.meta.analysis.summary}</p>
+                        </div>
+                      </div>
+                      {currentData.meta.analysis.recommendations?.length > 0 && (
+                        <div>
+                          <h4 className="font-semibold text-gray-700 mb-2 text-xs uppercase tracking-wider">Recommendations</h4>
+                          <ul className="space-y-1.5">
+                            {currentData.meta.analysis.recommendations.map((rec, i) => (
+                              <li key={i} className="flex items-start gap-2 text-sm text-gray-600 bg-gray-50 px-3 py-2 rounded-lg">
+                                <span className="text-mpj-purple font-bold mt-0.5">–</span>
+                                <span className="leading-relaxed">{rec}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )
             })()}
 
-            {compareMode && previousData && (
-              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 animate-slide-down">
-                <h3 className="font-semibold text-blue-900 mb-3 text-sm">Period Comparison</h3>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                  <div>
-                    <p className="text-xs text-blue-600 font-medium">Impressions</p>
-                    <p className="font-semibold text-gray-900">{formatInt(currentData.meta.campaigns.reduce((s, c) => s + (c.impressions || 0), 0))}</p>
-                    <DeltaBadge current={currentData.meta.campaigns.reduce((s, c) => s + (c.impressions || 0), 0)} previous={previousData.meta.campaigns.reduce((s, c) => s + (c.impressions || 0), 0)} />
-                  </div>
-                  <div>
-                    <p className="text-xs text-blue-600 font-medium">Revenue</p>
-                    <p className="font-semibold text-gray-900">AED {formatNum(currentData.revenue?.totalBusiness || 0)}</p>
-                    <DeltaBadge current={currentData.revenue?.totalBusiness || 0} previous={previousData.revenue?.totalBusiness || 0} />
-                  </div>
-                  <div>
-                    <p className="text-xs text-blue-600 font-medium">Reservations</p>
-                    <p className="font-semibold text-gray-900">{formatInt(currentData.revenue?.totalReservations || 0)}</p>
-                    <DeltaBadge current={currentData.revenue?.totalReservations || 0} previous={previousData.revenue?.totalReservations || 0} />
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {currentData.meta?.analysis && (
-              <CollapsibleSection title="Analysis & Recommendations" color="#2563eb" icon={Lightbulb}>
-                <div className="space-y-4">
-                  <div className="bg-blue-50 p-4 rounded-lg">
-                    <div className="flex items-start gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0 mt-0.5">
-                        <Lightbulb size={16} className="text-blue-600" />
-                      </div>
-                      <div>
-                        <h4 className="font-semibold text-gray-900 mb-1.5 text-sm">Summary</h4>
-                        <p className="text-gray-700 text-sm leading-relaxed">{currentData.meta.analysis.summary}</p>
-                      </div>
-                    </div>
-                  </div>
-                  {currentData.meta.analysis.recommendations?.length > 0 && (
+            {/* ══ META ADS ══ */}
+            {venueTab === 'meta' && (
+              <div className="space-y-6">
+                {currentData.meta?.campaigns?.length > 0 ? (
+                  <>
+                    {/* Campaign table */}
                     <div>
-                      <h4 className="font-semibold text-gray-800 mb-2 text-sm">Recommendations</h4>
-                      <ul className="space-y-2">
-                        {currentData.meta.analysis.recommendations.map((rec, i) => (
-                          <li key={i} className="flex items-start gap-2.5 text-sm text-gray-700 bg-gray-50 px-3 py-2.5 rounded-lg">
-                            <span className="text-mpj-purple font-bold text-lg leading-none mt-0.5">-</span>
-                            <span className="leading-relaxed">{rec}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </div>
-              </CollapsibleSection>
-            )}
-
-            {currentData.meta?.campaigns?.length > 0 && (
-              <CollapsibleSection title="Meta Ads Performance" icon={Megaphone}>
-                <div className="space-y-6">
-                  <div>
-                    <h4 className="text-sm font-semibold text-gray-700 mb-2">Campaign Level</h4>
-                    <div className="table-responsive">
-                      <table className="w-full text-sm">
-                        <thead className="bg-gray-50 border-b">
-                          <tr>
-                            <th className="text-left px-3 py-2.5 font-semibold text-gray-600">Campaign</th>
-                            <th className="text-right px-3 py-2.5 font-semibold text-gray-600">Impressions</th>
-                            <th className="text-right px-3 py-2.5 font-semibold text-gray-600">Clicks</th>
-                            <th className="text-right px-3 py-2.5 font-semibold text-gray-600">CTR</th>
-                            <th className="text-right px-3 py-2.5 font-semibold text-gray-600 hidden md:table-cell">Link Clicks</th>
-                            <th className="text-right px-3 py-2.5 font-semibold text-gray-600 hidden md:table-cell">Engagement</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {currentData.meta.campaigns.map((c, i) => (
-                            <tr key={i} className="border-t hover:bg-gray-50/50 transition-colors">
-                              <td className="px-3 py-2.5 font-medium max-w-[200px] truncate">{c.name}</td>
-                              <td className="px-3 py-2.5 text-right tabular-nums">{formatInt(c.impressions)}</td>
-                              <td className="px-3 py-2.5 text-right tabular-nums">{formatInt(c.clicks)}</td>
-                              <td className="px-3 py-2.5 text-right tabular-nums">{c.ctr}</td>
-                              <td className="px-3 py-2.5 text-right tabular-nums hidden md:table-cell">{formatInt(c.linkClicks)}</td>
-                              <td className="px-3 py-2.5 text-right tabular-nums hidden md:table-cell">{formatInt(c.engagement)}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-
-                  {currentData.meta.adSets?.length > 0 && (
-                    <div>
-                      <h4 className="text-sm font-semibold text-gray-700 mb-2">
-                        Ad Set Level <span className="text-xs font-normal text-gray-400">(click to view audience)</span>
-                      </h4>
+                      <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Campaign Level</h4>
                       <div className="table-responsive">
                         <table className="w-full text-sm">
                           <thead className="bg-gray-50 border-b">
                             <tr>
-                              <th className="text-left px-3 py-2.5 font-semibold text-gray-600">Ad Set</th>
+                              <th className="text-left px-3 py-2.5 font-semibold text-gray-600">Campaign</th>
                               <th className="text-right px-3 py-2.5 font-semibold text-gray-600">Impressions</th>
                               <th className="text-right px-3 py-2.5 font-semibold text-gray-600">Clicks</th>
                               <th className="text-right px-3 py-2.5 font-semibold text-gray-600">CTR</th>
@@ -1000,201 +981,260 @@ export default function Dashboard() {
                             </tr>
                           </thead>
                           <tbody>
-                            {currentData.meta.adSets.map((a) => (
-                              <AdSetRow key={a.name} adSet={a} isExpanded={expandedAdSets[a.name]} onToggle={() => toggleAdSet(a.name)} />
+                            {currentData.meta.campaigns.map((c, i) => (
+                              <tr key={i} className="border-t hover:bg-gray-50/50 transition-colors">
+                                <td className="px-3 py-2.5 font-medium max-w-[200px] truncate">{c.name}</td>
+                                <td className="px-3 py-2.5 text-right tabular-nums">{formatInt(c.impressions)}</td>
+                                <td className="px-3 py-2.5 text-right tabular-nums">{formatInt(c.clicks)}</td>
+                                <td className="px-3 py-2.5 text-right tabular-nums">{c.ctr}</td>
+                                <td className="px-3 py-2.5 text-right tabular-nums hidden md:table-cell">{formatInt(c.linkClicks)}</td>
+                                <td className="px-3 py-2.5 text-right tabular-nums hidden md:table-cell">{formatInt(c.engagement)}</td>
+                              </tr>
                             ))}
                           </tbody>
                         </table>
                       </div>
                     </div>
-                  )}
 
-                  {currentData.meta.ads?.length > 0 && (
-                    <div>
-                      <h4 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                        Ad Level
-                        <span className="text-xs font-normal text-gray-400 flex items-center gap-1"><MessageSquare size={11} /> click notes to edit</span>
-                      </h4>
-                      <div className="table-responsive">
-                        <table className="w-full text-sm">
-                          <thead>
-                            <tr className="bg-mpj-purple-xlight border-b border-mpj-purple/10">
-                              <th className="px-2 py-3 w-12 hidden sm:table-cell"></th>
-                              <th className="text-left px-3 py-3 font-semibold text-mpj-purple text-xs uppercase tracking-wider">Ad Name</th>
-                              <th className="text-right px-3 py-3 font-semibold text-mpj-purple text-xs uppercase tracking-wider">Impressions</th>
-                              <th className="text-right px-3 py-3 font-semibold text-mpj-purple text-xs uppercase tracking-wider">CTR</th>
-                              <th className="text-right px-3 py-3 font-semibold text-mpj-purple text-xs uppercase tracking-wider hidden md:table-cell">Link Clicks</th>
-                              <th className="text-right px-3 py-3 font-semibold text-mpj-purple text-xs uppercase tracking-wider hidden md:table-cell">Engagement</th>
-                              <th className="text-center px-3 py-3 font-semibold text-mpj-purple text-xs uppercase tracking-wider">Status <span className="normal-case font-normal text-gray-400 ml-1">(click)</span></th>
-                              <th className="text-left px-3 py-3 font-semibold text-mpj-purple text-xs uppercase tracking-wider min-w-[180px]">
-                                <span className="flex items-center gap-1 normal-case font-semibold"><MessageSquare size={11} /> Notes</span>
-                              </th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {(() => {
-                              // Build lookup: for each ad, find best-matching adSet and campaign by longest common prefix
-                              const adSets = currentData.meta.adSets || []
-                              const campaigns = currentData.meta.campaigns || []
-                              const findParent = (arr, adName) => {
-                                let best = null, bestLen = 0
-                                arr.forEach(p => {
-                                  const shorter = Math.min(p.name.length, adName.length)
-                                  let common = 0
-                                  for (let i = 0; i < shorter; i++) {
-                                    if (p.name[i] === adName[i]) common++
-                                    else break
-                                  }
-                                  if (common > bestLen) { bestLen = common; best = p.name }
-                                })
-                                return best
-                              }
-                              return currentData.meta.ads.map((a, i) => {
-                              const noteKey = getNoteKey(selectedVenue, selectedWeek, a.name)
-                              const noteVal = noteKey ? (adNotes[noteKey] || '') : ''
-                              const isSaving = savingNote === noteKey
-                              const matchedAdSet = findParent(adSets, a.name)
-                              const matchedCampaign = findParent(campaigns, a.name)
-                              return (
-                                <tr key={i} className={`border-t border-gray-100 hover:bg-mpj-purple-xlight/60 transition-colors duration-150 ${i % 2 === 1 ? 'bg-gray-50/30' : ''}`}>
-                                  <td className="px-2 py-2 hidden sm:table-cell">
-                                    <CreativeThumb creative={getCreativeForAd(selectedVenue, a.name, currentData.weekStart)} size={36} />
-                                  </td>
-                                  <td className="px-3 py-2.5 max-w-[200px] font-medium">
-                                    <div className="relative group/adname">
-                                      <span className="block truncate cursor-default">{a.name}</span>
-                                      {/* Hover tooltip */}
-                                      <div className="absolute left-0 top-full mt-1 z-50 hidden group-hover/adname:block w-72 bg-gray-900 text-white text-xs rounded-lg shadow-xl p-3 space-y-1.5 pointer-events-none">
-                                        <div>
-                                          <span className="text-gray-400 uppercase tracking-wide text-[10px]">Ad</span>
-                                          <p className="font-medium leading-snug mt-0.5">{a.name}</p>
-                                        </div>
-                                        {matchedAdSet && (
-                                          <div className="border-t border-gray-700 pt-1.5">
-                                            <span className="text-gray-400 uppercase tracking-wide text-[10px]">Ad Set</span>
-                                            <p className="leading-snug mt-0.5 text-gray-200">{matchedAdSet}</p>
-                                          </div>
-                                        )}
-                                        {matchedCampaign && (
-                                          <div className="border-t border-gray-700 pt-1.5">
-                                            <span className="text-gray-400 uppercase tracking-wide text-[10px]">Campaign</span>
-                                            <p className="leading-snug mt-0.5 text-gray-200">{matchedCampaign}</p>
-                                          </div>
-                                        )}
-                                      </div>
-                                    </div>
-                                  </td>
-                                  <td className="px-3 py-2.5 text-right tabular-nums">{formatInt(a.impressions)}</td>
-                                  <td className="px-3 py-2.5 text-right tabular-nums">{a.ctr}</td>
-                                  <td className="px-3 py-2.5 text-right tabular-nums hidden md:table-cell">{formatInt(a.linkClicks)}</td>
-                                  <td className="px-3 py-2.5 text-right tabular-nums hidden md:table-cell">{formatInt(a.engagement)}</td>
-                                  <td className="px-3 py-2.5 text-center">
-                                    <button
-                                      onClick={() => toggleAdStatus(selectedVenue, selectedWeek, a.name, a.status)}
-                                      title="Click to toggle active / inactive"
-                                      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold transition-all duration-200 cursor-pointer hover:scale-105 active:scale-95 border ${
-                                        a.status === 'active'
-                                          ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100'
-                                          : a.status === 'learning'
-                                            ? 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'
-                                            : a.status === 'not_delivering' || a.status === 'inactive'
-                                              ? 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100'
-                                              : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100'
-                                      }`}
-                                    >
-                                      <span className={`w-1.5 h-1.5 rounded-full ${
-                                        a.status === 'active' ? 'bg-green-500' :
-                                        a.status === 'learning' ? 'bg-amber-500' :
-                                        a.status === 'not_delivering' || a.status === 'inactive' ? 'bg-red-400' : 'bg-gray-400'
-                                      }`} />
-                                      {a.status || 'unknown'}
-                                    </button>
-                                  </td>
-                                  <td className="px-3 py-1.5">
-                                    <div className="relative">
-                                      <textarea
-                                        defaultValue={noteVal}
-                                        placeholder="Add note..."
-                                        rows={1}
-                                        onBlur={(e) => {
-                                          const val = e.target.value.trim()
-                                          if (val !== noteVal) {
-                                            saveAdNote(selectedVenue, selectedWeek, a.name, val)
-                                          }
-                                        }}
-                                        onKeyDown={(e) => {
-                                          if (e.key === 'Enter' && !e.shiftKey) {
-                                            e.preventDefault()
-                                            e.target.blur()
-                                          }
-                                        }}
-                                        className="w-full text-xs px-2 py-1.5 border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-mpj-purple/40 focus:border-mpj-purple resize-none bg-white hover:bg-gray-50 transition-colors min-w-[160px]"
-                                      />
-                                      {isSaving && (
-                                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-mpj-purple animate-pulse">saving...</span>
-                                      )}
-                                    </div>
-                                  </td>
-                                </tr>
-                              )
-                            })})()}
-                          </tbody>
-                        </table>
+                    {/* Ad Set table */}
+                    {currentData.meta.adSets?.length > 0 && (
+                      <div>
+                        <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+                          Ad Set Level <span className="normal-case font-normal text-gray-400">(click to view audience)</span>
+                        </h4>
+                        <div className="table-responsive">
+                          <table className="w-full text-sm">
+                            <thead className="bg-gray-50 border-b">
+                              <tr>
+                                <th className="text-left px-3 py-2.5 font-semibold text-gray-600">Ad Set</th>
+                                <th className="text-right px-3 py-2.5 font-semibold text-gray-600">Impressions</th>
+                                <th className="text-right px-3 py-2.5 font-semibold text-gray-600">Clicks</th>
+                                <th className="text-right px-3 py-2.5 font-semibold text-gray-600">CTR</th>
+                                <th className="text-right px-3 py-2.5 font-semibold text-gray-600 hidden md:table-cell">Link Clicks</th>
+                                <th className="text-right px-3 py-2.5 font-semibold text-gray-600 hidden md:table-cell">Engagement</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {currentData.meta.adSets.map((a) => (
+                                <AdSetRow key={a.name} adSet={a} isExpanded={expandedAdSets[a.name]} onToggle={() => toggleAdSet(a.name)} />
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
                       </div>
-                    </div>
-                  )}
-                </div>
-              </CollapsibleSection>
+                    )}
+
+                    {/* Ad Level table */}
+                    {currentData.meta.ads?.length > 0 && (
+                      <div>
+                        <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+                          Ad Level <span className="normal-case font-normal text-gray-400 ml-1">· click status to toggle · click notes to edit</span>
+                        </h4>
+                        <div className="table-responsive">
+                          <table className="w-full text-sm">
+                            <thead>
+                              <tr className="bg-mpj-purple-xlight border-b border-mpj-purple/10">
+                                <th className="px-2 py-3 w-12 hidden sm:table-cell"></th>
+                                <th className="text-left px-3 py-3 font-semibold text-mpj-purple text-xs uppercase tracking-wider">Ad Name</th>
+                                <th className="text-right px-3 py-3 font-semibold text-mpj-purple text-xs uppercase tracking-wider">Impressions</th>
+                                <th className="text-right px-3 py-3 font-semibold text-mpj-purple text-xs uppercase tracking-wider">CTR</th>
+                                <th className="text-right px-3 py-3 font-semibold text-mpj-purple text-xs uppercase tracking-wider hidden md:table-cell">Link Clicks</th>
+                                <th className="text-right px-3 py-3 font-semibold text-mpj-purple text-xs uppercase tracking-wider hidden md:table-cell">Engagement</th>
+                                <th className="text-center px-3 py-3 font-semibold text-mpj-purple text-xs uppercase tracking-wider">Status</th>
+                                <th className="text-left px-3 py-3 font-semibold text-mpj-purple text-xs uppercase tracking-wider min-w-[180px]">Notes</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {(() => {
+                                const adSets = currentData.meta.adSets || []
+                                const campaigns = currentData.meta.campaigns || []
+                                const findParent = (arr, adName) => {
+                                  let best = null, bestLen = 0
+                                  arr.forEach(p => {
+                                    const shorter = Math.min(p.name.length, adName.length)
+                                    let common = 0
+                                    for (let i = 0; i < shorter; i++) {
+                                      if (p.name[i] === adName[i]) common++
+                                      else break
+                                    }
+                                    if (common > bestLen) { bestLen = common; best = p.name }
+                                  })
+                                  return best
+                                }
+                                return currentData.meta.ads.map((a, i) => {
+                                  const noteKey = getNoteKey(selectedVenue, selectedWeek, a.name)
+                                  const noteVal = noteKey ? (adNotes[noteKey] || '') : ''
+                                  const isSaving = savingNote === noteKey
+                                  const matchedAdSet = findParent(adSets, a.name)
+                                  const matchedCampaign = findParent(campaigns, a.name)
+                                  return (
+                                    <tr key={i} className={`border-t border-gray-100 hover:bg-mpj-purple-xlight/60 transition-colors duration-150 ${i % 2 === 1 ? 'bg-gray-50/30' : ''}`}>
+                                      <td className="px-2 py-2 hidden sm:table-cell">
+                                        <CreativeThumb creative={getCreativeForAd(selectedVenue, a.name, currentData.weekStart)} size={36} />
+                                      </td>
+                                      <td className="px-3 py-2.5 max-w-[200px] font-medium">
+                                        <div className="relative group/adname">
+                                          <span className="block truncate cursor-default">{a.name}</span>
+                                          <div className="absolute left-0 top-full mt-1 z-50 hidden group-hover/adname:block w-72 bg-gray-900 text-white text-xs rounded-lg shadow-xl p-3 space-y-1.5 pointer-events-none">
+                                            <div>
+                                              <span className="text-gray-400 uppercase tracking-wide text-[10px]">Ad</span>
+                                              <p className="font-medium leading-snug mt-0.5">{a.name}</p>
+                                            </div>
+                                            {matchedAdSet && (
+                                              <div className="border-t border-gray-700 pt-1.5">
+                                                <span className="text-gray-400 uppercase tracking-wide text-[10px]">Ad Set</span>
+                                                <p className="leading-snug mt-0.5 text-gray-200">{matchedAdSet}</p>
+                                              </div>
+                                            )}
+                                            {matchedCampaign && (
+                                              <div className="border-t border-gray-700 pt-1.5">
+                                                <span className="text-gray-400 uppercase tracking-wide text-[10px]">Campaign</span>
+                                                <p className="leading-snug mt-0.5 text-gray-200">{matchedCampaign}</p>
+                                              </div>
+                                            )}
+                                          </div>
+                                        </div>
+                                      </td>
+                                      <td className="px-3 py-2.5 text-right tabular-nums">{formatInt(a.impressions)}</td>
+                                      <td className="px-3 py-2.5 text-right tabular-nums">{a.ctr}</td>
+                                      <td className="px-3 py-2.5 text-right tabular-nums hidden md:table-cell">{formatInt(a.linkClicks)}</td>
+                                      <td className="px-3 py-2.5 text-right tabular-nums hidden md:table-cell">{formatInt(a.engagement)}</td>
+                                      <td className="px-3 py-2.5 text-center">
+                                        <button
+                                          onClick={() => toggleAdStatus(selectedVenue, selectedWeek, a.name, a.status)}
+                                          title="Click to toggle active / inactive"
+                                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold transition-all duration-200 cursor-pointer hover:scale-105 active:scale-95 border ${
+                                            a.status === 'active'
+                                              ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100'
+                                              : a.status === 'learning'
+                                                ? 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'
+                                                : a.status === 'not_delivering' || a.status === 'inactive'
+                                                  ? 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100'
+                                                  : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100'
+                                          }`}
+                                        >
+                                          <span className={`w-1.5 h-1.5 rounded-full ${
+                                            a.status === 'active' ? 'bg-green-500' :
+                                            a.status === 'learning' ? 'bg-amber-500' :
+                                            a.status === 'not_delivering' || a.status === 'inactive' ? 'bg-red-400' : 'bg-gray-400'
+                                          }`} />
+                                          {a.status || 'unknown'}
+                                        </button>
+                                      </td>
+                                      <td className="px-3 py-1.5">
+                                        <div className="relative">
+                                          <textarea
+                                            defaultValue={noteVal}
+                                            placeholder="Add note..."
+                                            rows={1}
+                                            onBlur={(e) => {
+                                              const val = e.target.value.trim()
+                                              if (val !== noteVal) saveAdNote(selectedVenue, selectedWeek, a.name, val)
+                                            }}
+                                            onKeyDown={(e) => {
+                                              if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); e.target.blur() }
+                                            }}
+                                            className="w-full text-xs px-2 py-1.5 border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-mpj-purple/40 focus:border-mpj-purple resize-none bg-white hover:bg-gray-50 transition-colors min-w-[160px]"
+                                          />
+                                          {isSaving && <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-mpj-purple animate-pulse">saving...</span>}
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  )
+                                })
+                              })()}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Creative Gallery */}
+                    {adCreatives.filter(c => c.venues?.name === selectedVenue).length > 0 && (
+                      <div>
+                        <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Creative Gallery</h4>
+                        <CreativeGallery
+                          creatives={adCreatives.filter(c => c.venues?.name === selectedVenue)}
+                          onDelete={handleCreativeDeleted}
+                        />
+                      </div>
+                    )}
+
+                    {/* Programmatic */}
+                    {currentData.programmatic && (
+                      <div>
+                        <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Programmatic Performance</h4>
+                        <div className="table-responsive">
+                          <table className="w-full text-sm mb-3">
+                            <thead className="bg-gray-50 border-b">
+                              <tr>
+                                <th className="text-left px-3 py-2.5 font-semibold text-gray-600">Creative</th>
+                                <th className="text-left px-3 py-2.5 font-semibold text-gray-600 hidden md:table-cell">Format</th>
+                                <th className="text-left px-3 py-2.5 font-semibold text-gray-600 hidden md:table-cell">Size</th>
+                                <th className="text-right px-3 py-2.5 font-semibold text-gray-600">Impressions</th>
+                                <th className="text-right px-3 py-2.5 font-semibold text-gray-600">Clicks</th>
+                                <th className="text-right px-3 py-2.5 font-semibold text-gray-600">CTR</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {currentData.programmatic.creatives?.map((c, i) => (
+                                <tr key={i} className="border-t hover:bg-gray-50/50 transition-colors">
+                                  <td className="px-3 py-2.5 font-medium truncate max-w-[150px]">{c.file}</td>
+                                  <td className="px-3 py-2.5 hidden md:table-cell">{c.format}</td>
+                                  <td className="px-3 py-2.5 hidden md:table-cell">{c.size}</td>
+                                  <td className="px-3 py-2.5 text-right tabular-nums">{formatInt(c.impressions)}</td>
+                                  <td className="px-3 py-2.5 text-right tabular-nums">{formatInt(c.clicks)}</td>
+                                  <td className="px-3 py-2.5 text-right tabular-nums">{c.ctr}</td>
+                                </tr>
+                              ))}
+                              {currentData.programmatic.totals && (
+                                <tr className="border-t bg-gray-100 font-semibold">
+                                  <td className="px-3 py-2.5">TOTALS</td>
+                                  <td className="hidden md:table-cell"></td>
+                                  <td className="hidden md:table-cell"></td>
+                                  <td className="px-3 py-2.5 text-right tabular-nums">{formatInt(currentData.programmatic.totals.impressions)}</td>
+                                  <td className="px-3 py-2.5 text-right tabular-nums">{formatInt(currentData.programmatic.totals.clicks)}</td>
+                                  <td className="px-3 py-2.5 text-right tabular-nums">{currentData.programmatic.totals.ctr}</td>
+                                </tr>
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                        {currentData.programmatic.viewability && (
+                          <div className="flex gap-6 text-sm text-gray-600">
+                            <span>Viewability: <strong className="text-gray-900">{currentData.programmatic.viewability}</strong></span>
+                            <span>VTR: <strong className="text-gray-900">{currentData.programmatic.vtr}</strong></span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="text-center py-16 text-gray-400">
+                    <Megaphone size={32} className="mx-auto mb-2 opacity-40" />
+                    <p className="text-sm">No Meta Ads data for this week.</p>
+                  </div>
+                )}
+              </div>
             )}
 
-            {/* Creative Gallery */}
-            {adCreatives.filter(c => c.venues?.name === selectedVenue).length > 0 && (
-              <CollapsibleSection title="Creative Gallery" icon={ImageIcon} defaultOpen={false}>
-                <CreativeGallery
-                  creatives={adCreatives.filter(c => c.venues?.name === selectedVenue)}
-                  onDelete={handleCreativeDeleted}
-                />
-              </CollapsibleSection>
-            )}
-
-            {/* Social Media Insights */}
-            {socialMediaData.filter(d => d.venues?.name === selectedVenue).length > 0 && (
-              <CollapsibleSection title="Social Media Insights" icon={Instagram} defaultOpen={false}>
-                <SocialMediaInsights
-                  allData={socialMediaData}
-                  venueName={selectedVenue}
-                />
-              </CollapsibleSection>
-            )}
-
-            {currentData.revenue && (() => {
-              const rev = currentData.revenue
-              const onlinePct = rev.totalBusiness > 0 ? ((rev.totalOnline / rev.totalBusiness) * 100) : 0
-              const resPct = rev.totalReservations > 0 ? ((rev.onlineReservations / rev.totalReservations) * 100) : 0
-              const roas = currentData.adSpend > 0 ? (rev.totalOnline / currentData.adSpend) : null
-              const offlineTotal = rev.totalBusiness - rev.totalOnline
-              const donutData = [
-                { name: 'Online', value: rev.totalOnline },
-                { name: 'Offline', value: offlineTotal }
-              ]
-              const onlineChannels = rev.channels
-                ? Object.entries(rev.channels)
-                    .filter(([, v]) => v.revenue > 0)
-                    .sort((a, b) => b[1].revenue - a[1].revenue)
-                : []
-              const topChannel = onlineChannels[0]
-
-              // Walk In rank context
-              const walkInRevenue = rev.offline?.['Walk In']?.revenue || 0
-              const onlineVsWalkIn = walkInRevenue > 0
-                ? ((rev.totalOnline / walkInRevenue) * 100).toFixed(0)
-                : null
-
-              return (
-                <CollapsibleSection title="Revenue & Reservations (7rooms)" icon={DollarSign}>
+            {/* ══ REVENUE ══ */}
+            {venueTab === 'revenue' && (
+              currentData.revenue ? (() => {
+                const rev = currentData.revenue
+                const onlinePct = rev.totalBusiness > 0 ? ((rev.totalOnline / rev.totalBusiness) * 100) : 0
+                const resPct = rev.totalReservations > 0 ? ((rev.onlineReservations / rev.totalReservations) * 100) : 0
+                const roas = currentData.adSpend > 0 ? (rev.totalOnline / currentData.adSpend) : null
+                const offlineTotal = rev.totalBusiness - rev.totalOnline
+                const donutData = [{ name: 'Online', value: rev.totalOnline }, { name: 'Offline', value: offlineTotal }]
+                const onlineChannels = rev.channels
+                  ? Object.entries(rev.channels).filter(([, v]) => v.revenue > 0).sort((a, b) => b[1].revenue - a[1].revenue)
+                  : []
+                const topChannel = onlineChannels[0]
+                const walkInRevenue = rev.offline?.['Walk In']?.revenue || 0
+                const onlineVsWalkIn = walkInRevenue > 0 ? ((rev.totalOnline / walkInRevenue) * 100).toFixed(0) : null
+                return (
                   <div className="space-y-5">
-
-                    {/* ── KPI Summary Cards ── */}
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                       <div className="bg-gradient-to-br from-mpj-purple/10 to-mpj-purple/5 border border-mpj-purple/20 rounded-xl p-3.5">
                         <p className="text-xs font-medium text-mpj-purple/70 mb-1">Online Revenue Share</p>
@@ -1217,8 +1257,6 @@ export default function Dashboard() {
                         <p className="text-xs text-gray-500 mt-0.5">{roas ? 'online rev / ad spend' : 'no ad spend data'}</p>
                       </div>
                     </div>
-
-                    {/* ── Insight Callouts ── */}
                     <div className="flex flex-wrap gap-2">
                       {topChannel && (
                         <div className="insight-pill bg-mpj-purple-xlight border-mpj-purple/20 text-gray-700">
@@ -1239,31 +1277,19 @@ export default function Dashboard() {
                         </div>
                       )}
                     </div>
-
-                    {/* ── Charts Row ── */}
                     <div className="grid md:grid-cols-2 gap-4">
-                      {/* Donut: Online vs Offline */}
                       <div className="bg-gray-50/80 rounded-2xl p-4 border border-gray-100">
                         <h4 className="text-sm font-semibold text-gray-700 mb-3">Revenue Split</h4>
                         <ResponsiveContainer width="100%" height={180}>
                           <PieChart>
-                            <Pie
-                              data={donutData}
-                              cx="50%" cy="50%"
-                              innerRadius={50} outerRadius={75}
-                              dataKey="value"
-                              label={({ name, percent }) => `${name} ${(percent * 100).toFixed(1)}%`}
-                              labelLine={{ strokeWidth: 1 }}
-                            >
-                              <Cell fill="#76527c" />
-                              <Cell fill="#e5e7eb" />
+                            <Pie data={donutData} cx="50%" cy="50%" innerRadius={50} outerRadius={75} dataKey="value"
+                              label={({ name, percent }) => `${name} ${(percent * 100).toFixed(1)}%`} labelLine={{ strokeWidth: 1 }}>
+                              <Cell fill="#76527c" /><Cell fill="#e5e7eb" />
                             </Pie>
                             <Tooltip content={<ChartTooltip />} />
                           </PieChart>
                         </ResponsiveContainer>
                       </div>
-
-                      {/* Bar: Online channels ranked */}
                       {onlineChannels.length > 0 && (
                         <div className="bg-gray-50/80 rounded-2xl p-4 border border-gray-100">
                           <h4 className="text-sm font-semibold text-gray-700 mb-3">Online Channels by Revenue</h4>
@@ -1279,8 +1305,6 @@ export default function Dashboard() {
                         </div>
                       )}
                     </div>
-
-                    {/* ── Detail Table ── */}
                     <div className="table-responsive">
                       <table className="w-full text-sm">
                         <thead className="bg-gray-50 border-b">
@@ -1294,7 +1318,6 @@ export default function Dashboard() {
                           </tr>
                         </thead>
                         <tbody>
-                          {/* Total row */}
                           <tr className="border-t bg-gray-50/80">
                             <td className="px-3 py-2.5 font-semibold text-mpj-purple">Overall</td>
                             <td className="px-3 py-2.5">Total Business</td>
@@ -1303,7 +1326,6 @@ export default function Dashboard() {
                             <td className="px-3 py-2.5 text-right tabular-nums hidden md:table-cell">{calcAvgSpend(rev.totalBusiness, rev.totalReservations)}</td>
                             <td className="px-3 py-2.5 text-right hidden md:table-cell">100%</td>
                           </tr>
-                          {/* Online total */}
                           <tr className="border-t">
                             <td className="px-3 py-2.5 font-semibold text-mpj-purple">Online</td>
                             <td className="px-3 py-2.5 font-medium">Total Online</td>
@@ -1314,7 +1336,6 @@ export default function Dashboard() {
                               <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-mpj-purple/10 text-mpj-purple">{onlinePct.toFixed(1)}%</span>
                             </td>
                           </tr>
-                          {/* Online channels */}
                           {rev.channels && Object.entries(rev.channels).map(([ch, v]) => (
                             <tr key={ch} className="border-t">
                               <td></td>
@@ -1325,16 +1346,12 @@ export default function Dashboard() {
                               <td className="px-3 py-2 text-right hidden md:table-cell text-gray-500 text-xs">{rev.totalBusiness > 0 ? ((v.revenue / rev.totalBusiness) * 100).toFixed(1) + '%' : '—'}</td>
                             </tr>
                           ))}
-                          {/* Walk In — highlighted as #1 offline, right after online */}
                           {rev.offline?.['Walk In'] && (() => {
                             const wi = rev.offline['Walk In']
                             return (
                               <tr className="border-t bg-gray-50/60">
                                 <td className="px-3 py-2.5 font-semibold text-gray-500">Offline</td>
-                                <td className="px-3 py-2.5 font-medium text-gray-700">
-                                  Walk In
-                                  <span className="ml-2 text-xs font-normal text-gray-400">#1 offline source</span>
-                                </td>
+                                <td className="px-3 py-2.5 font-medium text-gray-700">Walk In <span className="ml-2 text-xs font-normal text-gray-400">#1 offline source</span></td>
                                 <td className="px-3 py-2.5 text-right tabular-nums">{formatNum(wi.revenue)}</td>
                                 <td className="px-3 py-2.5 text-right tabular-nums hidden sm:table-cell">{wi.reservations}</td>
                                 <td className="px-3 py-2.5 text-right tabular-nums hidden md:table-cell">{calcAvgSpend(wi.revenue, wi.reservations)}</td>
@@ -1342,81 +1359,101 @@ export default function Dashboard() {
                               </tr>
                             )
                           })()}
-                          {/* Remaining offline channels */}
-                          {rev.offline && Object.entries(rev.offline)
-                            .filter(([ch]) => ch !== 'Walk In')
-                            .map(([ch, v]) => (
-                              <tr key={ch} className="border-t">
-                                <td></td>
-                                <td className="px-3 py-2 pl-6 text-gray-600">↳ {ch}</td>
-                                <td className="px-3 py-2 text-right tabular-nums text-gray-700">{formatNum(v.revenue)}</td>
-                                <td className="px-3 py-2 text-right tabular-nums hidden sm:table-cell text-gray-600">{v.reservations}</td>
-                                <td className="px-3 py-2 text-right tabular-nums hidden md:table-cell text-gray-600">{calcAvgSpend(v.revenue, v.reservations)}</td>
-                                <td className="px-3 py-2 text-right hidden md:table-cell text-gray-500 text-xs">{rev.totalBusiness > 0 ? ((v.revenue / rev.totalBusiness) * 100).toFixed(1) + '%' : '—'}</td>
-                              </tr>
+                          {rev.offline && Object.entries(rev.offline).filter(([ch]) => ch !== 'Walk In').map(([ch, v]) => (
+                            <tr key={ch} className="border-t">
+                              <td></td>
+                              <td className="px-3 py-2 pl-6 text-gray-600">↳ {ch}</td>
+                              <td className="px-3 py-2 text-right tabular-nums text-gray-700">{formatNum(v.revenue)}</td>
+                              <td className="px-3 py-2 text-right tabular-nums hidden sm:table-cell text-gray-600">{v.reservations}</td>
+                              <td className="px-3 py-2 text-right tabular-nums hidden md:table-cell text-gray-600">{calcAvgSpend(v.revenue, v.reservations)}</td>
+                              <td className="px-3 py-2 text-right hidden md:table-cell text-gray-500 text-xs">{rev.totalBusiness > 0 ? ((v.revenue / rev.totalBusiness) * 100).toFixed(1) + '%' : '—'}</td>
+                            </tr>
                           ))}
                         </tbody>
                       </table>
                     </div>
                   </div>
-                </CollapsibleSection>
+                )
+              })() : (
+                <div className="text-center py-16 text-gray-400">
+                  <DollarSign size={32} className="mx-auto mb-2 opacity-40" />
+                  <p className="text-sm">No revenue data for this week.</p>
+                </div>
+              )
+            )}
+
+            {/* ══ SOCIAL ══ */}
+            {venueTab === 'social' && (
+              socialMediaData.filter(d => d.venues?.name === selectedVenue).length > 0 ? (
+                <SocialMediaInsights allData={socialMediaData} venueName={selectedVenue} />
+              ) : (
+                <div className="text-center py-16 text-gray-400">
+                  <Instagram size={32} className="mx-auto mb-2 opacity-40" />
+                  <p className="text-sm">No social media data for this venue.</p>
+                </div>
+              )
+            )}
+
+            {/* ══ NOTES ══ */}
+            {venueTab === 'notes' && (() => {
+              const venue = venues.find(v => v.name === selectedVenue)
+              const noteKey = venue ? `${venue.id}_${selectedWeek}` : null
+              const noteVal = noteKey ? (venueNotes[noteKey] || '') : ''
+              return (
+                <div className="space-y-4 max-w-2xl">
+                  <div className="card p-5 border-l-4 border-l-mpj-purple">
+                    <div className="flex items-center justify-between mb-3">
+                      <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                        <MessageSquare size={14} className="text-mpj-purple" />
+                        Meeting Notes — <span className="text-mpj-purple">{selectedVenue}</span>
+                      </label>
+                      {savingVenueNote && (
+                        <span className="text-[10px] text-mpj-purple animate-pulse flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-mpj-purple animate-ping inline-block" />
+                          saving...
+                        </span>
+                      )}
+                    </div>
+                    <textarea
+                      key={noteKey}
+                      defaultValue={noteVal}
+                      placeholder="Add notes for your meeting — context, action items, observations..."
+                      rows={8}
+                      onBlur={(e) => { const val = e.target.value; if (val !== noteVal) saveVenueNote(selectedVenue, selectedWeek, val) }}
+                      onKeyDown={(e) => { if (e.key === 'Enter' && e.metaKey) e.target.blur() }}
+                      className="w-full text-sm px-3 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-mpj-purple/30 focus:border-mpj-purple resize-none bg-gray-50/80 hover:bg-white transition-colors placeholder:text-gray-300 input-shadow"
+                    />
+                    <p className="text-[10px] text-gray-400 mt-1.5 flex items-center gap-1">
+                      <span className="w-3 h-3 rounded bg-gray-200 inline-flex items-center justify-center text-[8px] font-bold text-gray-500">⌘</span>
+                      Enter to save · auto-saves on click away
+                    </p>
+                  </div>
+                  {compareMode && previousData && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                      <h3 className="font-semibold text-blue-900 mb-3 text-sm">Period Comparison</h3>
+                      <div className="grid grid-cols-3 gap-4">
+                        <div>
+                          <p className="text-xs text-blue-600 font-medium">Impressions</p>
+                          <p className="font-semibold text-gray-900">{formatInt(currentData.meta.campaigns.reduce((s, c) => s + (c.impressions || 0), 0))}</p>
+                          <DeltaBadge current={currentData.meta.campaigns.reduce((s, c) => s + (c.impressions || 0), 0)} previous={previousData.meta.campaigns.reduce((s, c) => s + (c.impressions || 0), 0)} />
+                        </div>
+                        <div>
+                          <p className="text-xs text-blue-600 font-medium">Revenue</p>
+                          <p className="font-semibold text-gray-900">AED {formatNum(currentData.revenue?.totalBusiness || 0)}</p>
+                          <DeltaBadge current={currentData.revenue?.totalBusiness || 0} previous={previousData.revenue?.totalBusiness || 0} />
+                        </div>
+                        <div>
+                          <p className="text-xs text-blue-600 font-medium">Reservations</p>
+                          <p className="font-semibold text-gray-900">{formatInt(currentData.revenue?.totalReservations || 0)}</p>
+                          <DeltaBadge current={currentData.revenue?.totalReservations || 0} previous={previousData.revenue?.totalReservations || 0} />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
               )
             })()}
 
-            {currentData.programmatic && (
-              <CollapsibleSection title="Programmatic Performance" color="#4a5568" icon={Target}>
-                <div className="table-responsive">
-                  <table className="w-full text-sm mb-4">
-                    <thead className="bg-gray-50 border-b">
-                      <tr>
-                        <th className="text-left px-3 py-2.5 font-semibold text-gray-600">Creative</th>
-                        <th className="text-left px-3 py-2.5 font-semibold text-gray-600 hidden md:table-cell">Format</th>
-                        <th className="text-left px-3 py-2.5 font-semibold text-gray-600 hidden md:table-cell">Size</th>
-                        <th className="text-right px-3 py-2.5 font-semibold text-gray-600">Impressions</th>
-                        <th className="text-right px-3 py-2.5 font-semibold text-gray-600">Clicks</th>
-                        <th className="text-right px-3 py-2.5 font-semibold text-gray-600">CTR</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {currentData.programmatic.creatives?.map((c, i) => (
-                        <tr key={i} className="border-t hover:bg-gray-50/50 transition-colors">
-                          <td className="px-3 py-2.5 font-medium truncate max-w-[150px]">{c.file}</td>
-                          <td className="px-3 py-2.5 hidden md:table-cell">{c.format}</td>
-                          <td className="px-3 py-2.5 hidden md:table-cell">{c.size}</td>
-                          <td className="px-3 py-2.5 text-right tabular-nums">{formatInt(c.impressions)}</td>
-                          <td className="px-3 py-2.5 text-right tabular-nums">{formatInt(c.clicks)}</td>
-                          <td className="px-3 py-2.5 text-right tabular-nums">{c.ctr}</td>
-                        </tr>
-                      ))}
-                      {currentData.programmatic.totals && (
-                        <tr className="border-t bg-gray-100 font-semibold">
-                          <td className="px-3 py-2.5">TOTALS</td>
-                          <td className="hidden md:table-cell"></td>
-                          <td className="hidden md:table-cell"></td>
-                          <td className="px-3 py-2.5 text-right tabular-nums">{formatInt(currentData.programmatic.totals.impressions)}</td>
-                          <td className="px-3 py-2.5 text-right tabular-nums">{formatInt(currentData.programmatic.totals.clicks)}</td>
-                          <td className="px-3 py-2.5 text-right tabular-nums">{currentData.programmatic.totals.ctr}</td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-                {currentData.programmatic.viewability && (
-                  <div className="flex gap-6 text-sm text-gray-600 mt-2">
-                    <span>Viewability: <strong className="text-gray-900">{currentData.programmatic.viewability}</strong></span>
-                    <span>VTR: <strong className="text-gray-900">{currentData.programmatic.vtr}</strong></span>
-                  </div>
-                )}
-              </CollapsibleSection>
-            )}
-
-            {/* Live Campaigns hidden until data is updated
-            {currentData.liveCampaigns?.length > 0 && (
-              <CollapsibleSection title={`Live Campaigns - ${selectedVenue}`} color="#9333ea" icon={Megaphone}>
-                ...
-              </CollapsibleSection>
-            )}
-            */}
           </div>
         )}
 
