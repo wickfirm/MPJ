@@ -20,6 +20,19 @@ import SocialMediaInsights from './components/SocialMediaInsights'
 const COLORS = ['#76527c', '#d8ee91', '#D0E4E7', '#9f7aea', '#68d391', '#fc8181']
 const AUTO_REFRESH_MS = 5 * 60 * 1000 // 5 minutes
 
+// ── Venue logo map ───────────────────────────
+const VENUE_LOGOS = {
+  'Above Eleven': '/logos/above eleven logo.png',
+  'Acquasale':    '/logos/acquasale by cucina logo.jpg',
+  'BHB':          '/logos/bhb logo.webp',
+  'Cucina':       '/logos/cucina logo.png',
+  'Smoki Moto':   '/logos/smoki-moto-logo.png',
+  'Layalina':     '/logos/layalina logo.webp',
+  'Resort':       '/logos/Marriott_logo.avif',
+  'Myami':        '/logos/myami logo.webp',
+  'Spa':          '/logos/spa logo.png',
+}
+
 // ── Custom chart tooltip ──────────────────────
 const ChartTooltip = ({ active, payload, label, prefix = 'AED ', suffix = '' }) => {
   if (!active || !payload?.length) return null
@@ -514,7 +527,9 @@ export default function Dashboard() {
       {/* ── Header ──────────────────────── */}
       <header className="header-gradient text-white px-4 md:px-6 py-4 no-print shadow-md">
         <div className="max-w-7xl mx-auto flex justify-between items-center flex-wrap gap-3">
-          <div>
+          <div className="flex items-center gap-3">
+            <img src="/logos/Marriott_logo.avif" alt="Marriott" className="h-9 md:h-11 w-auto object-contain brightness-0 invert" />
+            <div>
             <h1 className="text-lg md:text-xl font-bold tracking-tight">MPJ F&Bs Performance Dashboard</h1>
             <p className="text-xs md:text-sm text-white/70">
               Marriott Palm Jumeirah Weekly Reports
@@ -524,6 +539,7 @@ export default function Dashboard() {
                 </span>
               )}
             </p>
+            </div>
           </div>
           <div className="flex gap-2 items-center flex-wrap">
             {allWeeks.length > 1 && (
@@ -840,6 +856,18 @@ export default function Dashboard() {
                 </select>
               </div>
               <div className="flex items-end gap-3 pb-0.5">
+                {VENUE_LOGOS[selectedVenue] && (
+                  <div className="flex flex-col gap-1">
+                    <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Venue</span>
+                    <div className="h-8 flex items-center">
+                      <img
+                        src={VENUE_LOGOS[selectedVenue]}
+                        alt={selectedVenue}
+                        className="h-8 w-auto max-w-[110px] object-contain"
+                      />
+                    </div>
+                  </div>
+                )}
                 <div className="flex flex-col gap-1">
                   <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">POC</span>
                   <span className="text-sm font-bold text-mpj-purple bg-mpj-purple-xlight px-2.5 py-1 rounded-lg">{currentData.poc}</span>
