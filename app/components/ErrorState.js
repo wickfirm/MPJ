@@ -15,7 +15,7 @@ export default function ErrorState({ message = 'Something went wrong while loadi
         {onRetry && (
           <button
             onClick={onRetry}
-            className="inline-flex items-center gap-2 px-4 py-2.5 bg-mpj-purple text-white rounded-lg text-sm font-medium hover:bg-mpj-purple-dark transition-colors cursor-pointer"
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-mpj-charcoal text-white rounded-lg text-sm font-medium hover:bg-mpj-charcoal-light transition-colors cursor-pointer"
           >
             <RefreshCw size={16} />
             Try Again

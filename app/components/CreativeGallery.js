@@ -76,7 +76,7 @@ export default function CreativeGallery({ creatives = [], onDelete }) {
               onClick={() => setFilterMonth('all')}
               className={`px-3 py-1 text-xs rounded-full font-medium transition-colors ${
                 filterMonth === 'all'
-                  ? 'bg-mpj-purple text-white'
+                  ? 'bg-mpj-charcoal text-white'
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
             >
@@ -88,7 +88,7 @@ export default function CreativeGallery({ creatives = [], onDelete }) {
                 onClick={() => setFilterMonth(m)}
                 className={`px-3 py-1 text-xs rounded-full font-medium transition-colors ${
                   filterMonth === m
-                    ? 'bg-mpj-purple text-white'
+                    ? 'bg-mpj-charcoal text-white'
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 }`}
               >
@@ -103,7 +103,7 @@ export default function CreativeGallery({ creatives = [], onDelete }) {
       {grouped.map(([month, items]) => (
         <div key={month}>
           <h4 className="text-sm font-semibold text-gray-600 mb-3 flex items-center gap-2">
-            <span className="bg-mpj-teal/60 text-gray-700 px-2.5 py-0.5 rounded-full text-xs">
+            <span className="bg-mpj-warm text-mpj-charcoal px-2.5 py-0.5 rounded-full text-xs">
               {formatMonth(month)}
             </span>
             <span className="text-xs font-normal text-gray-400">{items.length} creative{items.length !== 1 ? 's' : ''}</span>
@@ -113,7 +113,7 @@ export default function CreativeGallery({ creatives = [], onDelete }) {
             {items.map(c => (
               <div
                 key={c.id}
-                className="group relative bg-white border border-gray-200 rounded-xl overflow-hidden hover:border-mpj-purple/40 hover:shadow-md transition-all"
+                className="group relative bg-white border border-gray-200 rounded-xl overflow-hidden hover:border-mpj-gold/40 hover:shadow-md transition-all"
               >
                 {/* Image */}
                 <div className="aspect-square relative overflow-hidden bg-gray-100">

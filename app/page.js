@@ -17,7 +17,7 @@ import CreativeGallery from './components/CreativeGallery'
 import SocialMediaInsights from './components/SocialMediaInsights'
 
 // ── Constants ────────────────────────────────
-const COLORS = ['#76527c', '#d8ee91', '#D0E4E7', '#9f7aea', '#68d391', '#fc8181']
+const COLORS = ['#D4A853', '#1C1917', '#78716C', '#C4956A', '#8FAF8A', '#C4726A']
 const AUTO_REFRESH_MS = 5 * 60 * 1000 // 5 minutes
 
 // ── Venue logo map ───────────────────────────
@@ -45,7 +45,7 @@ const ChartTooltip = ({ active, payload, label, prefix = 'AED ', suffix = '' }) 
       {label && <p className="text-gray-400 mb-1.5 font-medium truncate max-w-[180px]">{label}</p>}
       {payload.map((p, i) => (
         <div key={i} className="flex items-center gap-2 mt-0.5">
-          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: p.color || p.fill || '#76527c' }} />
+          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: p.color || p.fill || '#D4A853' }} />
           <span className="text-gray-300 truncate">{p.name}</span>
           <span className="font-semibold text-white ml-auto pl-2 tabular-nums">
             {prefix}{typeof p.value === 'number' ? p.value.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) : p.value}{suffix}
@@ -593,7 +593,7 @@ export default function Dashboard() {
               onClick={() => setActiveTab(tab.id)}
               className={`flex items-center gap-1.5 px-3.5 py-2 text-xs md:text-sm font-medium rounded-xl transition-all duration-200 whitespace-nowrap cursor-pointer ${
                 activeTab === tab.id
-                  ? 'bg-mpj-purple text-white shadow-sm'
+                  ? 'bg-mpj-charcoal text-white shadow-sm'
                   : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
               }`}
               aria-selected={activeTab === tab.id}
@@ -620,7 +620,7 @@ export default function Dashboard() {
                   id="budget-month-select"
                   value={selectedBudgetMonth || ''}
                   onChange={(e) => setSelectedBudgetMonth(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-xl font-medium text-sm focus:outline-none focus:ring-2 focus:ring-mpj-purple/30 focus:border-mpj-purple cursor-pointer bg-white input-shadow"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-xl font-medium text-sm focus:outline-none focus:ring-2 focus:ring-mpj-gold/40 focus:border-mpj-gold cursor-pointer bg-white input-shadow"
                 >
                   {workspaceMonths.map(m => (
                     <option key={m} value={m}>{formatMonth(m)}</option>
@@ -636,7 +636,7 @@ export default function Dashboard() {
                       key={m}
                       onClick={() => setSelectedBudgetMonth(m)}
                       className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all duration-200 cursor-pointer ${
-                        isActive ? 'bg-mpj-purple text-white shadow-sm' : 'bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700'
+                        isActive ? 'bg-mpj-charcoal text-white shadow-sm' : 'bg-mpj-bone-dark text-mpj-charcoal-muted hover:bg-mpj-warm hover:text-mpj-charcoal'
                       }`}
                     >
                       {monthLabel}
@@ -650,18 +650,18 @@ export default function Dashboard() {
               <div className="table-responsive">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="bg-mpj-purple-xlight border-b border-mpj-purple/10">
-                      <th className="text-left px-3 py-3 font-semibold text-mpj-purple text-xs uppercase tracking-wider">Brand</th>
-                      <th className="text-left px-3 py-3 font-semibold text-mpj-purple text-xs uppercase tracking-wider hidden sm:table-cell">POC</th>
-                      <th className="text-right px-3 py-3 font-semibold text-mpj-purple text-xs uppercase tracking-wider">Budget</th>
-                      <th className="text-right px-3 py-3 font-semibold text-mpj-purple text-xs uppercase tracking-wider">Spend</th>
-                      <th className="text-right px-3 py-3 font-semibold text-mpj-purple text-xs uppercase tracking-wider hidden sm:table-cell">Remaining</th>
-                      <th className="text-right px-3 py-3 font-semibold text-mpj-purple text-xs uppercase tracking-wider">% Spent</th>
+                    <tr className="bg-mpj-gold-xlight border-b border-mpj-warm">
+                      <th className="text-left px-3 py-3 font-semibold text-mpj-charcoal text-xs uppercase tracking-wider">Brand</th>
+                      <th className="text-left px-3 py-3 font-semibold text-mpj-charcoal text-xs uppercase tracking-wider hidden sm:table-cell">POC</th>
+                      <th className="text-right px-3 py-3 font-semibold text-mpj-charcoal text-xs uppercase tracking-wider">Budget</th>
+                      <th className="text-right px-3 py-3 font-semibold text-mpj-charcoal text-xs uppercase tracking-wider">Spend</th>
+                      <th className="text-right px-3 py-3 font-semibold text-mpj-charcoal text-xs uppercase tracking-wider hidden sm:table-cell">Remaining</th>
+                      <th className="text-right px-3 py-3 font-semibold text-mpj-charcoal text-xs uppercase tracking-wider">% Spent</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredWorkspaceData.map((w, i) => (
-                      <tr key={i} className={`border-t border-gray-100 hover:bg-mpj-purple-xlight/60 transition-colors duration-150 ${i % 2 === 1 ? 'bg-gray-50/40' : ''}`}>
+                      <tr key={i} className={`border-t border-gray-100 hover:bg-mpj-gold-xlight/60 transition-colors duration-150 ${i % 2 === 1 ? 'bg-gray-50/40' : ''}`}>
                         <td className="px-3 py-3 font-semibold text-gray-900">{w.brand}</td>
                         <td className="px-3 py-3 text-gray-500 hidden sm:table-cell text-sm">{getBrandPOC(w.brand)}</td>
                         <td className="px-3 py-3 text-right tabular-nums text-gray-700 text-sm">AED {formatNum(w.monthly_budget)}</td>
@@ -678,8 +678,8 @@ export default function Dashboard() {
                     ))}
                     {/* Totals Row */}
                     {filteredWorkspaceData.length > 0 && (
-                      <tr className="border-t-2 border-mpj-purple/20 bg-mpj-purple-xlight font-bold">
-                        <td className="px-3 py-3 text-mpj-purple">TOTAL</td>
+                      <tr className="border-t-2 border-mpj-charcoal/15 bg-mpj-gold-xlight font-bold">
+                        <td className="px-3 py-3 text-mpj-charcoal">TOTAL</td>
                         <td className="hidden sm:table-cell"></td>
                         <td className="px-3 py-3 text-right tabular-nums text-gray-700">AED {formatNum(workspaceTotals.budget)}</td>
                         <td className="px-3 py-3 text-right tabular-nums text-gray-900">AED {formatNum(workspaceTotals.spend)}</td>
@@ -687,7 +687,7 @@ export default function Dashboard() {
                           AED {formatNum(workspaceTotals.remaining)}
                         </td>
                         <td className="px-3 py-3 text-right">
-                          <span className="badge badge-purple">{workspaceTotals.budget > 0 ? ((workspaceTotals.spend / workspaceTotals.budget) * 100).toFixed(1) + '%' : '0.0%'}</span>
+                          <span className="badge badge-charcoal">{workspaceTotals.budget > 0 ? ((workspaceTotals.spend / workspaceTotals.budget) * 100).toFixed(1) + '%' : '0.0%'}</span>
                         </td>
                       </tr>
                     )}
@@ -759,7 +759,7 @@ export default function Dashboard() {
                           <td className="px-3 py-2.5 text-right tabular-nums">AED {formatNum(d.adSpend)}</td>
                           <td className="px-3 py-2.5 text-right tabular-nums">AED {formatNum(d.revenue?.totalBusiness || 0)}</td>
                           <td className="px-3 py-2.5 text-right tabular-nums hidden sm:table-cell">{formatInt(d.revenue?.totalReservations || 0)}</td>
-                          <td className="px-3 py-2.5 text-right font-semibold text-mpj-purple">{calcROAS(d)}</td>
+                          <td className="px-3 py-2.5 text-right font-semibold text-mpj-charcoal">{calcROAS(d)}</td>
                         </tr>
                       )
                     })}
@@ -780,8 +780,8 @@ export default function Dashboard() {
                         <YAxis tickFormatter={formatK} tick={{ fontSize: 11 }} />
                         <Tooltip content={<ChartTooltip />} />
                         <Legend />
-                        <Bar dataKey="ad_spend" fill="#76527c" name="Ad Spend" radius={[4, 4, 0, 0]} />
-                        <Bar dataKey="revenue" fill="#d8ee91" name="Revenue" radius={[4, 4, 0, 0]} />
+                        <Bar dataKey="ad_spend" fill="#D4A853" name="Ad Spend" radius={[4, 4, 0, 0]} />
+                        <Bar dataKey="revenue" fill="#1C1917" name="Revenue" radius={[4, 4, 0, 0]} />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
@@ -793,7 +793,7 @@ export default function Dashboard() {
                         <XAxis dataKey="month" tick={{ fontSize: 11 }} />
                         <YAxis tick={{ fontSize: 11 }} />
                         <Tooltip content={<ChartTooltip prefix="" suffix="" />} />
-                        <Line type="monotone" dataKey="reservations" stroke="#76527c" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                        <Line type="monotone" dataKey="reservations" stroke="#D4A853" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
                       </ReLineChart>
                     </ResponsiveContainer>
                   </div>
@@ -811,7 +811,7 @@ export default function Dashboard() {
                       <XAxis type="number" tickFormatter={formatK} tick={{ fontSize: 11 }} />
                       <YAxis dataKey="name" type="category" width={90} tick={{ fontSize: 10 }} />
                       <Tooltip content={<ChartTooltip />} />
-                      <Bar dataKey="spend" fill="#76527c" radius={[0, 4, 4, 0]} />
+                      <Bar dataKey="spend" fill="#D4A853" radius={[0, 4, 4, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -843,7 +843,7 @@ export default function Dashboard() {
                   id="venue-select"
                   value={selectedVenue}
                   onChange={(e) => setSelectedVenue(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-xl font-medium text-sm focus:outline-none focus:ring-2 focus:ring-mpj-purple/30 focus:border-mpj-purple cursor-pointer bg-white input-shadow"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-xl font-medium text-sm focus:outline-none focus:ring-2 focus:ring-mpj-gold/40 focus:border-mpj-gold cursor-pointer bg-white input-shadow"
                 >
                   {venues.map(v => <option key={v.id} value={v.name}>{v.name}</option>)}
                 </select>
@@ -854,7 +854,7 @@ export default function Dashboard() {
                   id="week-select"
                   value={selectedWeek}
                   onChange={(e) => setSelectedWeek(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-xl font-medium text-sm focus:outline-none focus:ring-2 focus:ring-mpj-purple/30 focus:border-mpj-purple cursor-pointer bg-white input-shadow"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-xl font-medium text-sm focus:outline-none focus:ring-2 focus:ring-mpj-gold/40 focus:border-mpj-gold cursor-pointer bg-white input-shadow"
                 >
                   {allWeeks.map(w => <option key={w.key} value={w.key}>{w.label}</option>)}
                 </select>
@@ -863,7 +863,7 @@ export default function Dashboard() {
                 {getVenueLogo(selectedVenue) && (
                   <div className="flex flex-col gap-1">
                     <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Venue</span>
-                    <div className="h-8 flex items-center bg-gray-800 rounded-lg px-2">
+                    <div className="h-8 flex items-center bg-white border border-mpj-warm rounded-lg px-2 py-1">
                       <img
                         src={getVenueLogo(selectedVenue)}
                         alt={selectedVenue}
@@ -874,11 +874,11 @@ export default function Dashboard() {
                 )}
                 <div className="flex flex-col gap-1">
                   <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">POC</span>
-                  <span className="text-sm font-bold text-mpj-purple bg-mpj-purple-xlight px-2.5 py-1 rounded-lg">{currentData.poc}</span>
+                  <span className="text-sm font-bold text-mpj-charcoal bg-mpj-gold-xlight px-2.5 py-1 rounded-lg">{currentData.poc}</span>
                 </div>
                 <button
                   onClick={() => setShowUploadModal(true)}
-                  className="flex items-center gap-1.5 px-3.5 py-2 bg-mpj-purple text-white hover:bg-mpj-purple-dark rounded-xl text-xs font-semibold transition-all duration-200 shadow-sm hover:shadow-md"
+                  className="flex items-center gap-1.5 px-3.5 py-2 bg-mpj-charcoal text-white hover:bg-mpj-charcoal-light rounded-xl text-xs font-semibold transition-all duration-200 shadow-sm hover:shadow-md"
                   title="Upload ad creative image"
                 >
                   <Upload size={13} />
@@ -888,7 +888,7 @@ export default function Dashboard() {
             </div>
 
             {/* ── Inner tab bar ── */}
-            <div className="flex gap-1 bg-gray-100 rounded-xl p-1 flex-wrap">
+            <div className="flex gap-1 bg-mpj-bone-dark rounded-xl p-1 flex-wrap">
               {[
                 { id: 'overview', label: 'Overview',  icon: BarChart3 },
                 { id: 'meta',     label: 'Meta Ads',  icon: Megaphone },
@@ -901,7 +901,7 @@ export default function Dashboard() {
                   onClick={() => setVenueTab(t.id)}
                   className={`flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-lg transition-all duration-150 ${
                     venueTab === t.id
-                      ? 'bg-white text-mpj-purple shadow-sm'
+                      ? 'bg-white text-mpj-charcoal shadow-sm'
                       : 'text-gray-500 hover:text-gray-700'
                   }`}
                 >
@@ -923,7 +923,7 @@ export default function Dashboard() {
                   {/* KPI strip */}
                   <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
                     {[
-                      { label: 'Ad Spend',     value: `AED ${currentData.adSpend >= 1000 ? (currentData.adSpend/1000).toFixed(1)+'K' : formatNum(currentData.adSpend)}`, color: 'text-mpj-purple' },
+                      { label: 'Ad Spend',     value: `AED ${currentData.adSpend >= 1000 ? (currentData.adSpend/1000).toFixed(1)+'K' : formatNum(currentData.adSpend)}`, color: 'text-mpj-charcoal' },
                       { label: 'Impressions',  value: formatK(totalImpressions),  color: 'text-gray-800' },
                       { label: 'Link Clicks',  value: formatInt(totalLinkClicks), color: 'text-gray-800' },
                       { label: 'ROAS',         value: roas ? roas + 'x' : '—',   color: roas ? 'text-amber-600' : 'text-gray-400' },
@@ -979,7 +979,7 @@ export default function Dashboard() {
                           <ul className="space-y-1.5">
                             {currentData.meta.analysis.recommendations.map((rec, i) => (
                               <li key={i} className="flex items-start gap-2 text-sm text-gray-600 bg-gray-50 px-3 py-2 rounded-lg">
-                                <span className="text-mpj-purple font-bold mt-0.5">–</span>
+                                <span className="text-mpj-charcoal font-bold mt-0.5">–</span>
                                 <span className="leading-relaxed">{rec}</span>
                               </li>
                             ))}
@@ -1065,15 +1065,15 @@ export default function Dashboard() {
                         <div className="table-responsive">
                           <table className="w-full text-sm">
                             <thead>
-                              <tr className="bg-mpj-purple-xlight border-b border-mpj-purple/10">
+                              <tr className="bg-mpj-gold-xlight border-b border-mpj-warm">
                                 <th className="px-2 py-3 w-12 hidden sm:table-cell"></th>
-                                <th className="text-left px-3 py-3 font-semibold text-mpj-purple text-xs uppercase tracking-wider">Ad Name</th>
-                                <th className="text-right px-3 py-3 font-semibold text-mpj-purple text-xs uppercase tracking-wider">Impressions</th>
-                                <th className="text-right px-3 py-3 font-semibold text-mpj-purple text-xs uppercase tracking-wider">CTR</th>
-                                <th className="text-right px-3 py-3 font-semibold text-mpj-purple text-xs uppercase tracking-wider hidden md:table-cell">Link Clicks</th>
-                                <th className="text-right px-3 py-3 font-semibold text-mpj-purple text-xs uppercase tracking-wider hidden md:table-cell">Engagement</th>
-                                <th className="text-center px-3 py-3 font-semibold text-mpj-purple text-xs uppercase tracking-wider">Status</th>
-                                <th className="text-left px-3 py-3 font-semibold text-mpj-purple text-xs uppercase tracking-wider min-w-[180px]">Notes</th>
+                                <th className="text-left px-3 py-3 font-semibold text-mpj-charcoal text-xs uppercase tracking-wider">Ad Name</th>
+                                <th className="text-right px-3 py-3 font-semibold text-mpj-charcoal text-xs uppercase tracking-wider">Impressions</th>
+                                <th className="text-right px-3 py-3 font-semibold text-mpj-charcoal text-xs uppercase tracking-wider">CTR</th>
+                                <th className="text-right px-3 py-3 font-semibold text-mpj-charcoal text-xs uppercase tracking-wider hidden md:table-cell">Link Clicks</th>
+                                <th className="text-right px-3 py-3 font-semibold text-mpj-charcoal text-xs uppercase tracking-wider hidden md:table-cell">Engagement</th>
+                                <th className="text-center px-3 py-3 font-semibold text-mpj-charcoal text-xs uppercase tracking-wider">Status</th>
+                                <th className="text-left px-3 py-3 font-semibold text-mpj-charcoal text-xs uppercase tracking-wider min-w-[180px]">Notes</th>
                               </tr>
                             </thead>
                             <tbody>
@@ -1100,7 +1100,7 @@ export default function Dashboard() {
                                   const matchedAdSet = findParent(adSets, a.name)
                                   const matchedCampaign = findParent(campaigns, a.name)
                                   return (
-                                    <tr key={i} className={`border-t border-gray-100 hover:bg-mpj-purple-xlight/60 transition-colors duration-150 ${i % 2 === 1 ? 'bg-gray-50/30' : ''}`}>
+                                    <tr key={i} className={`border-t border-gray-100 hover:bg-mpj-gold-xlight/60 transition-colors duration-150 ${i % 2 === 1 ? 'bg-gray-50/30' : ''}`}>
                                       <td className="px-2 py-2 hidden sm:table-cell">
                                         <CreativeThumb creative={getCreativeForAd(selectedVenue, a.name, currentData.weekStart)} size={36} />
                                       </td>
@@ -1166,9 +1166,9 @@ export default function Dashboard() {
                                             onKeyDown={(e) => {
                                               if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); e.target.blur() }
                                             }}
-                                            className="w-full text-xs px-2 py-1.5 border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-mpj-purple/40 focus:border-mpj-purple resize-none bg-white hover:bg-gray-50 transition-colors min-w-[160px]"
+                                            className="w-full text-xs px-2 py-1.5 border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-mpj-gold/40 focus:border-mpj-gold resize-none bg-white hover:bg-gray-50 transition-colors min-w-[160px]"
                                           />
-                                          {isSaving && <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-mpj-purple animate-pulse">saving...</span>}
+                                          {isSaving && <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-mpj-charcoal animate-pulse">saving...</span>}
                                         </div>
                                       </td>
                                     </tr>
@@ -1268,9 +1268,9 @@ export default function Dashboard() {
                 return (
                   <div className="space-y-5">
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                      <div className="bg-gradient-to-br from-mpj-purple/10 to-mpj-purple/5 border border-mpj-purple/20 rounded-xl p-3.5">
-                        <p className="text-xs font-medium text-mpj-purple/70 mb-1">Online Revenue Share</p>
-                        <p className="text-2xl font-bold text-mpj-purple">{onlinePct.toFixed(1)}%</p>
+                      <div className="bg-gradient-to-br from-mpj-gold/12 to-mpj-gold/5 border border-mpj-charcoal/15 rounded-xl p-3.5">
+                        <p className="text-xs font-medium text-mpj-charcoal/70 mb-1">Online Revenue Share</p>
+                        <p className="text-2xl font-bold text-mpj-charcoal">{onlinePct.toFixed(1)}%</p>
                         <p className="text-xs text-gray-500 mt-0.5">of total business</p>
                       </div>
                       <div className="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 rounded-xl p-3.5">
@@ -1291,9 +1291,9 @@ export default function Dashboard() {
                     </div>
                     <div className="flex flex-wrap gap-2">
                       {topChannel && (
-                        <div className="insight-pill bg-mpj-purple-xlight border-mpj-purple/20 text-gray-700">
-                          <span className="w-6 h-6 rounded-lg bg-mpj-purple flex items-center justify-center text-white text-xs flex-shrink-0">★</span>
-                          Top channel: <strong className="text-mpj-purple">{topChannel[0]}</strong> — AED {formatNum(topChannel[1].revenue)} · {topChannel[1].reservations} reservations
+                        <div className="insight-pill bg-mpj-gold-xlight border-mpj-charcoal/15 text-gray-700">
+                          <span className="w-6 h-6 rounded-lg bg-mpj-gold flex items-center justify-center text-mpj-charcoal text-xs flex-shrink-0">★</span>
+                          Top channel: <strong className="text-mpj-charcoal">{topChannel[0]}</strong> — AED {formatNum(topChannel[1].revenue)} · {topChannel[1].reservations} reservations
                         </div>
                       )}
                       {onlineVsWalkIn && (
@@ -1316,7 +1316,7 @@ export default function Dashboard() {
                           <PieChart>
                             <Pie data={donutData} cx="50%" cy="50%" innerRadius={50} outerRadius={75} dataKey="value"
                               label={({ name, percent }) => `${name} ${(percent * 100).toFixed(1)}%`} labelLine={{ strokeWidth: 1 }}>
-                              <Cell fill="#76527c" /><Cell fill="#e5e7eb" />
+                              <Cell fill="#D4A853" /><Cell fill="#e5e7eb" />
                             </Pie>
                             <Tooltip content={<ChartTooltip />} />
                           </PieChart>
@@ -1331,7 +1331,7 @@ export default function Dashboard() {
                               <XAxis type="number" tickFormatter={(v) => v >= 1000 ? (v/1000).toFixed(0)+'K' : v} tick={{ fontSize: 10 }} />
                               <YAxis dataKey="name" type="category" width={100} tick={{ fontSize: 10 }} />
                               <Tooltip content={<ChartTooltip />} />
-                              <Bar dataKey="revenue" fill="#76527c" radius={[0, 4, 4, 0]} />
+                              <Bar dataKey="revenue" fill="#D4A853" radius={[0, 4, 4, 0]} />
                             </BarChart>
                           </ResponsiveContainer>
                         </div>
@@ -1351,7 +1351,7 @@ export default function Dashboard() {
                         </thead>
                         <tbody>
                           <tr className="border-t bg-gray-50/80">
-                            <td className="px-3 py-2.5 font-semibold text-mpj-purple">Overall</td>
+                            <td className="px-3 py-2.5 font-semibold text-mpj-charcoal">Overall</td>
                             <td className="px-3 py-2.5">Total Business</td>
                             <td className="px-3 py-2.5 text-right font-medium tabular-nums">{formatNum(rev.totalBusiness)}</td>
                             <td className="px-3 py-2.5 text-right font-medium tabular-nums hidden sm:table-cell">{formatInt(rev.totalReservations)}</td>
@@ -1359,13 +1359,13 @@ export default function Dashboard() {
                             <td className="px-3 py-2.5 text-right hidden md:table-cell">100%</td>
                           </tr>
                           <tr className="border-t">
-                            <td className="px-3 py-2.5 font-semibold text-mpj-purple">Online</td>
+                            <td className="px-3 py-2.5 font-semibold text-mpj-charcoal">Online</td>
                             <td className="px-3 py-2.5 font-medium">Total Online</td>
                             <td className="px-3 py-2.5 text-right tabular-nums font-medium">{formatNum(rev.totalOnline)}</td>
                             <td className="px-3 py-2.5 text-right tabular-nums hidden sm:table-cell">{formatInt(rev.onlineReservations)}</td>
                             <td className="px-3 py-2.5 text-right tabular-nums hidden md:table-cell">{calcAvgSpend(rev.totalOnline, rev.onlineReservations)}</td>
                             <td className="px-3 py-2.5 text-right hidden md:table-cell">
-                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-mpj-purple/10 text-mpj-purple">{onlinePct.toFixed(1)}%</span>
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-mpj-charcoal/10 text-mpj-charcoal">{onlinePct.toFixed(1)}%</span>
                             </td>
                           </tr>
                           {rev.channels && Object.entries(rev.channels).map(([ch, v]) => (
@@ -1433,15 +1433,15 @@ export default function Dashboard() {
               const noteVal = noteKey ? (venueNotes[noteKey] || '') : ''
               return (
                 <div className="space-y-4 max-w-2xl">
-                  <div className="card p-5 border-l-4 border-l-mpj-purple">
+                  <div className="card p-5 border-l-4 border-l-mpj-gold">
                     <div className="flex items-center justify-between mb-3">
                       <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                        <MessageSquare size={14} className="text-mpj-purple" />
-                        Meeting Notes — <span className="text-mpj-purple">{selectedVenue}</span>
+                        <MessageSquare size={14} className="text-mpj-charcoal" />
+                        Meeting Notes — <span className="text-mpj-charcoal">{selectedVenue}</span>
                       </label>
                       {savingVenueNote && (
-                        <span className="text-[10px] text-mpj-purple animate-pulse flex items-center gap-1">
-                          <span className="w-1.5 h-1.5 rounded-full bg-mpj-purple animate-ping inline-block" />
+                        <span className="text-[10px] text-mpj-charcoal animate-pulse flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-mpj-gold animate-ping inline-block" />
                           saving...
                         </span>
                       )}
@@ -1453,7 +1453,7 @@ export default function Dashboard() {
                       rows={8}
                       onBlur={(e) => { const val = e.target.value; if (val !== noteVal) saveVenueNote(selectedVenue, selectedWeek, val) }}
                       onKeyDown={(e) => { if (e.key === 'Enter' && e.metaKey) e.target.blur() }}
-                      className="w-full text-sm px-3 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-mpj-purple/30 focus:border-mpj-purple resize-none bg-gray-50/80 hover:bg-white transition-colors placeholder:text-gray-300 input-shadow"
+                      className="w-full text-sm px-3 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-mpj-gold/40 focus:border-mpj-gold resize-none bg-gray-50/80 hover:bg-white transition-colors placeholder:text-gray-300 input-shadow"
                     />
                     <p className="text-[10px] text-gray-400 mt-1.5 flex items-center gap-1">
                       <span className="w-3 h-3 rounded bg-gray-200 inline-flex items-center justify-center text-[8px] font-bold text-gray-500">⌘</span>
@@ -1498,7 +1498,7 @@ export default function Dashboard() {
                 id="live-venue-select"
                 value={liveCampaignVenue}
                 onChange={(e) => setLiveCampaignVenue(e.target.value)}
-                className="w-full max-w-sm px-3 py-2 border border-gray-200 rounded-lg font-medium text-sm focus:outline-none focus:ring-2 focus:ring-mpj-purple/30 focus:border-mpj-purple cursor-pointer"
+                className="w-full max-w-sm px-3 py-2 border border-gray-200 rounded-lg font-medium text-sm focus:outline-none focus:ring-2 focus:ring-mpj-gold/40 focus:border-mpj-gold cursor-pointer"
               >
                 {venues.map(v => <option key={v.id} value={v.name}>{v.name}</option>)}
               </select>
@@ -1508,7 +1508,7 @@ export default function Dashboard() {
               {liveCampaigns[liveCampaignVenue]?.length > 0 ? (
                 <div className="table-responsive">
                   <table className="w-full text-sm">
-                    <thead className="bg-mpj-teal/50 border-b">
+                    <thead className="bg-mpj-warm/60 border-b">
                       <tr>
                         <th className="text-left px-3 py-2.5 font-semibold text-gray-600">Type</th>
                         <th className="text-left px-3 py-2.5 font-semibold text-gray-600">Name</th>
@@ -1565,7 +1565,7 @@ export default function Dashboard() {
 
         {/* Footer */}
         <div className="mt-8 text-center text-xs text-gray-400 no-print">
-          Made with ❤️ by <a href="https://omnixia.ai/" target="_blank" rel="noopener noreferrer" className="text-mpj-purple hover:underline font-medium">Omnixia</a>
+          Made with ❤️ by <a href="https://omnixia.ai/" target="_blank" rel="noopener noreferrer" className="text-mpj-charcoal hover:underline font-medium">Omnixia</a>
         </div>
       </main>
 

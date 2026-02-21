@@ -6,7 +6,7 @@ function SkeletonBlock({ className = '' }) {
 
 export function DashboardSkeleton() {
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-mpj-bone">
       {/* Header */}
       <div className="header-gradient px-6 py-4">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
@@ -61,7 +61,7 @@ export function DashboardSkeleton() {
 
         {/* Section */}
         <div className="bg-white rounded-card border border-gray-100 shadow-card overflow-hidden">
-          <SkeletonBlock className="h-12 w-full !rounded-none !bg-mpj-purple/20" />
+          <SkeletonBlock className="h-12 w-full !rounded-none !bg-white/20" />
           <div className="p-5 space-y-3">
             {[1, 2, 3, 4, 5].map(i => (
               <div key={i} className="flex gap-4 items-center">

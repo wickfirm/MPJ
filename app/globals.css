@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -5,7 +7,8 @@
 /* ── Base ───────────────────────────────────── */
 @layer base {
   body {
-    @apply antialiased text-gray-800;
+    @apply antialiased text-mpj-charcoal;
+    background-color: #FAF8F5;
     font-feature-settings: "cv11", "ss01";
   }
 
@@ -14,7 +17,7 @@
   }
 
   *:focus-visible {
-    @apply outline-2 outline-offset-2 outline-mpj-purple ring-0;
+    @apply outline-2 outline-offset-2 outline-mpj-gold ring-0;
   }
 
   /* Better default select appearance */
@@ -34,7 +37,8 @@
 
   /* ── Skeleton ── */
   .skeleton {
-    @apply relative overflow-hidden bg-gray-200 rounded-lg;
+    @apply relative overflow-hidden rounded-lg;
+    background-color: #E8E2D9;
   }
   .skeleton::after {
     content: '';
@@ -42,8 +46,8 @@
     background: linear-gradient(
       90deg,
       transparent 0%,
-      rgba(255,255,255,0.55) 40%,
-      rgba(255,255,255,0.55) 60%,
+      rgba(255,255,255,0.6) 40%,
+      rgba(255,255,255,0.6) 60%,
       transparent 100%
     );
     animation: shimmer 1.8s ease-in-out infinite;
@@ -62,7 +66,7 @@
 
   /* ── Card base ── */
   .card {
-    @apply bg-white rounded-card border border-gray-100 shadow-card transition-all duration-200;
+    @apply bg-white rounded-card border border-mpj-warm shadow-card transition-all duration-200;
   }
   .card:hover {
     @apply shadow-card-hover -translate-y-px;
@@ -73,18 +77,17 @@
     @apply card cursor-default p-5;
   }
   .kpi-card:hover {
-    @apply shadow-card-hover border-mpj-purple/20 -translate-y-0.5;
+    @apply shadow-card-hover border-mpj-gold/30 -translate-y-0.5;
   }
 
   /* ── Table ── */
   .table-responsive {
     @apply overflow-x-auto -mx-6 px-6;
     -webkit-overflow-scrolling: touch;
-    /* Fade hint on right edge when scrollable */
     background: linear-gradient(to right, white 30%, rgba(255,255,255,0)) local,
                 linear-gradient(to right, rgba(255,255,255,0), white 70%) local,
-                radial-gradient(farthest-side at 0 50%, rgba(0,0,0,0.08), transparent) scroll,
-                radial-gradient(farthest-side at 100% 50%, rgba(0,0,0,0.08), transparent) scroll;
+                radial-gradient(farthest-side at 0 50%, rgba(28,25,23,0.06), transparent) scroll,
+                radial-gradient(farthest-side at 100% 50%, rgba(28,25,23,0.06), transparent) scroll;
     background-attachment: local, local, scroll, scroll;
     background-size: 40px 100%, 40px 100%, 14px 100%, 14px 100%;
     background-repeat: no-repeat;
@@ -95,20 +98,20 @@
   .badge {
     @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold;
   }
-  .badge-green  { @apply bg-green-100 text-green-800; }
-  .badge-red    { @apply bg-red-100 text-red-700; }
-  .badge-amber  { @apply bg-amber-100 text-amber-800; }
-  .badge-gray   { @apply bg-gray-100 text-gray-600; }
-  .badge-purple { @apply bg-mpj-purple/10 text-mpj-purple; }
+  .badge-green    { @apply bg-green-100 text-green-800; }
+  .badge-red      { @apply bg-red-100 text-red-700; }
+  .badge-amber    { @apply bg-amber-100 text-amber-800; }
+  .badge-gray     { @apply bg-gray-100 text-gray-600; }
+  .badge-charcoal { @apply bg-mpj-charcoal/10 text-mpj-charcoal; }
 
   /* Insight pill */
   .insight-pill {
     @apply flex items-center gap-2 px-3 py-2 rounded-xl border text-sm;
   }
 
-  /* Header gradient */
+  /* Header gradient — deep charcoal */
   .header-gradient {
-    background: linear-gradient(135deg, #5c3f62 0%, #76527c 50%, #9a7a9f 100%);
+    background: linear-gradient(135deg, #1C1917 0%, #292524 60%, #3C3530 100%);
   }
 }
 
@@ -133,7 +136,7 @@
 
   /* Subtle inset shadow for input fields */
   .input-shadow {
-    box-shadow: inset 0 1px 3px rgba(0,0,0,0.06);
+    box-shadow: inset 0 1px 3px rgba(28,25,23,0.06);
   }
 }
 

@@ -31,7 +31,7 @@ export default function LoginPage() {
       <div className="w-full max-w-sm animate-fade-in">
         {/* Logo / Brand */}
         <div className="text-center mb-8">
-          <div className="w-16 h-16 rounded-2xl bg-mpj-purple mx-auto flex items-center justify-center mb-4 shadow-lg">
+          <div className="w-16 h-16 rounded-2xl bg-mpj-charcoal mx-auto flex items-center justify-center mb-4 shadow-lg">
             <span className="text-2xl font-bold text-white">M</span>
           </div>
           <h1 className="text-2xl font-bold text-gray-900">MPJ Dashboard</h1>
@@ -55,7 +55,7 @@ export default function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Enter password"
-                  className="w-full pl-10 pr-12 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-mpj-purple/30 focus:border-mpj-purple transition-colors"
+                  className="w-full pl-10 pr-12 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-mpj-gold/40 focus:border-mpj-gold transition-colors"
                   required
                   autoFocus
                 />
@@ -80,7 +80,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading || !password}
-              className="w-full py-3 bg-mpj-purple text-white rounded-xl font-medium text-sm hover:bg-mpj-purple-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
+              className="w-full py-3 bg-mpj-charcoal text-white rounded-xl font-medium text-sm hover:bg-mpj-charcoal-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
             >
               {loading ? (
                 <>

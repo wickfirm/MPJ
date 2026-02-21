@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { ChevronDown } from 'lucide-react'
 
-export default function CollapsibleSection({ title, children, defaultOpen = true, color = '#76527c', icon: Icon }) {
+export default function CollapsibleSection({ title, children, defaultOpen = true, color = '#1C1917', icon: Icon }) {
   const [isOpen, setIsOpen] = useState(defaultOpen)
 
   return (

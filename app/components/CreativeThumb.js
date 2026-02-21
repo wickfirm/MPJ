@@ -22,7 +22,7 @@ export default function CreativeThumb({ creative, size = 40 }) {
     <>
       <button
         onClick={() => setShowPreview(true)}
-        className="relative group rounded-md overflow-hidden border border-gray-200 hover:border-mpj-purple transition-colors flex-shrink-0"
+        className="relative group rounded-md overflow-hidden border border-gray-200 hover:border-mpj-gold transition-colors flex-shrink-0"
         style={{ width: size, height: size }}
         title={`View: ${creative.ad_name}`}
       >

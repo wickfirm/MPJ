@@ -11,7 +11,7 @@ export default function AdSetRow({ adSet, isExpanded, onToggle }) {
         <td className="px-3 py-2.5">
           <button
             onClick={onToggle}
-            className="flex items-center gap-2 font-medium hover:text-mpj-purple transition-colors cursor-pointer"
+            className="flex items-center gap-2 font-medium hover:text-mpj-charcoal transition-colors cursor-pointer"
             aria-expanded={isExpanded}
             aria-label={`${isExpanded ? 'Collapse' : 'Expand'} audience for ${adSet.name}`}
           >
@@ -34,7 +34,7 @@ export default function AdSetRow({ adSet, isExpanded, onToggle }) {
               <div className="space-y-3">
                 <div>
                   <p className="font-semibold text-gray-700 flex items-center gap-1.5 mb-1.5">
-                    <Users size={14} className="text-mpj-purple" /> Location
+                    <Users size={14} className="text-mpj-charcoal" /> Location
                     {adSet.audience.type && (
                       <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${adSet.audience.type === 'Advantage+' ? 'bg-blue-100 text-blue-700' : adSet.audience.type === 'Custom' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-600'}`}>{adSet.audience.type}</span>
                     )}
@@ -45,7 +45,7 @@ export default function AdSetRow({ adSet, isExpanded, onToggle }) {
                   <p className="font-semibold text-gray-700 mb-1.5">Demographics</p>
                   <p className="text-gray-600">Age: {adSet.audience.age} | Gender: {adSet.audience.gender}</p>
                   {adSet.audience.demographics?.length > 0 && (
-                    <div className="mt-2"><AudienceTag items={adSet.audience.demographics} color="#D0E4E7" /></div>
+                    <div className="mt-2"><AudienceTag items={adSet.audience.demographics} color="#E8E2D9" /></div>
                   )}
                 </div>
               </div>
@@ -59,7 +59,7 @@ export default function AdSetRow({ adSet, isExpanded, onToggle }) {
                 {adSet.audience.interests?.length > 0 && (
                   <div>
                     <p className="font-semibold text-gray-700 mb-1.5">Interests</p>
-                    <AudienceTag items={adSet.audience.interests} color="#d8ee91" />
+                    <AudienceTag items={adSet.audience.interests} color="#FBF7ED" />
                   </div>
                 )}
                 {adSet.audience.behaviors?.length > 0 && (

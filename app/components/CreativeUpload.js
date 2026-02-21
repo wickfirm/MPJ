@@ -173,7 +173,7 @@ export default function CreativeUpload({ venues, weeklyReports, onSuccess, onClo
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b bg-gray-50 rounded-t-2xl">
           <div className="flex items-center gap-2">
-            <Upload size={20} className="text-mpj-purple" />
+            <Upload size={20} className="text-mpj-charcoal" />
             <h3 className="text-lg font-semibold text-gray-800">Upload Creatives</h3>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
@@ -188,7 +188,7 @@ export default function CreativeUpload({ venues, weeklyReports, onSuccess, onClo
             <select
               value={selectedVenue}
               onChange={(e) => { setSelectedVenue(e.target.value); setSelectedMonth(''); setAdName('') }}
-              className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-mpj-purple/30 focus:border-mpj-purple outline-none"
+              className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-mpj-gold/40 focus:border-mpj-gold outline-none"
             >
               <option value="">Select venue...</option>
               {venues.map(v => (
@@ -204,7 +204,7 @@ export default function CreativeUpload({ venues, weeklyReports, onSuccess, onClo
               <select
                 value={selectedMonth}
                 onChange={(e) => { setSelectedMonth(e.target.value); setAdName('') }}
-                className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-mpj-purple/30 focus:border-mpj-purple outline-none"
+                className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-mpj-gold/40 focus:border-mpj-gold outline-none"
               >
                 <option value="">Select month...</option>
                 {availableMonths.map(m => (
@@ -216,7 +216,7 @@ export default function CreativeUpload({ venues, weeklyReports, onSuccess, onClo
                 type="month"
                 value={selectedMonth}
                 onChange={(e) => setSelectedMonth(e.target.value)}
-                className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-mpj-purple/30 focus:border-mpj-purple outline-none"
+                className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-mpj-gold/40 focus:border-mpj-gold outline-none"
                 placeholder="2026-02"
               />
             )}
@@ -228,7 +228,7 @@ export default function CreativeUpload({ venues, weeklyReports, onSuccess, onClo
             <select
               value={adName}
               onChange={(e) => setAdName(e.target.value)}
-              className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-mpj-purple/30 focus:border-mpj-purple outline-none"
+              className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-mpj-gold/40 focus:border-mpj-gold outline-none"
             >
               <option value="">Select ad name...</option>
               {availableAdNames.map(name => (
@@ -242,7 +242,7 @@ export default function CreativeUpload({ venues, weeklyReports, onSuccess, onClo
                 value={customAdName}
                 onChange={(e) => setCustomAdName(e.target.value)}
                 placeholder="Enter custom ad name..."
-                className="w-full border rounded-lg px-3 py-2 text-sm mt-2 focus:ring-2 focus:ring-mpj-purple/30 focus:border-mpj-purple outline-none"
+                className="w-full border rounded-lg px-3 py-2 text-sm mt-2 focus:ring-2 focus:ring-mpj-gold/40 focus:border-mpj-gold outline-none"
               />
             )}
           </div>
@@ -259,8 +259,8 @@ export default function CreativeUpload({ venues, weeklyReports, onSuccess, onClo
               onClick={() => fileInputRef.current?.click()}
               className={`
                 relative border-2 border-dashed rounded-xl p-5 text-center cursor-pointer transition-all
-                ${dragActive ? 'border-mpj-purple bg-mpj-purple/5' : 'border-gray-300 hover:border-mpj-purple/50 hover:bg-gray-50'}
-                ${files.length > 0 ? 'border-mpj-green/60' : ''}
+                ${dragActive ? 'border-mpj-gold bg-mpj-gold-xlight' : 'border-gray-300 hover:border-mpj-gold/50 hover:bg-gray-50'}
+                ${files.length > 0 ? 'border-green-400/60' : ''}
               `}
             >
               <input
@@ -278,12 +278,12 @@ export default function CreativeUpload({ venues, weeklyReports, onSuccess, onClo
 
               <div className="space-y-2">
                 {files.length > 0 ? (
-                  <Plus size={28} className="mx-auto text-mpj-purple" />
+                  <Plus size={28} className="mx-auto text-mpj-charcoal" />
                 ) : (
                   <ImageIcon size={32} className="mx-auto text-gray-400" />
                 )}
                 <p className="text-sm text-gray-600">
-                  <span className="font-medium text-mpj-purple">Click to upload</span>, drag and drop, or <span className="font-medium text-mpj-purple">Ctrl+V</span> to paste
+                  <span className="font-medium text-mpj-charcoal">Click to upload</span>, drag and drop, or <span className="font-medium text-mpj-charcoal">Ctrl+V</span> to paste
                 </p>
                 <p className="text-xs text-gray-400">JPG, PNG, WebP, GIF (max 10MB each) — multiple files supported</p>
               </div>
@@ -318,7 +318,7 @@ export default function CreativeUpload({ venues, weeklyReports, onSuccess, onClo
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="e.g., Valentine's campaign, Arabic version..."
-              className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-mpj-purple/30 focus:border-mpj-purple outline-none"
+              className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-mpj-gold/40 focus:border-mpj-gold outline-none"
             />
           </div>
 
@@ -338,7 +338,7 @@ export default function CreativeUpload({ venues, weeklyReports, onSuccess, onClo
               </div>
               <div className="w-full bg-gray-200 rounded-full h-1.5">
                 <div
-                  className="bg-mpj-purple h-1.5 rounded-full transition-all duration-300"
+                  className="bg-mpj-gold h-1.5 rounded-full transition-all duration-300"
                   style={{ width: `${(uploadProgress / files.length) * 100}%` }}
                 />
               </div>
@@ -358,7 +358,7 @@ export default function CreativeUpload({ venues, weeklyReports, onSuccess, onClo
               disabled={uploading || files.length === 0 || !selectedVenue || !selectedMonth || (!adName || (adName === '__custom__' && !customAdName.trim()))}
               className={`
                 flex-1 px-4 py-2.5 rounded-lg text-sm font-medium text-white transition-all flex items-center justify-center gap-2
-                ${uploading ? 'bg-mpj-purple/70 cursor-wait' : 'bg-mpj-purple hover:bg-mpj-purple-dark'}
+                ${uploading ? 'bg-mpj-charcoal/60 cursor-wait' : 'bg-mpj-charcoal hover:bg-mpj-charcoal-light'}
                 disabled:opacity-40 disabled:cursor-not-allowed
               `}
             >

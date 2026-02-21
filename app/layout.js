@@ -4,7 +4,7 @@ export const metadata = {
   title: 'MPJ Dashboard',
   description: 'Marriott Palm Jumeirah F&B Performance Dashboard',
   viewport: 'width=device-width, initial-scale=1, maximum-scale=1',
-  themeColor: '#76527c',
+  themeColor: '#1C1917',
   icons: {
     icon: '/favicon.ico',
   },
