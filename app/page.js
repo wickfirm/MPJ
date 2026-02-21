@@ -30,7 +30,11 @@ const VENUE_LOGOS = {
   'Layalina':     '/logos/layalina logo.webp',
   'Resort':       '/logos/Marriott_logo.avif',
   'Myami':        '/logos/myami logo.webp',
-  'Spa':          '/logos/spa logo.png',
+  'SPA':          '/logos/spa logo.png',
+}
+const getVenueLogo = (name) => {
+  if (!name) return null
+  return VENUE_LOGOS[name] ?? VENUE_LOGOS[Object.keys(VENUE_LOGOS).find(k => k.toLowerCase() === name.toLowerCase())] ?? null
 }
 
 // ── Custom chart tooltip ──────────────────────
@@ -856,14 +860,14 @@ export default function Dashboard() {
                 </select>
               </div>
               <div className="flex items-end gap-3 pb-0.5">
-                {VENUE_LOGOS[selectedVenue] && (
+                {getVenueLogo(selectedVenue) && (
                   <div className="flex flex-col gap-1">
                     <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Venue</span>
-                    <div className="h-8 flex items-center">
+                    <div className="h-8 flex items-center bg-gray-800 rounded-lg px-2">
                       <img
-                        src={VENUE_LOGOS[selectedVenue]}
+                        src={getVenueLogo(selectedVenue)}
                         alt={selectedVenue}
-                        className="h-8 w-auto max-w-[110px] object-contain"
+                        className="h-6 w-auto max-w-[110px] object-contain"
                       />
                     </div>
                   </div>
