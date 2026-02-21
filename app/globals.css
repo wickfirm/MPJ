@@ -70,7 +70,7 @@
 
   /* KPI card */
   .kpi-card {
-    @apply card cursor-default group p-5;
+    @apply card cursor-default p-5;
   }
   .kpi-card:hover {
     @apply shadow-card-hover border-mpj-purple/20 -translate-y-0.5;
