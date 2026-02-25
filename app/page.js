@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
-import { Download, BarChart3, Calendar, TrendingUp, Megaphone, ExternalLink, Users, Lightbulb, RefreshCw, LogOut, DollarSign, ShoppingBag, Target, Upload, Image as ImageIcon, Eye, MousePointerClick, Percent, Instagram, MessageSquare } from 'lucide-react'
+import { Download, BarChart3, Calendar, TrendingUp, Megaphone, ExternalLink, Users, Lightbulb, RefreshCw, LogOut, DollarSign, ShoppingBag, Target, Upload, Image as ImageIcon, Eye, MousePointerClick, Percent, Instagram, MessageSquare, Settings, Copy, Check, ChevronRight } from 'lucide-react'
 import { LineChart as ReLineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
 
 import CollapsibleSection from './components/CollapsibleSection'
@@ -104,6 +104,23 @@ export default function Dashboard() {
   const [adStatuses, setAdStatuses] = useState({})   // { "venueId_weekStart_weekEnd_adName": bool }
   const [venueTab, setVenueTab] = useState('overview')
 
+  // ── Admin / Meta state ────────────────────
+  const [userRole, setUserRole] = useState('client')
+  const [activeAdminSection, setActiveAdminSection] = useState('sync')
+  const [syncWeekStart, setSyncWeekStart] = useState('')
+  const [syncWeekEnd, setSyncWeekEnd]   = useState('')
+  const [syncing, setSyncing]           = useState(false)
+  const [syncResult, setSyncResult]     = useState(null)
+  const [mappings, setMappings]         = useState([])
+  const [draft, setDraft]               = useState(null)
+  const [publishingVenue, setPublishingVenue] = useState(null)
+  const [columnVisibility, setColumnVisibility] = useState({ spend: false, impressions: true, ctr: true, linkClicks: true, engagement: true, reach: false })
+  const [shortLivedToken, setShortLivedToken] = useState('')
+  const [longLivedToken, setLongLivedToken]   = useState('')
+  const [tokenExchanging, setTokenExchanging] = useState(false)
+  const [copiedToken, setCopiedToken]   = useState(false)
+  const [savingColumns, setSavingColumns] = useState(false)
+
   // UI state
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -116,6 +133,8 @@ export default function Dashboard() {
     const auth = sessionStorage.getItem('mpj_auth')
     if (auth === 'true') {
       setIsAuthenticated(true)
+      const role = sessionStorage.getItem('mpj_role')
+      if (role === 'admin') setUserRole('admin')
     } else {
       window.location.href = '/login'
     }
@@ -129,7 +148,7 @@ export default function Dashboard() {
     setError(null)
 
     try {
-      const [venuesRes, reportsRes, campaignsRes, workspaceRes, monthlyRes, creativesRes, socialRes, adNotesRes, adStatusesRes] = await Promise.all([
+      const [venuesRes, reportsRes, campaignsRes, workspaceRes, monthlyRes, creativesRes, socialRes, adNotesRes, adStatusesRes, colVisRes] = await Promise.all([
         supabase.from('venues').select('*').order('name'),
         supabase.from('weekly_reports').select('*, venues(name, poc)').order('week_end', { ascending: false }),
         supabase.from('live_campaigns').select('*, venues(name)'),
@@ -139,7 +158,13 @@ export default function Dashboard() {
         supabase.from('social_media_monthly').select('*, venues(name)').order('month', { ascending: false }),
         supabase.from('ad_notes').select('*'),
         supabase.from('ad_statuses').select('*'),
+        supabase.from('report_settings').select('setting_value').eq('setting_key', 'meta_column_visibility').maybeSingle(),
       ])
+
+      // Load column visibility (ignore error if table not yet created)
+      if (colVisRes?.data?.setting_value) {
+        setColumnVisibility(colVisRes.data.setting_value)
+      }
 
       // Check for errors
       const errors = [venuesRes, reportsRes, campaignsRes, workspaceRes, monthlyRes, creativesRes, socialRes, adNotesRes, adStatusesRes]
@@ -506,14 +531,152 @@ export default function Dashboard() {
 
   const handleLogout = () => {
     sessionStorage.removeItem('mpj_auth')
+    sessionStorage.removeItem('mpj_role')
     window.location.href = '/login'
   }
+
+  // ── Admin callbacks ────────────────────────
+  const loadMappings = useCallback(async () => {
+    const res = await fetch('/api/meta/mappings')
+    const json = await res.json()
+    if (json.mappings) setMappings(json.mappings)
+  }, [])
+
+  const loadLatestDraft = useCallback(async (weekStart, weekEnd) => {
+    const params = weekStart && weekEnd ? `?week_start=${weekStart}&week_end=${weekEnd}` : ''
+    const res = await fetch(`/api/meta/draft${params}`)
+    const json = await res.json()
+    setDraft(json.draft || null)
+  }, [])
+
+  const handleSync = useCallback(async () => {
+    if (!syncWeekStart || !syncWeekEnd) {
+      setToast({ message: 'Select a week range first', type: 'error' }); return
+    }
+    setSyncing(true); setSyncResult(null)
+    try {
+      const res = await fetch('/api/meta/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ week_start: syncWeekStart, week_end: syncWeekEnd })
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Sync failed')
+      setSyncResult(json)
+      setToast({ message: `Synced ${json.campaigns_fetched} campaigns`, type: 'success' })
+      await loadMappings()
+      await loadLatestDraft(syncWeekStart, syncWeekEnd)
+    } catch (err) {
+      setToast({ message: err.message, type: 'error' })
+    } finally {
+      setSyncing(false)
+    }
+  }, [syncWeekStart, syncWeekEnd, loadMappings, loadLatestDraft])
+
+  const handleSaveMappings = useCallback(async () => {
+    try {
+      const res = await fetch('/api/meta/mappings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mappings: mappings.map(m => ({ campaign_id: m.campaign_id, campaign_name: m.campaign_name, venue_id: m.venue_id || null })) })
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Save failed')
+      setToast({ message: 'Mappings saved', type: 'success' })
+    } catch (err) {
+      setToast({ message: err.message, type: 'error' })
+    }
+  }, [mappings])
+
+  const handleDraftOverride = useCallback(async (venueId, level, index, field, value) => {
+    if (!draft) return
+    // Optimistic local update
+    setDraft(prev => {
+      if (!prev) return prev
+      const overrides = { ...prev.overrides }
+      if (!overrides[venueId]) overrides[venueId] = {}
+      if (!overrides[venueId][level]) overrides[venueId][level] = {}
+      if (!overrides[venueId][level][index]) overrides[venueId][level][index] = {}
+      overrides[venueId][level][index][field] = value
+      return { ...prev, overrides }
+    })
+    try {
+      const res = await fetch('/api/meta/draft', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ draft_id: draft.id, venue_id: venueId, level, index, field, value })
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Save failed')
+    } catch (err) {
+      setToast({ message: 'Failed to save override', type: 'error' })
+    }
+  }, [draft])
+
+  const handlePublishVenue = useCallback(async (venueId) => {
+    if (!draft) return
+    setPublishingVenue(venueId)
+    try {
+      const res = await fetch('/api/meta/publish', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ draft_id: draft.id, venue_id: venueId })
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Publish failed')
+      setToast({ message: `Published for venue — AED ${json.ad_spend?.toFixed(0)} spend`, type: 'success' })
+      await fetchData(true)
+    } catch (err) {
+      setToast({ message: err.message, type: 'error' })
+    } finally {
+      setPublishingVenue(null)
+    }
+  }, [draft, fetchData])
+
+  const handleSaveColumns = useCallback(async (newCols) => {
+    setSavingColumns(true)
+    try {
+      const res = await fetch('/api/settings/columns', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ columns: newCols })
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Save failed')
+      setColumnVisibility(newCols)
+      setToast({ message: 'Column settings saved', type: 'success' })
+    } catch (err) {
+      setToast({ message: err.message, type: 'error' })
+    } finally {
+      setSavingColumns(false)
+    }
+  }, [])
+
+  const handleTokenExchange = useCallback(async () => {
+    setTokenExchanging(true); setLongLivedToken('')
+    try {
+      const res = await fetch('/api/meta/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(shortLivedToken ? { short_lived_token: shortLivedToken } : {})
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Exchange failed')
+      setLongLivedToken(json.long_lived_token)
+      setToast({ message: `Token valid for ~${Math.round(json.expires_in / 86400)} days`, type: 'success' })
+    } catch (err) {
+      setToast({ message: err.message, type: 'error' })
+    } finally {
+      setTokenExchanging(false)
+    }
+  }, [shortLivedToken])
 
   const tabs = [
     { id: 'workspace', label: 'Workspace', icon: Calendar },
     // { id: 'executive', label: 'Executive Summary', icon: TrendingUp },
-    { id: 'venue', label: 'Venue View', icon: BarChart3 }
+    { id: 'venue', label: 'Venue View', icon: BarChart3 },
     // { id: 'live', label: 'Live Campaigns', icon: Megaphone }
+    ...(userRole === 'admin' ? [{ id: 'admin', label: 'Admin', icon: Settings }] : []),
   ]
 
   // ── Render guards ──────────────────────
@@ -1005,22 +1168,24 @@ export default function Dashboard() {
                           <thead className="bg-gray-50 border-b">
                             <tr>
                               <th className="text-left px-3 py-2.5 font-semibold text-gray-600">Campaign</th>
-                              <th className="text-right px-3 py-2.5 font-semibold text-gray-600">Impressions</th>
-                              <th className="text-right px-3 py-2.5 font-semibold text-gray-600">Clicks</th>
-                              <th className="text-right px-3 py-2.5 font-semibold text-gray-600">CTR</th>
-                              <th className="text-right px-3 py-2.5 font-semibold text-gray-600 hidden md:table-cell">Link Clicks</th>
-                              <th className="text-right px-3 py-2.5 font-semibold text-gray-600 hidden md:table-cell">Engagement</th>
+                              {(userRole === 'admin' || columnVisibility.impressions) && <th className="text-right px-3 py-2.5 font-semibold text-gray-600">Impressions</th>}
+                              {(userRole === 'admin' || columnVisibility.spend) && <th className="text-right px-3 py-2.5 font-semibold text-gray-600">Spend (AED)</th>}
+                              {(userRole === 'admin' || columnVisibility.ctr) && <th className="text-right px-3 py-2.5 font-semibold text-gray-600">CTR</th>}
+                              {(userRole === 'admin' || columnVisibility.linkClicks) && <th className="text-right px-3 py-2.5 font-semibold text-gray-600 hidden md:table-cell">Link Clicks</th>}
+                              {(userRole === 'admin' || columnVisibility.engagement) && <th className="text-right px-3 py-2.5 font-semibold text-gray-600 hidden md:table-cell">Engagement</th>}
+                              {(userRole === 'admin' || columnVisibility.reach) && <th className="text-right px-3 py-2.5 font-semibold text-gray-600 hidden lg:table-cell">Reach</th>}
                             </tr>
                           </thead>
                           <tbody>
                             {currentData.meta.campaigns.map((c, i) => (
                               <tr key={i} className="border-t hover:bg-gray-50/50 transition-colors">
                                 <td className="px-3 py-2.5 font-medium max-w-[200px] truncate">{c.name}</td>
-                                <td className="px-3 py-2.5 text-right tabular-nums">{formatInt(c.impressions)}</td>
-                                <td className="px-3 py-2.5 text-right tabular-nums">{formatInt(c.clicks)}</td>
-                                <td className="px-3 py-2.5 text-right tabular-nums">{c.ctr}</td>
-                                <td className="px-3 py-2.5 text-right tabular-nums hidden md:table-cell">{formatInt(c.linkClicks)}</td>
-                                <td className="px-3 py-2.5 text-right tabular-nums hidden md:table-cell">{formatInt(c.engagement)}</td>
+                                {(userRole === 'admin' || columnVisibility.impressions) && <td className="px-3 py-2.5 text-right tabular-nums">{formatInt(c.impressions)}</td>}
+                                {(userRole === 'admin' || columnVisibility.spend) && <td className="px-3 py-2.5 text-right tabular-nums">{c.spend != null ? formatNum(c.spend) : '—'}</td>}
+                                {(userRole === 'admin' || columnVisibility.ctr) && <td className="px-3 py-2.5 text-right tabular-nums">{c.ctr ?? '—'}</td>}
+                                {(userRole === 'admin' || columnVisibility.linkClicks) && <td className="px-3 py-2.5 text-right tabular-nums hidden md:table-cell">{formatInt(c.linkClicks)}</td>}
+                                {(userRole === 'admin' || columnVisibility.engagement) && <td className="px-3 py-2.5 text-right tabular-nums hidden md:table-cell">{formatInt(c.engagement)}</td>}
+                                {(userRole === 'admin' || columnVisibility.reach) && <td className="px-3 py-2.5 text-right tabular-nums hidden lg:table-cell">{c.reach != null ? formatInt(c.reach) : '—'}</td>}
                               </tr>
                             ))}
                           </tbody>
@@ -1068,10 +1233,11 @@ export default function Dashboard() {
                               <tr className="bg-mpj-gold-xlight border-b border-mpj-warm">
                                 <th className="px-2 py-3 w-12 hidden sm:table-cell"></th>
                                 <th className="text-left px-3 py-3 font-semibold text-mpj-charcoal text-xs uppercase tracking-wider">Ad Name</th>
-                                <th className="text-right px-3 py-3 font-semibold text-mpj-charcoal text-xs uppercase tracking-wider">Impressions</th>
-                                <th className="text-right px-3 py-3 font-semibold text-mpj-charcoal text-xs uppercase tracking-wider">CTR</th>
-                                <th className="text-right px-3 py-3 font-semibold text-mpj-charcoal text-xs uppercase tracking-wider hidden md:table-cell">Link Clicks</th>
-                                <th className="text-right px-3 py-3 font-semibold text-mpj-charcoal text-xs uppercase tracking-wider hidden md:table-cell">Engagement</th>
+                                {(userRole === 'admin' || columnVisibility.impressions) && <th className="text-right px-3 py-3 font-semibold text-mpj-charcoal text-xs uppercase tracking-wider">Impressions</th>}
+                                {(userRole === 'admin' || columnVisibility.spend) && <th className="text-right px-3 py-3 font-semibold text-mpj-charcoal text-xs uppercase tracking-wider">Spend</th>}
+                                {(userRole === 'admin' || columnVisibility.ctr) && <th className="text-right px-3 py-3 font-semibold text-mpj-charcoal text-xs uppercase tracking-wider">CTR</th>}
+                                {(userRole === 'admin' || columnVisibility.linkClicks) && <th className="text-right px-3 py-3 font-semibold text-mpj-charcoal text-xs uppercase tracking-wider hidden md:table-cell">Link Clicks</th>}
+                                {(userRole === 'admin' || columnVisibility.engagement) && <th className="text-right px-3 py-3 font-semibold text-mpj-charcoal text-xs uppercase tracking-wider hidden md:table-cell">Engagement</th>}
                                 <th className="text-center px-3 py-3 font-semibold text-mpj-charcoal text-xs uppercase tracking-wider">Status</th>
                                 <th className="text-left px-3 py-3 font-semibold text-mpj-charcoal text-xs uppercase tracking-wider min-w-[180px]">Notes</th>
                               </tr>
@@ -1127,10 +1293,11 @@ export default function Dashboard() {
                                           </div>
                                         </div>
                                       </td>
-                                      <td className="px-3 py-2.5 text-right tabular-nums">{formatInt(a.impressions)}</td>
-                                      <td className="px-3 py-2.5 text-right tabular-nums">{a.ctr}</td>
-                                      <td className="px-3 py-2.5 text-right tabular-nums hidden md:table-cell">{formatInt(a.linkClicks)}</td>
-                                      <td className="px-3 py-2.5 text-right tabular-nums hidden md:table-cell">{formatInt(a.engagement)}</td>
+                                      {(userRole === 'admin' || columnVisibility.impressions) && <td className="px-3 py-2.5 text-right tabular-nums">{formatInt(a.impressions)}</td>}
+                                      {(userRole === 'admin' || columnVisibility.spend) && <td className="px-3 py-2.5 text-right tabular-nums">{a.spend != null ? formatNum(a.spend) : '—'}</td>}
+                                      {(userRole === 'admin' || columnVisibility.ctr) && <td className="px-3 py-2.5 text-right tabular-nums">{a.ctr ?? '—'}</td>}
+                                      {(userRole === 'admin' || columnVisibility.linkClicks) && <td className="px-3 py-2.5 text-right tabular-nums hidden md:table-cell">{formatInt(a.linkClicks)}</td>}
+                                      {(userRole === 'admin' || columnVisibility.engagement) && <td className="px-3 py-2.5 text-right tabular-nums hidden md:table-cell">{formatInt(a.engagement)}</td>}
                                       <td className="px-3 py-2.5 text-center">
                                         <button
                                           onClick={() => toggleAdStatus(selectedVenue, selectedWeek, a.name, a.status)}
@@ -1560,6 +1727,295 @@ export default function Dashboard() {
                 </div>
               )}
             </CollapsibleSection>
+          </div>
+        )}
+
+        {/* ADMIN TAB */}
+        {activeTab === 'admin' && userRole === 'admin' && (
+          <div className="space-y-4 animate-fade-in">
+            {/* Admin sub-nav */}
+            <div className="flex gap-1 bg-mpj-bone-dark p-1 rounded-2xl w-fit">
+              {[
+                { id: 'sync',    label: 'Sync' },
+                { id: 'draft',   label: 'Draft Review' },
+                { id: 'settings',label: 'Settings' },
+              ].map(s => (
+                <button
+                  key={s.id}
+                  onClick={() => {
+                    setActiveAdminSection(s.id)
+                    if (s.id === 'draft' && !draft) loadLatestDraft()
+                    if (s.id === 'sync' && mappings.length === 0) loadMappings()
+                  }}
+                  className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 cursor-pointer ${activeAdminSection === s.id ? 'bg-mpj-charcoal text-white shadow-sm' : 'text-mpj-charcoal-muted hover:text-mpj-charcoal'}`}
+                >{s.label}</button>
+              ))}
+            </div>
+
+            {/* ── SYNC SECTION ── */}
+            {activeAdminSection === 'sync' && (
+              <div className="space-y-4">
+                <div className="card p-5">
+                  <h3 className="font-semibold text-mpj-charcoal mb-4 flex items-center gap-2"><RefreshCw size={16} /> Sync from Meta Ads</h3>
+                  <div className="flex flex-wrap gap-4 items-end">
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Week Start (Monday)</label>
+                      <input type="date" value={syncWeekStart} onChange={e => setSyncWeekStart(e.target.value)}
+                        className="px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-mpj-gold/40 focus:border-mpj-gold input-shadow" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Week End (Sunday)</label>
+                      <input type="date" value={syncWeekEnd} onChange={e => setSyncWeekEnd(e.target.value)}
+                        className="px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-mpj-gold/40 focus:border-mpj-gold input-shadow" />
+                    </div>
+                    <button
+                      onClick={handleSync}
+                      disabled={syncing || !syncWeekStart || !syncWeekEnd}
+                      className="px-5 py-2 bg-mpj-charcoal text-white rounded-xl text-sm font-medium hover:bg-mpj-charcoal-light transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center gap-2"
+                    >
+                      {syncing ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Syncing...</> : <><RefreshCw size={14} /> Sync from Meta</>}
+                    </button>
+                  </div>
+                  {syncResult && (
+                    <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-xl text-sm">
+                      <p className="font-medium text-green-800">Sync complete ✓</p>
+                      <p className="text-green-700 mt-1">
+                        {syncResult.campaigns_fetched} campaigns · {syncResult.adsets_fetched} ad sets · {syncResult.ads_fetched} ads
+                        {syncResult.unmapped_campaigns > 0 && <span className="ml-2 text-amber-700">⚠ {syncResult.unmapped_campaigns} unmapped campaigns</span>}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Campaign Mappings */}
+                {mappings.length > 0 && (
+                  <div className="card p-5">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="font-semibold text-mpj-charcoal flex items-center gap-2"><Target size={16} /> Campaign → Venue Mapping</h3>
+                      <button onClick={handleSaveMappings} className="px-4 py-1.5 bg-mpj-gold text-white rounded-xl text-xs font-medium hover:bg-mpj-charcoal transition-colors cursor-pointer">Save Mappings</button>
+                    </div>
+                    <div className="table-responsive">
+                      <table className="w-full text-sm">
+                        <thead className="bg-mpj-gold-xlight border-b border-mpj-warm">
+                          <tr>
+                            <th className="text-left px-3 py-2.5 font-semibold text-mpj-charcoal text-xs uppercase tracking-wider">Campaign Name</th>
+                            <th className="text-left px-3 py-2.5 font-semibold text-mpj-charcoal text-xs uppercase tracking-wider w-48">Venue</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {mappings.map((m, i) => (
+                            <tr key={m.campaign_id} className={`border-t border-gray-100 ${!m.venue_id ? 'bg-amber-50' : ''}`}>
+                              <td className="px-3 py-2.5 text-gray-800 font-medium">
+                                {!m.venue_id && <span className="inline-block w-2 h-2 rounded-full bg-amber-400 mr-2" />}
+                                {m.campaign_name}
+                                <span className="text-gray-400 text-xs ml-2 font-normal hidden md:inline">{m.campaign_id}</span>
+                              </td>
+                              <td className="px-3 py-2.5">
+                                <select
+                                  value={m.venue_id || ''}
+                                  onChange={e => setMappings(prev => prev.map((mp, idx) => idx === i ? { ...mp, venue_id: e.target.value || null } : mp))}
+                                  className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-xs font-medium focus:outline-none focus:ring-2 focus:ring-mpj-gold/40 cursor-pointer bg-white"
+                                >
+                                  <option value="">— Unassigned —</option>
+                                  {venues.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
+                                </select>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── DRAFT REVIEW SECTION ── */}
+            {activeAdminSection === 'draft' && (
+              <div className="space-y-4">
+                {!draft ? (
+                  <div className="card p-8 text-center text-gray-500">
+                    <RefreshCw size={32} className="mx-auto mb-3 text-gray-300" />
+                    <p className="font-medium">No draft found</p>
+                    <p className="text-sm mt-1">Run a sync first to create a draft</p>
+                    <button onClick={() => setActiveAdminSection('sync')} className="mt-4 px-4 py-2 bg-mpj-charcoal text-white rounded-xl text-sm font-medium cursor-pointer hover:bg-mpj-charcoal-light transition-colors">
+                      Go to Sync
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="card p-4 flex items-center justify-between flex-wrap gap-3">
+                      <div>
+                        <p className="font-semibold text-mpj-charcoal">Draft: {draft.week_start} → {draft.week_end}</p>
+                        <p className="text-xs text-gray-400 mt-0.5">Synced {new Date(draft.synced_at).toLocaleString()} {draft.published_at && `· Published ${new Date(draft.published_at).toLocaleDateString()}`}</p>
+                      </div>
+                      <div className="flex gap-2 flex-wrap">
+                        <input type="date" value={syncWeekStart} onChange={e => setSyncWeekStart(e.target.value)} placeholder="Week start"
+                          className="px-2 py-1.5 border border-gray-200 rounded-lg text-xs input-shadow focus:outline-none focus:ring-2 focus:ring-mpj-gold/40" />
+                        <input type="date" value={syncWeekEnd} onChange={e => setSyncWeekEnd(e.target.value)} placeholder="Week end"
+                          className="px-2 py-1.5 border border-gray-200 rounded-lg text-xs input-shadow focus:outline-none focus:ring-2 focus:ring-mpj-gold/40" />
+                        <button onClick={() => loadLatestDraft(syncWeekStart, syncWeekEnd)} className="px-3 py-1.5 bg-mpj-bone-dark text-mpj-charcoal rounded-lg text-xs font-medium cursor-pointer hover:bg-mpj-warm transition-colors">Load Week</button>
+                      </div>
+                    </div>
+
+                    {/* Unmapped warning */}
+                    {draft.mapped_data?.__unmapped__?.campaigns?.length > 0 && (
+                      <div className="card p-4 border-amber-200 bg-amber-50">
+                        <p className="font-semibold text-amber-800 flex items-center gap-2">⚠ {draft.mapped_data.__unmapped__.campaigns.length} Unmapped Campaign(s)</p>
+                        <p className="text-xs text-amber-700 mt-1">These campaigns are not assigned to any venue. Go to Sync tab → save mappings → re-sync.</p>
+                        <div className="mt-2 space-y-1">
+                          {draft.mapped_data.__unmapped__.campaigns.map(c => (
+                            <p key={c.campaign_id} className="text-xs text-amber-800 font-medium">{c.name}</p>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Per-venue draft cards */}
+                    {venues.filter(v => draft.mapped_data?.[v.id]).map(v => {
+                      const venueData  = draft.mapped_data[v.id]
+                      const overrides  = draft.overrides?.[v.id] || {}
+                      const campaigns  = venueData.campaigns || []
+                      const isPublishing = publishingVenue === v.id
+
+                      const getOverrideVal = (level, idx, field) => overrides?.[level]?.[idx]?.[field]
+                      const isOverridden   = (level, idx, field) => getOverrideVal(level, idx, field) !== undefined
+
+                      return (
+                        <div key={v.id} className="card p-5">
+                          <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+                            <h3 className="font-semibold text-mpj-charcoal text-base">{v.name}</h3>
+                            <div className="flex items-center gap-3">
+                              <span className="text-xs text-gray-400">{campaigns.length} campaigns · AED {campaigns.reduce((s,c)=>s+(parseFloat(c.spend)||0),0).toFixed(0)} spend</span>
+                              <button
+                                onClick={() => handlePublishVenue(v.id)}
+                                disabled={isPublishing}
+                                className="px-4 py-1.5 bg-green-600 text-white rounded-xl text-xs font-semibold hover:bg-green-700 transition-colors disabled:opacity-50 cursor-pointer flex items-center gap-1.5"
+                              >
+                                {isPublishing ? <><div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Publishing...</> : <><ChevronRight size={12} /> Publish to Client</>}
+                              </button>
+                            </div>
+                          </div>
+                          {campaigns.length > 0 && (
+                            <div className="table-responsive">
+                              <table className="w-full text-sm">
+                                <thead className="bg-mpj-gold-xlight border-b border-mpj-warm">
+                                  <tr>
+                                    <th className="text-left px-3 py-2 font-semibold text-mpj-charcoal text-xs uppercase tracking-wider">Campaign</th>
+                                    <th className="text-right px-3 py-2 font-semibold text-mpj-charcoal text-xs uppercase tracking-wider">Impressions</th>
+                                    <th className="text-right px-3 py-2 font-semibold text-mpj-charcoal text-xs uppercase tracking-wider">Spend (AED)</th>
+                                    <th className="text-right px-3 py-2 font-semibold text-mpj-charcoal text-xs uppercase tracking-wider hidden sm:table-cell">CTR</th>
+                                    <th className="text-right px-3 py-2 font-semibold text-mpj-charcoal text-xs uppercase tracking-wider hidden sm:table-cell">Link Clicks</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {campaigns.map((c, idx) => (
+                                    <tr key={idx} className="border-t border-gray-100 hover:bg-mpj-gold-xlight/40">
+                                      <td className="px-3 py-2 font-medium text-gray-800">{c.name}</td>
+                                      <td className={`px-3 py-2 text-right tabular-nums ${isOverridden('campaigns', idx, 'impressions') ? 'bg-yellow-50 text-yellow-800 font-semibold' : 'text-gray-700'}`}>
+                                        <input
+                                          type="number"
+                                          defaultValue={getOverrideVal('campaigns', idx, 'impressions') ?? c.impressions}
+                                          onBlur={e => { if (parseInt(e.target.value) !== c.impressions) handleDraftOverride(v.id, 'campaigns', idx, 'impressions', parseInt(e.target.value)) }}
+                                          className="w-24 text-right bg-transparent focus:bg-yellow-50 focus:outline-none focus:ring-1 focus:ring-yellow-300 rounded px-1"
+                                        />
+                                      </td>
+                                      <td className={`px-3 py-2 text-right tabular-nums ${isOverridden('campaigns', idx, 'spend') ? 'bg-yellow-50 text-yellow-800 font-semibold' : 'text-gray-700'}`}>
+                                        <input
+                                          type="number" step="0.01"
+                                          defaultValue={getOverrideVal('campaigns', idx, 'spend') ?? c.spend}
+                                          onBlur={e => { if (parseFloat(e.target.value) !== c.spend) handleDraftOverride(v.id, 'campaigns', idx, 'spend', parseFloat(e.target.value)) }}
+                                          className="w-24 text-right bg-transparent focus:bg-yellow-50 focus:outline-none focus:ring-1 focus:ring-yellow-300 rounded px-1"
+                                        />
+                                      </td>
+                                      <td className="px-3 py-2 text-right tabular-nums text-gray-700 hidden sm:table-cell">{(getOverrideVal('campaigns', idx, 'ctr') ?? c.ctr)?.toFixed(2)}%</td>
+                                      <td className="px-3 py-2 text-right tabular-nums text-gray-700 hidden sm:table-cell">{formatInt(getOverrideVal('campaigns', idx, 'linkClicks') ?? c.linkClicks)}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* ── SETTINGS SECTION ── */}
+            {activeAdminSection === 'settings' && (
+              <div className="space-y-4">
+                {/* Column Visibility */}
+                <div className="card p-5">
+                  <h3 className="font-semibold text-mpj-charcoal mb-1 flex items-center gap-2"><Eye size={16} /> Client Column Visibility</h3>
+                  <p className="text-xs text-gray-400 mb-4">Admin always sees all columns. These settings control what clients see in the Meta Ads section.</p>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
+                    {Object.entries(columnVisibility).map(([col, enabled]) => (
+                      <label key={col} className="flex items-center gap-2.5 cursor-pointer group">
+                        <div
+                          onClick={() => setColumnVisibility(prev => ({ ...prev, [col]: !prev[col] }))}
+                          className={`w-10 h-5 rounded-full transition-colors cursor-pointer relative ${enabled ? 'bg-mpj-charcoal' : 'bg-gray-200'}`}
+                        >
+                          <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200 ${enabled ? 'left-5' : 'left-0.5'}`} />
+                        </div>
+                        <span className="text-sm font-medium text-gray-700 capitalize group-hover:text-mpj-charcoal transition-colors">
+                          {col === 'ctr' ? 'CTR' : col === 'linkClicks' ? 'Link Clicks' : col.charAt(0).toUpperCase() + col.slice(1)}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                  <button
+                    onClick={() => handleSaveColumns(columnVisibility)}
+                    disabled={savingColumns}
+                    className="px-5 py-2 bg-mpj-charcoal text-white rounded-xl text-sm font-medium hover:bg-mpj-charcoal-light transition-colors disabled:opacity-50 cursor-pointer"
+                  >
+                    {savingColumns ? 'Saving...' : 'Save Column Settings'}
+                  </button>
+                </div>
+
+                {/* Token Exchange */}
+                <div className="card p-5">
+                  <h3 className="font-semibold text-mpj-charcoal mb-1 flex items-center gap-2"><Settings size={16} /> Meta Token Exchange</h3>
+                  <p className="text-xs text-gray-400 mb-4">Exchange a short-lived token for a 60-day long-lived token. Paste it into Vercel env <code className="bg-gray-100 px-1 rounded">META_ACCESS_TOKEN</code> after.</p>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Short-Lived Token (optional — leave blank to use current env token)</label>
+                      <input
+                        type="text"
+                        value={shortLivedToken}
+                        onChange={e => setShortLivedToken(e.target.value)}
+                        placeholder="EAA..."
+                        className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-mpj-gold/40 focus:border-mpj-gold input-shadow"
+                      />
+                    </div>
+                    <button
+                      onClick={handleTokenExchange}
+                      disabled={tokenExchanging}
+                      className="px-5 py-2 bg-mpj-charcoal text-white rounded-xl text-sm font-medium hover:bg-mpj-charcoal-light transition-colors disabled:opacity-50 cursor-pointer flex items-center gap-2"
+                    >
+                      {tokenExchanging ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Exchanging...</> : 'Get Long-Lived Token'}
+                    </button>
+                    {longLivedToken && (
+                      <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-xl">
+                        <p className="text-xs font-semibold text-green-800 mb-2">Long-Lived Token (copy to Vercel → META_ACCESS_TOKEN):</p>
+                        <div className="flex items-center gap-2">
+                          <code className="text-xs text-green-700 bg-green-100 rounded px-2 py-1 flex-1 break-all font-mono">{longLivedToken.substring(0, 40)}...</code>
+                          <button
+                            onClick={() => { navigator.clipboard.writeText(longLivedToken); setCopiedToken(true); setTimeout(() => setCopiedToken(false), 2000) }}
+                            className="p-2 bg-white border border-green-200 rounded-lg hover:bg-green-50 transition-colors cursor-pointer flex-shrink-0"
+                            title="Copy full token"
+                          >
+                            {copiedToken ? <Check size={14} className="text-green-600" /> : <Copy size={14} className="text-green-700" />}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

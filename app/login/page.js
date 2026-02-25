@@ -13,11 +13,19 @@ export default function LoginPage() {
     setLoading(true)
     setError('')
 
-    // Simple password gate - check against env variable or hardcoded
     setTimeout(() => {
-      const validPassword = process.env.NEXT_PUBLIC_DASHBOARD_PASSWORD || '123@@'
-      if (password === validPassword) {
+      const adminPassword  = process.env.NEXT_PUBLIC_ADMIN_PASSWORD
+      const clientPassword = process.env.NEXT_PUBLIC_DASHBOARD_PASSWORD || '123@@'
+
+      if (adminPassword && password === adminPassword) {
+        // Admin login — set role flag
         sessionStorage.setItem('mpj_auth', 'true')
+        sessionStorage.setItem('mpj_role', 'admin')
+        window.location.href = '/'
+      } else if (password === clientPassword) {
+        // Client login — clear any stale admin role
+        sessionStorage.setItem('mpj_auth', 'true')
+        sessionStorage.removeItem('mpj_role')
         window.location.href = '/'
       } else {
         setError('Invalid password. Please try again.')
