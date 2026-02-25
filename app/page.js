@@ -1894,7 +1894,7 @@ export default function Dashboard() {
                           className="px-2 py-1.5 border border-gray-200 rounded-lg text-xs input-shadow focus:outline-none focus:ring-2 focus:ring-mpj-gold/40" />
                         <input type="date" value={syncWeekEnd} onChange={e => setSyncWeekEnd(e.target.value)} placeholder="Week end"
                           className="px-2 py-1.5 border border-gray-200 rounded-lg text-xs input-shadow focus:outline-none focus:ring-2 focus:ring-mpj-gold/40" />
-                        <button onClick={() => loadLatestDraft(syncWeekStart, syncWeekEnd)} className="px-3 py-1.5 bg-mpj-bone-dark text-mpj-charcoal rounded-lg text-xs font-medium cursor-pointer hover:bg-mpj-warm transition-colors">Load Week</button>
+                        <button onClick={() => loadLatestDraft(syncWeekStart, syncWeekEnd)} className="px-3 py-1.5 bg-mpj-bone-dark text-mpj-charcoal rounded-lg text-xs font-medium cursor-pointer hover:bg-mpj-warm transition-colors">Load Period</button>
                       </div>
                     </div>
 
