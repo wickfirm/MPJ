@@ -1944,34 +1944,36 @@ export default function Dashboard() {
                                     <th className="text-left px-3 py-2 font-semibold text-mpj-charcoal text-xs uppercase tracking-wider">Campaign</th>
                                     <th className="text-left px-3 py-2 font-semibold text-mpj-charcoal text-xs uppercase tracking-wider">Status</th>
                                     <th className="text-right px-3 py-2 font-semibold text-mpj-charcoal text-xs uppercase tracking-wider">Impressions</th>
-                                    <th className="text-right px-3 py-2 font-semibold text-mpj-charcoal text-xs uppercase tracking-wider">Spend (AED)</th>
-                                    <th className="text-right px-3 py-2 font-semibold text-mpj-charcoal text-xs uppercase tracking-wider hidden sm:table-cell">CTR</th>
+                                    <th className="text-right px-3 py-2 font-semibold text-mpj-charcoal text-xs uppercase tracking-wider hidden sm:table-cell">CTR %</th>
                                     <th className="text-right px-3 py-2 font-semibold text-mpj-charcoal text-xs uppercase tracking-wider hidden sm:table-cell">Link Clicks</th>
+                                    <th className="text-right px-3 py-2 font-semibold text-mpj-charcoal text-xs uppercase tracking-wider hidden md:table-cell">Engagement</th>
                                   </tr>
                                 </thead>
                                 <tbody>
                                   {campaigns.map((c, idx) => (
                                     <tr key={idx} className="border-t border-gray-100 hover:bg-mpj-gold-xlight/40">
-                                      <td className="px-3 py-2 font-medium text-gray-800">{c.name}</td>
+                                      <td className="px-3 py-2 font-medium text-gray-800 max-w-[180px] truncate">{c.name}</td>
                                       <td className="px-3 py-2"><MetaStatusBadge status={c.status} /></td>
-                                      <td className={`px-3 py-2 text-right tabular-nums ${isOverridden('campaigns', idx, 'impressions') ? 'bg-yellow-50 text-yellow-800 font-semibold' : 'text-gray-700'}`}>
-                                        <input
-                                          type="number"
-                                          defaultValue={getOverrideVal('campaigns', idx, 'impressions') ?? c.impressions}
+                                      <td className={`px-3 py-2 text-right tabular-nums ${isOverridden('campaigns', idx, 'impressions') ? 'bg-yellow-50' : ''}`}>
+                                        <input type="number" defaultValue={getOverrideVal('campaigns', idx, 'impressions') ?? c.impressions}
                                           onBlur={e => { if (parseInt(e.target.value) !== c.impressions) handleDraftOverride(v.id, 'campaigns', idx, 'impressions', parseInt(e.target.value)) }}
-                                          className="w-24 text-right bg-transparent focus:bg-yellow-50 focus:outline-none focus:ring-1 focus:ring-yellow-300 rounded px-1"
-                                        />
+                                          className="w-24 text-right bg-transparent focus:bg-yellow-50 focus:outline-none focus:ring-1 focus:ring-yellow-300 rounded px-1 text-gray-700" />
                                       </td>
-                                      <td className={`px-3 py-2 text-right tabular-nums ${isOverridden('campaigns', idx, 'spend') ? 'bg-yellow-50 text-yellow-800 font-semibold' : 'text-gray-700'}`}>
-                                        <input
-                                          type="number" step="0.01"
-                                          defaultValue={getOverrideVal('campaigns', idx, 'spend') ?? c.spend}
-                                          onBlur={e => { if (parseFloat(e.target.value) !== c.spend) handleDraftOverride(v.id, 'campaigns', idx, 'spend', parseFloat(e.target.value)) }}
-                                          className="w-24 text-right bg-transparent focus:bg-yellow-50 focus:outline-none focus:ring-1 focus:ring-yellow-300 rounded px-1"
-                                        />
+                                      <td className={`px-3 py-2 text-right tabular-nums hidden sm:table-cell ${isOverridden('campaigns', idx, 'ctr') ? 'bg-yellow-50' : ''}`}>
+                                        <input type="number" step="0.01" defaultValue={getOverrideVal('campaigns', idx, 'ctr') ?? c.ctr}
+                                          onBlur={e => { if (parseFloat(e.target.value) !== c.ctr) handleDraftOverride(v.id, 'campaigns', idx, 'ctr', parseFloat(e.target.value)) }}
+                                          className="w-20 text-right bg-transparent focus:bg-yellow-50 focus:outline-none focus:ring-1 focus:ring-yellow-300 rounded px-1 text-gray-700" />
                                       </td>
-                                      <td className="px-3 py-2 text-right tabular-nums text-gray-700 hidden sm:table-cell">{(getOverrideVal('campaigns', idx, 'ctr') ?? c.ctr)?.toFixed(2)}%</td>
-                                      <td className="px-3 py-2 text-right tabular-nums text-gray-700 hidden sm:table-cell">{formatInt(getOverrideVal('campaigns', idx, 'linkClicks') ?? c.linkClicks)}</td>
+                                      <td className={`px-3 py-2 text-right tabular-nums hidden sm:table-cell ${isOverridden('campaigns', idx, 'linkClicks') ? 'bg-yellow-50' : ''}`}>
+                                        <input type="number" defaultValue={getOverrideVal('campaigns', idx, 'linkClicks') ?? c.linkClicks}
+                                          onBlur={e => { if (parseInt(e.target.value) !== c.linkClicks) handleDraftOverride(v.id, 'campaigns', idx, 'linkClicks', parseInt(e.target.value)) }}
+                                          className="w-24 text-right bg-transparent focus:bg-yellow-50 focus:outline-none focus:ring-1 focus:ring-yellow-300 rounded px-1 text-gray-700" />
+                                      </td>
+                                      <td className={`px-3 py-2 text-right tabular-nums hidden md:table-cell ${isOverridden('campaigns', idx, 'engagement') ? 'bg-yellow-50' : ''}`}>
+                                        <input type="number" defaultValue={getOverrideVal('campaigns', idx, 'engagement') ?? c.engagement}
+                                          onBlur={e => { if (parseInt(e.target.value) !== c.engagement) handleDraftOverride(v.id, 'campaigns', idx, 'engagement', parseInt(e.target.value)) }}
+                                          className="w-24 text-right bg-transparent focus:bg-yellow-50 focus:outline-none focus:ring-1 focus:ring-yellow-300 rounded px-1 text-gray-700" />
+                                      </td>
                                     </tr>
                                   ))}
                                 </tbody>
@@ -1993,20 +1995,36 @@ export default function Dashboard() {
                                         <th className="text-left px-3 py-2 font-semibold text-gray-500 text-xs uppercase tracking-wider">Ad Set</th>
                                         <th className="text-left px-3 py-2 font-semibold text-gray-500 text-xs uppercase tracking-wider">Status</th>
                                         <th className="text-right px-3 py-2 font-semibold text-gray-500 text-xs uppercase tracking-wider">Impressions</th>
-                                        <th className="text-right px-3 py-2 font-semibold text-gray-500 text-xs uppercase tracking-wider">Spend (AED)</th>
-                                        <th className="text-right px-3 py-2 font-semibold text-gray-500 text-xs uppercase tracking-wider hidden sm:table-cell">CTR</th>
+                                        <th className="text-right px-3 py-2 font-semibold text-gray-500 text-xs uppercase tracking-wider hidden sm:table-cell">CTR %</th>
                                         <th className="text-right px-3 py-2 font-semibold text-gray-500 text-xs uppercase tracking-wider hidden sm:table-cell">Link Clicks</th>
+                                        <th className="text-right px-3 py-2 font-semibold text-gray-500 text-xs uppercase tracking-wider hidden md:table-cell">Engagement</th>
                                       </tr>
                                     </thead>
                                     <tbody>
                                       {adSets.map((as, idx) => (
                                         <tr key={idx} className="border-t border-gray-100 hover:bg-gray-50/60">
-                                          <td className="px-3 py-2 text-gray-700 max-w-[220px] truncate">{as.name}</td>
+                                          <td className="px-3 py-2 text-gray-700 max-w-[200px] truncate">{as.name}</td>
                                           <td className="px-3 py-2"><MetaStatusBadge status={as.status} /></td>
-                                          <td className="px-3 py-2 text-right tabular-nums text-gray-600">{formatInt(as.impressions)}</td>
-                                          <td className="px-3 py-2 text-right tabular-nums text-gray-600">{as.spend != null ? formatNum(as.spend) : '—'}</td>
-                                          <td className="px-3 py-2 text-right tabular-nums text-gray-600 hidden sm:table-cell">{as.ctr?.toFixed(2)}%</td>
-                                          <td className="px-3 py-2 text-right tabular-nums text-gray-600 hidden sm:table-cell">{formatInt(as.linkClicks)}</td>
+                                          <td className={`px-3 py-2 text-right tabular-nums ${isOverridden('adSets', idx, 'impressions') ? 'bg-yellow-50' : ''}`}>
+                                            <input type="number" defaultValue={getOverrideVal('adSets', idx, 'impressions') ?? as.impressions}
+                                              onBlur={e => { if (parseInt(e.target.value) !== as.impressions) handleDraftOverride(v.id, 'adSets', idx, 'impressions', parseInt(e.target.value)) }}
+                                              className="w-24 text-right bg-transparent focus:bg-yellow-50 focus:outline-none focus:ring-1 focus:ring-yellow-300 rounded px-1 text-gray-600" />
+                                          </td>
+                                          <td className={`px-3 py-2 text-right tabular-nums hidden sm:table-cell ${isOverridden('adSets', idx, 'ctr') ? 'bg-yellow-50' : ''}`}>
+                                            <input type="number" step="0.01" defaultValue={getOverrideVal('adSets', idx, 'ctr') ?? as.ctr}
+                                              onBlur={e => { if (parseFloat(e.target.value) !== as.ctr) handleDraftOverride(v.id, 'adSets', idx, 'ctr', parseFloat(e.target.value)) }}
+                                              className="w-20 text-right bg-transparent focus:bg-yellow-50 focus:outline-none focus:ring-1 focus:ring-yellow-300 rounded px-1 text-gray-600" />
+                                          </td>
+                                          <td className={`px-3 py-2 text-right tabular-nums hidden sm:table-cell ${isOverridden('adSets', idx, 'linkClicks') ? 'bg-yellow-50' : ''}`}>
+                                            <input type="number" defaultValue={getOverrideVal('adSets', idx, 'linkClicks') ?? as.linkClicks}
+                                              onBlur={e => { if (parseInt(e.target.value) !== as.linkClicks) handleDraftOverride(v.id, 'adSets', idx, 'linkClicks', parseInt(e.target.value)) }}
+                                              className="w-24 text-right bg-transparent focus:bg-yellow-50 focus:outline-none focus:ring-1 focus:ring-yellow-300 rounded px-1 text-gray-600" />
+                                          </td>
+                                          <td className={`px-3 py-2 text-right tabular-nums hidden md:table-cell ${isOverridden('adSets', idx, 'engagement') ? 'bg-yellow-50' : ''}`}>
+                                            <input type="number" defaultValue={getOverrideVal('adSets', idx, 'engagement') ?? as.engagement}
+                                              onBlur={e => { if (parseInt(e.target.value) !== as.engagement) handleDraftOverride(v.id, 'adSets', idx, 'engagement', parseInt(e.target.value)) }}
+                                              className="w-24 text-right bg-transparent focus:bg-yellow-50 focus:outline-none focus:ring-1 focus:ring-yellow-300 rounded px-1 text-gray-600" />
+                                          </td>
                                         </tr>
                                       ))}
                                     </tbody>
@@ -2030,8 +2048,7 @@ export default function Dashboard() {
                                         <th className="text-left px-3 py-2 font-semibold text-gray-500 text-xs uppercase tracking-wider">Ad Name</th>
                                         <th className="text-left px-3 py-2 font-semibold text-gray-500 text-xs uppercase tracking-wider">Status</th>
                                         <th className="text-right px-3 py-2 font-semibold text-gray-500 text-xs uppercase tracking-wider">Impressions</th>
-                                        <th className="text-right px-3 py-2 font-semibold text-gray-500 text-xs uppercase tracking-wider">Spend (AED)</th>
-                                        <th className="text-right px-3 py-2 font-semibold text-gray-500 text-xs uppercase tracking-wider hidden sm:table-cell">CTR</th>
+                                        <th className="text-right px-3 py-2 font-semibold text-gray-500 text-xs uppercase tracking-wider hidden sm:table-cell">CTR %</th>
                                         <th className="text-right px-3 py-2 font-semibold text-gray-500 text-xs uppercase tracking-wider hidden sm:table-cell">Link Clicks</th>
                                         <th className="text-right px-3 py-2 font-semibold text-gray-500 text-xs uppercase tracking-wider hidden md:table-cell">Engagement</th>
                                       </tr>
@@ -2039,13 +2056,28 @@ export default function Dashboard() {
                                     <tbody>
                                       {ads.map((a, idx) => (
                                         <tr key={idx} className="border-t border-gray-100 hover:bg-gray-50/60">
-                                          <td className="px-3 py-2 text-gray-700 max-w-[220px] truncate">{a.name}</td>
+                                          <td className="px-3 py-2 text-gray-700 max-w-[200px] truncate">{a.name}</td>
                                           <td className="px-3 py-2"><MetaStatusBadge status={a.status} /></td>
-                                          <td className="px-3 py-2 text-right tabular-nums text-gray-600">{formatInt(a.impressions)}</td>
-                                          <td className="px-3 py-2 text-right tabular-nums text-gray-600">{a.spend != null ? formatNum(a.spend) : '—'}</td>
-                                          <td className="px-3 py-2 text-right tabular-nums text-gray-600 hidden sm:table-cell">{a.ctr?.toFixed(2)}%</td>
-                                          <td className="px-3 py-2 text-right tabular-nums text-gray-600 hidden sm:table-cell">{formatInt(a.linkClicks)}</td>
-                                          <td className="px-3 py-2 text-right tabular-nums text-gray-600 hidden md:table-cell">{formatInt(a.engagement)}</td>
+                                          <td className={`px-3 py-2 text-right tabular-nums ${isOverridden('ads', idx, 'impressions') ? 'bg-yellow-50' : ''}`}>
+                                            <input type="number" defaultValue={getOverrideVal('ads', idx, 'impressions') ?? a.impressions}
+                                              onBlur={e => { if (parseInt(e.target.value) !== a.impressions) handleDraftOverride(v.id, 'ads', idx, 'impressions', parseInt(e.target.value)) }}
+                                              className="w-24 text-right bg-transparent focus:bg-yellow-50 focus:outline-none focus:ring-1 focus:ring-yellow-300 rounded px-1 text-gray-600" />
+                                          </td>
+                                          <td className={`px-3 py-2 text-right tabular-nums hidden sm:table-cell ${isOverridden('ads', idx, 'ctr') ? 'bg-yellow-50' : ''}`}>
+                                            <input type="number" step="0.01" defaultValue={getOverrideVal('ads', idx, 'ctr') ?? a.ctr}
+                                              onBlur={e => { if (parseFloat(e.target.value) !== a.ctr) handleDraftOverride(v.id, 'ads', idx, 'ctr', parseFloat(e.target.value)) }}
+                                              className="w-20 text-right bg-transparent focus:bg-yellow-50 focus:outline-none focus:ring-1 focus:ring-yellow-300 rounded px-1 text-gray-600" />
+                                          </td>
+                                          <td className={`px-3 py-2 text-right tabular-nums hidden sm:table-cell ${isOverridden('ads', idx, 'linkClicks') ? 'bg-yellow-50' : ''}`}>
+                                            <input type="number" defaultValue={getOverrideVal('ads', idx, 'linkClicks') ?? a.linkClicks}
+                                              onBlur={e => { if (parseInt(e.target.value) !== a.linkClicks) handleDraftOverride(v.id, 'ads', idx, 'linkClicks', parseInt(e.target.value)) }}
+                                              className="w-24 text-right bg-transparent focus:bg-yellow-50 focus:outline-none focus:ring-1 focus:ring-yellow-300 rounded px-1 text-gray-600" />
+                                          </td>
+                                          <td className={`px-3 py-2 text-right tabular-nums hidden md:table-cell ${isOverridden('ads', idx, 'engagement') ? 'bg-yellow-50' : ''}`}>
+                                            <input type="number" defaultValue={getOverrideVal('ads', idx, 'engagement') ?? a.engagement}
+                                              onBlur={e => { if (parseInt(e.target.value) !== a.engagement) handleDraftOverride(v.id, 'ads', idx, 'engagement', parseInt(e.target.value)) }}
+                                              className="w-24 text-right bg-transparent focus:bg-yellow-50 focus:outline-none focus:ring-1 focus:ring-yellow-300 rounded px-1 text-gray-600" />
+                                          </td>
                                         </tr>
                                       ))}
                                     </tbody>
