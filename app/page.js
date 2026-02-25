@@ -1936,6 +1936,78 @@ export default function Dashboard() {
                               </table>
                             </div>
                           )}
+
+                          {/* Ad Set table */}
+                          {(() => {
+                            const adSets = venueData.adSets || []
+                            if (adSets.length === 0) return null
+                            return (
+                              <div className="mt-4">
+                                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Ad Sets ({adSets.length})</p>
+                                <div className="table-responsive">
+                                  <table className="w-full text-sm">
+                                    <thead className="bg-gray-50 border-b border-gray-200">
+                                      <tr>
+                                        <th className="text-left px-3 py-2 font-semibold text-gray-500 text-xs uppercase tracking-wider">Ad Set</th>
+                                        <th className="text-right px-3 py-2 font-semibold text-gray-500 text-xs uppercase tracking-wider">Impressions</th>
+                                        <th className="text-right px-3 py-2 font-semibold text-gray-500 text-xs uppercase tracking-wider">Spend (AED)</th>
+                                        <th className="text-right px-3 py-2 font-semibold text-gray-500 text-xs uppercase tracking-wider hidden sm:table-cell">CTR</th>
+                                        <th className="text-right px-3 py-2 font-semibold text-gray-500 text-xs uppercase tracking-wider hidden sm:table-cell">Link Clicks</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {adSets.map((as, idx) => (
+                                        <tr key={idx} className="border-t border-gray-100 hover:bg-gray-50/60">
+                                          <td className="px-3 py-2 text-gray-700 max-w-[220px] truncate">{as.name}</td>
+                                          <td className="px-3 py-2 text-right tabular-nums text-gray-600">{formatInt(as.impressions)}</td>
+                                          <td className="px-3 py-2 text-right tabular-nums text-gray-600">{as.spend != null ? formatNum(as.spend) : '—'}</td>
+                                          <td className="px-3 py-2 text-right tabular-nums text-gray-600 hidden sm:table-cell">{as.ctr?.toFixed(2)}%</td>
+                                          <td className="px-3 py-2 text-right tabular-nums text-gray-600 hidden sm:table-cell">{formatInt(as.linkClicks)}</td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
+                            )
+                          })()}
+
+                          {/* Ads table */}
+                          {(() => {
+                            const ads = venueData.ads || []
+                            if (ads.length === 0) return null
+                            return (
+                              <div className="mt-4">
+                                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Ads ({ads.length})</p>
+                                <div className="table-responsive">
+                                  <table className="w-full text-sm">
+                                    <thead className="bg-gray-50 border-b border-gray-200">
+                                      <tr>
+                                        <th className="text-left px-3 py-2 font-semibold text-gray-500 text-xs uppercase tracking-wider">Ad Name</th>
+                                        <th className="text-right px-3 py-2 font-semibold text-gray-500 text-xs uppercase tracking-wider">Impressions</th>
+                                        <th className="text-right px-3 py-2 font-semibold text-gray-500 text-xs uppercase tracking-wider">Spend (AED)</th>
+                                        <th className="text-right px-3 py-2 font-semibold text-gray-500 text-xs uppercase tracking-wider hidden sm:table-cell">CTR</th>
+                                        <th className="text-right px-3 py-2 font-semibold text-gray-500 text-xs uppercase tracking-wider hidden sm:table-cell">Link Clicks</th>
+                                        <th className="text-right px-3 py-2 font-semibold text-gray-500 text-xs uppercase tracking-wider hidden md:table-cell">Engagement</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {ads.map((a, idx) => (
+                                        <tr key={idx} className="border-t border-gray-100 hover:bg-gray-50/60">
+                                          <td className="px-3 py-2 text-gray-700 max-w-[220px] truncate">{a.name}</td>
+                                          <td className="px-3 py-2 text-right tabular-nums text-gray-600">{formatInt(a.impressions)}</td>
+                                          <td className="px-3 py-2 text-right tabular-nums text-gray-600">{a.spend != null ? formatNum(a.spend) : '—'}</td>
+                                          <td className="px-3 py-2 text-right tabular-nums text-gray-600 hidden sm:table-cell">{a.ctr?.toFixed(2)}%</td>
+                                          <td className="px-3 py-2 text-right tabular-nums text-gray-600 hidden sm:table-cell">{formatInt(a.linkClicks)}</td>
+                                          <td className="px-3 py-2 text-right tabular-nums text-gray-600 hidden md:table-cell">{formatInt(a.engagement)}</td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
+                            )
+                          })()}
                         </div>
                       )
                     })}
