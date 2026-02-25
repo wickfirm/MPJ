@@ -8,9 +8,9 @@ import {
   mapToVenues,
 } from '@/lib/meta-api'
 
-const CAMPAIGN_FIELDS = 'campaign_id,campaign_name,impressions,clicks,spend,reach,ctr,actions,effective_status'
-const ADSET_FIELDS    = 'campaign_id,adset_id,adset_name,impressions,clicks,spend,reach,ctr,actions,effective_status'
-const AD_FIELDS       = 'campaign_id,adset_id,ad_id,ad_name,impressions,clicks,spend,reach,ctr,actions,effective_status'
+const CAMPAIGN_FIELDS = 'campaign_id,campaign_name,impressions,clicks,spend,reach,ctr,actions'
+const ADSET_FIELDS    = 'campaign_id,adset_id,adset_name,impressions,clicks,spend,reach,ctr,actions'
+const AD_FIELDS       = 'campaign_id,adset_id,ad_id,ad_name,impressions,clicks,spend,reach,ctr,actions'
 
 // POST /api/meta/sync — fetch from Meta API and save as draft
 // Body: { week_start: 'YYYY-MM-DD', week_end: 'YYYY-MM-DD' }
