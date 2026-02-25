@@ -72,6 +72,44 @@ const formatInt = (n) => n?.toLocaleString('en-US') || '0'
 const formatK = (n) => n >= 1000000 ? (n / 1000000).toFixed(1) + 'M' : n >= 1000 ? (n / 1000).toFixed(0) + 'K' : n
 const calcAvgSpend = (rev, res) => res > 0 ? (rev / res).toFixed(2) : '0.00'
 
+// ── Meta status badge ─────────────────────────
+const MetaStatusBadge = ({ status }) => {
+  if (!status || status === 'UNKNOWN') return null
+  const s = status.toUpperCase()
+  const isActive      = s === 'ACTIVE'
+  const isPaused      = s === 'PAUSED' || s === 'CAMPAIGN_PAUSED' || s === 'ADSET_PAUSED'
+  const isIssue       = s === 'WITH_ISSUES' || s === 'DISAPPROVED' || s === 'DELETED'
+  const isPending     = s === 'IN_PROCESS' || s === 'PENDING_REVIEW' || s === 'PREAPPROVED'
+  const isCompleted   = s === 'COMPLETED' || s === 'ARCHIVED'
+
+  const cls = isActive    ? 'bg-green-100 text-green-700 border-green-200'
+            : isPaused    ? 'bg-gray-100 text-gray-500 border-gray-200'
+            : isIssue     ? 'bg-red-100 text-red-600 border-red-200'
+            : isPending   ? 'bg-amber-100 text-amber-700 border-amber-200'
+            : isCompleted ? 'bg-blue-100 text-blue-600 border-blue-200'
+            :               'bg-gray-100 text-gray-400 border-gray-200'
+
+  const dot = isActive  ? 'bg-green-500'
+            : isPaused  ? 'bg-gray-400'
+            : isIssue   ? 'bg-red-400'
+            : isPending ? 'bg-amber-400'
+            :             'bg-blue-400'
+
+  const label = s === 'CAMPAIGN_PAUSED' ? 'Camp. Paused'
+              : s === 'ADSET_PAUSED'    ? 'Set Paused'
+              : s === 'IN_PROCESS'      ? 'In Process'
+              : s === 'PENDING_REVIEW'  ? 'In Review'
+              : s === 'WITH_ISSUES'     ? 'Issues'
+              : s.charAt(0) + s.slice(1).toLowerCase()
+
+  return (
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border ${cls}`}>
+      <span className={`w-1.5 h-1.5 rounded-full ${dot}`} />
+      {label}
+    </span>
+  )
+}
+
 // ── Main Dashboard ───────────────────────────
 export default function Dashboard() {
   // Auth state
@@ -1168,6 +1206,7 @@ export default function Dashboard() {
                           <thead className="bg-gray-50 border-b">
                             <tr>
                               <th className="text-left px-3 py-2.5 font-semibold text-gray-600">Campaign</th>
+                              <th className="text-left px-3 py-2.5 font-semibold text-gray-600">Status</th>
                               {(userRole === 'admin' || columnVisibility.impressions) && <th className="text-right px-3 py-2.5 font-semibold text-gray-600">Impressions</th>}
                               {(userRole === 'admin' || columnVisibility.spend) && <th className="text-right px-3 py-2.5 font-semibold text-gray-600">Spend (AED)</th>}
                               {(userRole === 'admin' || columnVisibility.ctr) && <th className="text-right px-3 py-2.5 font-semibold text-gray-600">CTR</th>}
@@ -1180,6 +1219,7 @@ export default function Dashboard() {
                             {currentData.meta.campaigns.map((c, i) => (
                               <tr key={i} className="border-t hover:bg-gray-50/50 transition-colors">
                                 <td className="px-3 py-2.5 font-medium max-w-[200px] truncate">{c.name}</td>
+                                <td className="px-3 py-2.5"><MetaStatusBadge status={c.status} /></td>
                                 {(userRole === 'admin' || columnVisibility.impressions) && <td className="px-3 py-2.5 text-right tabular-nums">{formatInt(c.impressions)}</td>}
                                 {(userRole === 'admin' || columnVisibility.spend) && <td className="px-3 py-2.5 text-right tabular-nums">{c.spend != null ? formatNum(c.spend) : '—'}</td>}
                                 {(userRole === 'admin' || columnVisibility.ctr) && <td className="px-3 py-2.5 text-right tabular-nums">{c.ctr ?? '—'}</td>}
@@ -1902,6 +1942,7 @@ export default function Dashboard() {
                                 <thead className="bg-mpj-gold-xlight border-b border-mpj-warm">
                                   <tr>
                                     <th className="text-left px-3 py-2 font-semibold text-mpj-charcoal text-xs uppercase tracking-wider">Campaign</th>
+                                    <th className="text-left px-3 py-2 font-semibold text-mpj-charcoal text-xs uppercase tracking-wider">Status</th>
                                     <th className="text-right px-3 py-2 font-semibold text-mpj-charcoal text-xs uppercase tracking-wider">Impressions</th>
                                     <th className="text-right px-3 py-2 font-semibold text-mpj-charcoal text-xs uppercase tracking-wider">Spend (AED)</th>
                                     <th className="text-right px-3 py-2 font-semibold text-mpj-charcoal text-xs uppercase tracking-wider hidden sm:table-cell">CTR</th>
@@ -1912,6 +1953,7 @@ export default function Dashboard() {
                                   {campaigns.map((c, idx) => (
                                     <tr key={idx} className="border-t border-gray-100 hover:bg-mpj-gold-xlight/40">
                                       <td className="px-3 py-2 font-medium text-gray-800">{c.name}</td>
+                                      <td className="px-3 py-2"><MetaStatusBadge status={c.status} /></td>
                                       <td className={`px-3 py-2 text-right tabular-nums ${isOverridden('campaigns', idx, 'impressions') ? 'bg-yellow-50 text-yellow-800 font-semibold' : 'text-gray-700'}`}>
                                         <input
                                           type="number"
@@ -1949,6 +1991,7 @@ export default function Dashboard() {
                                     <thead className="bg-gray-50 border-b border-gray-200">
                                       <tr>
                                         <th className="text-left px-3 py-2 font-semibold text-gray-500 text-xs uppercase tracking-wider">Ad Set</th>
+                                        <th className="text-left px-3 py-2 font-semibold text-gray-500 text-xs uppercase tracking-wider">Status</th>
                                         <th className="text-right px-3 py-2 font-semibold text-gray-500 text-xs uppercase tracking-wider">Impressions</th>
                                         <th className="text-right px-3 py-2 font-semibold text-gray-500 text-xs uppercase tracking-wider">Spend (AED)</th>
                                         <th className="text-right px-3 py-2 font-semibold text-gray-500 text-xs uppercase tracking-wider hidden sm:table-cell">CTR</th>
@@ -1959,6 +2002,7 @@ export default function Dashboard() {
                                       {adSets.map((as, idx) => (
                                         <tr key={idx} className="border-t border-gray-100 hover:bg-gray-50/60">
                                           <td className="px-3 py-2 text-gray-700 max-w-[220px] truncate">{as.name}</td>
+                                          <td className="px-3 py-2"><MetaStatusBadge status={as.status} /></td>
                                           <td className="px-3 py-2 text-right tabular-nums text-gray-600">{formatInt(as.impressions)}</td>
                                           <td className="px-3 py-2 text-right tabular-nums text-gray-600">{as.spend != null ? formatNum(as.spend) : '—'}</td>
                                           <td className="px-3 py-2 text-right tabular-nums text-gray-600 hidden sm:table-cell">{as.ctr?.toFixed(2)}%</td>
@@ -1984,6 +2028,7 @@ export default function Dashboard() {
                                     <thead className="bg-gray-50 border-b border-gray-200">
                                       <tr>
                                         <th className="text-left px-3 py-2 font-semibold text-gray-500 text-xs uppercase tracking-wider">Ad Name</th>
+                                        <th className="text-left px-3 py-2 font-semibold text-gray-500 text-xs uppercase tracking-wider">Status</th>
                                         <th className="text-right px-3 py-2 font-semibold text-gray-500 text-xs uppercase tracking-wider">Impressions</th>
                                         <th className="text-right px-3 py-2 font-semibold text-gray-500 text-xs uppercase tracking-wider">Spend (AED)</th>
                                         <th className="text-right px-3 py-2 font-semibold text-gray-500 text-xs uppercase tracking-wider hidden sm:table-cell">CTR</th>
@@ -1995,6 +2040,7 @@ export default function Dashboard() {
                                       {ads.map((a, idx) => (
                                         <tr key={idx} className="border-t border-gray-100 hover:bg-gray-50/60">
                                           <td className="px-3 py-2 text-gray-700 max-w-[220px] truncate">{a.name}</td>
+                                          <td className="px-3 py-2"><MetaStatusBadge status={a.status} /></td>
                                           <td className="px-3 py-2 text-right tabular-nums text-gray-600">{formatInt(a.impressions)}</td>
                                           <td className="px-3 py-2 text-right tabular-nums text-gray-600">{a.spend != null ? formatNum(a.spend) : '—'}</td>
                                           <td className="px-3 py-2 text-right tabular-nums text-gray-600 hidden sm:table-cell">{a.ctr?.toFixed(2)}%</td>

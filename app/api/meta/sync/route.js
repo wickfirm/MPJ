@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 import {
   fetchMetaInsights,
+  fetchMetaObjectStatuses,
   normalizeCampaign,
   normalizeAdSet,
   normalizeAd,
@@ -32,17 +33,20 @@ export async function POST(req) {
 
     const timeRange = { since: week_start, until: week_end }
 
-    // Fetch all 3 levels in parallel
-    const [rawCampaigns, rawAdSets, rawAds] = await Promise.all([
+    // Fetch insights (3 levels) + live statuses (3 object endpoints) in parallel
+    const [rawCampaigns, rawAdSets, rawAds, campStatuses, adsetStatuses, adStatuses] = await Promise.all([
       fetchMetaInsights('campaign', CAMPAIGN_FIELDS, timeRange, token, adAccountId),
       fetchMetaInsights('adset',    ADSET_FIELDS,    timeRange, token, adAccountId),
       fetchMetaInsights('ad',       AD_FIELDS,       timeRange, token, adAccountId),
+      fetchMetaObjectStatuses('campaigns', token, adAccountId),
+      fetchMetaObjectStatuses('adsets',    token, adAccountId),
+      fetchMetaObjectStatuses('ads',       token, adAccountId),
     ])
 
-    // Normalize
-    const campaigns = rawCampaigns.map(normalizeCampaign)
-    const adSets    = rawAdSets.map(normalizeAdSet)
-    const ads       = rawAds.map(normalizeAd)
+    // Normalize and merge live status
+    const campaigns = rawCampaigns.map(r => ({ ...normalizeCampaign(r), status: campStatuses.get(r.campaign_id) || 'UNKNOWN' }))
+    const adSets    = rawAdSets.map(r    => ({ ...normalizeAdSet(r),    status: adsetStatuses.get(r.adset_id)    || 'UNKNOWN' }))
+    const ads       = rawAds.map(r       => ({ ...normalizeAd(r),       status: adStatuses.get(r.ad_id)          || 'UNKNOWN' }))
 
     // Load existing campaign→venue mappings
     const { data: mappingRows, error: mappingErr } = await supabase
