@@ -43,10 +43,19 @@ export async function POST(req) {
       fetchMetaObjectStatuses('ads',       token, adAccountId),
     ])
 
-    // Normalize and merge live status
-    const campaigns = rawCampaigns.map(r => ({ ...normalizeCampaign(r), status: campStatuses.get(r.campaign_id) || 'UNKNOWN' }))
-    const adSets    = rawAdSets.map(r    => ({ ...normalizeAdSet(r),    status: adsetStatuses.get(r.adset_id)    || 'UNKNOWN' }))
-    const ads       = rawAds.map(r       => ({ ...normalizeAd(r),       status: adStatuses.get(r.ad_id)          || 'UNKNOWN' }))
+    // Normalize and merge live status + audience (adsets only)
+    const campaigns = rawCampaigns.map(r => {
+      const entry = campStatuses.get(r.campaign_id)
+      return { ...normalizeCampaign(r), status: entry?.status || 'UNKNOWN' }
+    })
+    const adSets = rawAdSets.map(r => {
+      const entry = adsetStatuses.get(r.adset_id)
+      return { ...normalizeAdSet(r), status: entry?.status || 'UNKNOWN', ...(entry?.audience ? { audience: entry.audience } : {}) }
+    })
+    const ads = rawAds.map(r => {
+      const entry = adStatuses.get(r.ad_id)
+      return { ...normalizeAd(r), status: entry?.status || 'UNKNOWN' }
+    })
 
     // Load existing campaign→venue mappings
     const { data: mappingRows, error: mappingErr } = await supabase

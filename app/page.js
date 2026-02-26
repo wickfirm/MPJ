@@ -690,6 +690,77 @@ export default function Dashboard() {
     }
   }, [])
 
+  // Toggle hidden flag on a published meta_data item (direct update to weekly_reports)
+  const handleToggleHidden = useCallback(async (level, index, hidden) => {
+    if (!selectedVenue || !selectedWeek) return
+    const venue = venues.find(v => v.name === selectedVenue)
+    if (!venue) return
+    const [weekStart, weekEnd] = selectedWeek.split('_')
+
+    // Optimistic update
+    setWeeklyReports(prev => {
+      const report = prev[selectedVenue]?.[selectedWeek]
+      if (!report?.meta_data) return prev
+      const items = [...(report.meta_data[level] || [])]
+      items[index] = { ...items[index], hidden }
+      return {
+        ...prev,
+        [selectedVenue]: {
+          ...prev[selectedVenue],
+          [selectedWeek]: { ...report, meta_data: { ...report.meta_data, [level]: items } }
+        }
+      }
+    })
+
+    try {
+      const res = await fetch('/api/meta/meta-data', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ venue_id: venue.id, week_start: weekStart, week_end: weekEnd, level, index, field: 'hidden', value: hidden })
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Update failed')
+    } catch (err) {
+      setToast({ message: 'Failed to update visibility', type: 'error' })
+    }
+  }, [selectedVenue, selectedWeek, venues])
+
+  // Edit an audience field on a published adSet (direct update to weekly_reports)
+  const handleAudienceEdit = useCallback(async (level, index, field, value) => {
+    if (!selectedVenue || !selectedWeek) return
+    const venue = venues.find(v => v.name === selectedVenue)
+    if (!venue) return
+    const [weekStart, weekEnd] = selectedWeek.split('_')
+
+    // Optimistic update
+    setWeeklyReports(prev => {
+      const report = prev[selectedVenue]?.[selectedWeek]
+      if (!report?.meta_data) return prev
+      const items = [...(report.meta_data[level] || [])]
+      const existing = items[index] || {}
+      items[index] = { ...existing, audience: { ...(existing.audience || {}), [field]: value } }
+      return {
+        ...prev,
+        [selectedVenue]: {
+          ...prev[selectedVenue],
+          [selectedWeek]: { ...report, meta_data: { ...report.meta_data, [level]: items } }
+        }
+      }
+    })
+
+    try {
+      const res = await fetch('/api/meta/meta-data', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ venue_id: venue.id, week_start: weekStart, week_end: weekEnd, level, index, field: `audience.${field}`, value })
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Update failed')
+    } catch (err) {
+      setToast({ message: 'Failed to save audience edit', type: 'error' })
+    }
+  }, [selectedVenue, selectedWeek, venues])
+
   const handleTokenExchange = useCallback(async () => {
     setTokenExchanging(true); setLongLivedToken('')
     try {
@@ -1205,10 +1276,10 @@ export default function Dashboard() {
                         <table className="w-full text-sm">
                           <thead className="bg-gray-50 border-b">
                             <tr>
+                              {userRole === 'admin' && <th className="w-8 px-2 py-2.5"></th>}
                               <th className="text-left px-3 py-2.5 font-semibold text-gray-600">Campaign</th>
                               <th className="text-left px-3 py-2.5 font-semibold text-gray-600">Status</th>
                               {(userRole === 'admin' || columnVisibility.impressions) && <th className="text-right px-3 py-2.5 font-semibold text-gray-600">Impressions</th>}
-                              {(userRole === 'admin' || columnVisibility.spend) && <th className="text-right px-3 py-2.5 font-semibold text-gray-600">Spend (AED)</th>}
                               {(userRole === 'admin' || columnVisibility.ctr) && <th className="text-right px-3 py-2.5 font-semibold text-gray-600">CTR</th>}
                               {(userRole === 'admin' || columnVisibility.linkClicks) && <th className="text-right px-3 py-2.5 font-semibold text-gray-600 hidden md:table-cell">Link Clicks</th>}
                               {(userRole === 'admin' || columnVisibility.engagement) && <th className="text-right px-3 py-2.5 font-semibold text-gray-600 hidden md:table-cell">Engagement</th>}
@@ -1216,12 +1287,18 @@ export default function Dashboard() {
                             </tr>
                           </thead>
                           <tbody>
-                            {currentData.meta.campaigns.map((c, i) => (
-                              <tr key={i} className="border-t hover:bg-gray-50/50 transition-colors">
+                            {currentData.meta.campaigns.filter(c => userRole === 'admin' || !c.hidden).map((c, i) => (
+                              <tr key={i} className={`border-t hover:bg-gray-50/50 transition-colors ${c.hidden ? 'opacity-40' : ''}`}>
+                                {userRole === 'admin' && (
+                                  <td className="px-2 py-2.5">
+                                    <button onClick={() => handleToggleHidden('campaigns', i, !c.hidden)} title={c.hidden ? 'Show to client' : 'Hide from client'} className="text-gray-300 hover:text-mpj-charcoal transition-colors cursor-pointer">
+                                      {c.hidden ? <EyeOff size={13} /> : <Eye size={13} />}
+                                    </button>
+                                  </td>
+                                )}
                                 <td className="px-3 py-2.5 font-medium max-w-[200px] truncate">{c.name}</td>
                                 <td className="px-3 py-2.5"><MetaStatusBadge status={c.status} /></td>
                                 {(userRole === 'admin' || columnVisibility.impressions) && <td className="px-3 py-2.5 text-right tabular-nums">{formatInt(c.impressions)}</td>}
-                                {(userRole === 'admin' || columnVisibility.spend) && <td className="px-3 py-2.5 text-right tabular-nums">{c.spend != null ? formatNum(c.spend) : '—'}</td>}
                                 {(userRole === 'admin' || columnVisibility.ctr) && <td className="px-3 py-2.5 text-right tabular-nums">{c.ctr ?? '—'}</td>}
                                 {(userRole === 'admin' || columnVisibility.linkClicks) && <td className="px-3 py-2.5 text-right tabular-nums hidden md:table-cell">{formatInt(c.linkClicks)}</td>}
                                 {(userRole === 'admin' || columnVisibility.engagement) && <td className="px-3 py-2.5 text-right tabular-nums hidden md:table-cell">{formatInt(c.engagement)}</td>}
@@ -1243,6 +1320,7 @@ export default function Dashboard() {
                           <table className="w-full text-sm">
                             <thead className="bg-gray-50 border-b">
                               <tr>
+                                {userRole === 'admin' && <th className="w-8 px-2 py-2.5"></th>}
                                 <th className="text-left px-3 py-2.5 font-semibold text-gray-600">Ad Set</th>
                                 <th className="text-right px-3 py-2.5 font-semibold text-gray-600">Impressions</th>
                                 <th className="text-right px-3 py-2.5 font-semibold text-gray-600">Clicks</th>
@@ -1252,8 +1330,12 @@ export default function Dashboard() {
                               </tr>
                             </thead>
                             <tbody>
-                              {currentData.meta.adSets.map((a) => (
-                                <AdSetRow key={a.name} adSet={a} isExpanded={expandedAdSets[a.name]} onToggle={() => toggleAdSet(a.name)} />
+                              {currentData.meta.adSets.filter(a => userRole === 'admin' || !a.hidden).map((a, i) => (
+                                <AdSetRow key={a.name} adSet={a} isExpanded={expandedAdSets[a.name]} onToggle={() => toggleAdSet(a.name)}
+                                  userRole={userRole}
+                                  onToggleHidden={() => handleToggleHidden('adSets', i, !a.hidden)}
+                                  onAudienceEdit={(field, value) => handleAudienceEdit('adSets', i, field, value)}
+                                />
                               ))}
                             </tbody>
                           </table>
@@ -1271,10 +1353,10 @@ export default function Dashboard() {
                           <table className="w-full text-sm">
                             <thead>
                               <tr className="bg-mpj-gold-xlight border-b border-mpj-warm">
+                                {userRole === 'admin' && <th className="w-8 px-2 py-3"></th>}
                                 <th className="px-2 py-3 w-12 hidden sm:table-cell"></th>
                                 <th className="text-left px-3 py-3 font-semibold text-mpj-charcoal text-xs uppercase tracking-wider">Ad Name</th>
                                 {(userRole === 'admin' || columnVisibility.impressions) && <th className="text-right px-3 py-3 font-semibold text-mpj-charcoal text-xs uppercase tracking-wider">Impressions</th>}
-                                {(userRole === 'admin' || columnVisibility.spend) && <th className="text-right px-3 py-3 font-semibold text-mpj-charcoal text-xs uppercase tracking-wider">Spend</th>}
                                 {(userRole === 'admin' || columnVisibility.ctr) && <th className="text-right px-3 py-3 font-semibold text-mpj-charcoal text-xs uppercase tracking-wider">CTR</th>}
                                 {(userRole === 'admin' || columnVisibility.linkClicks) && <th className="text-right px-3 py-3 font-semibold text-mpj-charcoal text-xs uppercase tracking-wider hidden md:table-cell">Link Clicks</th>}
                                 {(userRole === 'admin' || columnVisibility.engagement) && <th className="text-right px-3 py-3 font-semibold text-mpj-charcoal text-xs uppercase tracking-wider hidden md:table-cell">Engagement</th>}
@@ -1299,14 +1381,21 @@ export default function Dashboard() {
                                   })
                                   return best
                                 }
-                                return currentData.meta.ads.map((a, i) => {
+                                return currentData.meta.ads.filter(a => userRole === 'admin' || !a.hidden).map((a, i) => {
                                   const noteKey = getNoteKey(selectedVenue, selectedWeek, a.name)
                                   const noteVal = noteKey ? (adNotes[noteKey] || '') : ''
                                   const isSaving = savingNote === noteKey
                                   const matchedAdSet = findParent(adSets, a.name)
                                   const matchedCampaign = findParent(campaigns, a.name)
                                   return (
-                                    <tr key={i} className={`border-t border-gray-100 hover:bg-mpj-gold-xlight/60 transition-colors duration-150 ${i % 2 === 1 ? 'bg-gray-50/30' : ''}`}>
+                                    <tr key={i} className={`border-t border-gray-100 hover:bg-mpj-gold-xlight/60 transition-colors duration-150 ${a.hidden ? 'opacity-40' : ''} ${i % 2 === 1 ? 'bg-gray-50/30' : ''}`}>
+                                      {userRole === 'admin' && (
+                                        <td className="px-2 py-2">
+                                          <button onClick={() => handleToggleHidden('ads', i, !a.hidden)} title={a.hidden ? 'Show to client' : 'Hide from client'} className="text-gray-300 hover:text-mpj-charcoal transition-colors cursor-pointer">
+                                            {a.hidden ? <EyeOff size={13} /> : <Eye size={13} />}
+                                          </button>
+                                        </td>
+                                      )}
                                       <td className="px-2 py-2 hidden sm:table-cell">
                                         <CreativeThumb creative={getCreativeForAd(selectedVenue, a.name, currentData.weekStart)} size={36} />
                                       </td>
@@ -1334,7 +1423,6 @@ export default function Dashboard() {
                                         </div>
                                       </td>
                                       {(userRole === 'admin' || columnVisibility.impressions) && <td className="px-3 py-2.5 text-right tabular-nums">{formatInt(a.impressions)}</td>}
-                                      {(userRole === 'admin' || columnVisibility.spend) && <td className="px-3 py-2.5 text-right tabular-nums">{a.spend != null ? formatNum(a.spend) : '—'}</td>}
                                       {(userRole === 'admin' || columnVisibility.ctr) && <td className="px-3 py-2.5 text-right tabular-nums">{a.ctr ?? '—'}</td>}
                                       {(userRole === 'admin' || columnVisibility.linkClicks) && <td className="px-3 py-2.5 text-right tabular-nums hidden md:table-cell">{formatInt(a.linkClicks)}</td>}
                                       {(userRole === 'admin' || columnVisibility.engagement) && <td className="px-3 py-2.5 text-right tabular-nums hidden md:table-cell">{formatInt(a.engagement)}</td>}
@@ -1926,7 +2014,7 @@ export default function Dashboard() {
                           <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
                             <h3 className="font-semibold text-mpj-charcoal text-base">{v.name}</h3>
                             <div className="flex items-center gap-3">
-                              <span className="text-xs text-gray-400">{campaigns.length} campaigns · AED {campaigns.reduce((s,c)=>s+(parseFloat(c.spend)||0),0).toFixed(0)} spend</span>
+                              <span className="text-xs text-gray-400">{campaigns.length} campaigns · {(venueData.adSets||[]).length} ad sets · {(venueData.ads||[]).length} ads</span>
                               <button
                                 onClick={() => handlePublishVenue(v.id)}
                                 disabled={isPublishing}
