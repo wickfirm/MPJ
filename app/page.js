@@ -31,7 +31,15 @@ const VENUE_LOGOS = {
   'Resort':       '/logos/Marriott_logo.avif',
   'Myami':        '/logos/myami logo.webp',
   'SPA':          '/logos/spa logo.png',
+  // Sheraton demo
+  'Sheraton MOE':         '/logos/si_logo_L.avif',
+  'Besh Turkish Kitchen': '/logos/si_logo_L.avif',
+  'Spartan Sports Bar':   '/logos/si_logo_L.avif',
+  'OAnjo Dubai':          '/logos/si_logo_L.avif',
 }
+
+// Sheraton workspace brand names (for workspace budget filtering)
+const SHERATON_BRANDS = ['Sheraton MOE', 'Besh Turkish Kitchen', 'Spartan Sports Bar', 'OAnjo Dubai']
 const getVenueLogo = (name) => {
   if (!name) return null
   return VENUE_LOGOS[name] ?? VENUE_LOGOS[Object.keys(VENUE_LOGOS).find(k => k.toLowerCase() === name.toLowerCase())] ?? null
@@ -142,6 +150,7 @@ export default function Dashboard() {
   const [savingVenueNote, setSavingVenueNote] = useState(false)
   const [adStatuses, setAdStatuses] = useState({})   // { "venueId_weekStart_weekEnd_adName": bool }
   const [venueTab, setVenueTab] = useState('overview')
+  const [workspace, setWorkspace] = useState('mpj') // 'mpj' | 'sheraton'
 
   // ── Admin / Meta state ────────────────────
   const [userRole, setUserRole] = useState('client')
@@ -487,6 +496,19 @@ export default function Dashboard() {
     selectedVenue && previousWeek && compareMode ? getVenueData(selectedVenue, previousWeek, userRole) : null
   , [selectedVenue, previousWeek, compareMode, getVenueData, userRole])
 
+  // ── Workspace-filtered venues (admin only for sheraton) ──
+  const displayVenues = useMemo(() =>
+    venues.filter(v => (v.venue_group || 'mpj') === workspace)
+  , [venues, workspace])
+
+  // Reset selectedVenue when workspace changes
+  useEffect(() => {
+    if (displayVenues.length > 0) {
+      setSelectedVenue(displayVenues[0].name)
+      setLiveCampaignVenue(displayVenues[0].name)
+    }
+  }, [workspace]) // eslint-disable-line react-hooks/exhaustive-deps
+
   const executiveMetrics = useMemo(() => {
     if (!selectedWeek) return { totalAdSpend: 0, totalOnlineRevenue: 0, totalRevenue: 0, totalReservations: 0, onlineReservations: 0, totalImpressions: 0, totalClicks: 0, totalLinkClicks: 0, allVenuesSpend: [], pocPieData: [], allVenuesImpressions: [] }
 
@@ -496,7 +518,7 @@ export default function Dashboard() {
     const allVenuesImpressions = []
     const spendByPOC = {}
 
-    venues.forEach(v => {
+    displayVenues.forEach(v => {
       const d = getVenueData(v.name, selectedWeek, userRole)
       totalAdSpend += d.adSpend || 0
       totalOnlineRevenue += d.revenue?.totalOnline || 0
@@ -520,13 +542,17 @@ export default function Dashboard() {
 
     const pocPieData = Object.entries(spendByPOC).map(([name, value]) => ({ name, value }))
     return { totalAdSpend, totalOnlineRevenue, totalRevenue, totalReservations, onlineReservations, totalImpressions, totalClicks, totalLinkClicks, allVenuesSpend, pocPieData, allVenuesImpressions }
-  }, [venues, selectedWeek, getVenueData, userRole])
+  }, [displayVenues, selectedWeek, getVenueData, userRole])
 
-  // Workspace budget filtered by month
+  // Workspace budget filtered by month + current workspace
   const filteredWorkspaceData = useMemo(() => {
     if (!selectedBudgetMonth) return []
-    return workspaceData.filter(w => w.month === selectedBudgetMonth)
-  }, [workspaceData, selectedBudgetMonth])
+    return workspaceData.filter(w => {
+      if (w.month !== selectedBudgetMonth) return false
+      const isSheraton = SHERATON_BRANDS.some(b => w.brand?.includes(b) || b.includes(w.brand))
+      return workspace === 'sheraton' ? isSheraton : !isSheraton
+    })
+  }, [workspaceData, selectedBudgetMonth, workspace])
 
   const workspaceTotals = useMemo(() => {
     return filteredWorkspaceData.reduce((acc, w) => ({
@@ -563,7 +589,7 @@ export default function Dashboard() {
 
   const exportToCSV = () => {
     let csv = 'Venue,Week,Ad Spend,Total Revenue,Online Revenue,ROAS,Reservations\n'
-    venues.forEach(v => {
+    displayVenues.forEach(v => {
       const d = getVenueData(v.name, selectedWeek, userRole)
       csv += `${v.name},${d.weekStart} to ${d.weekEnd},${d.adSpend},${d.revenue?.totalBusiness || 0},${d.revenue?.totalOnline || 0},${calcROAS(d)},${d.revenue?.totalReservations || 0}\n`
     })
@@ -855,20 +881,37 @@ export default function Dashboard() {
       <header className="header-gradient text-white px-4 md:px-6 py-4 no-print shadow-md">
         <div className="max-w-7xl mx-auto flex justify-between items-center flex-wrap gap-3">
           <div className="flex items-center gap-3">
-            <img src="/logos/Marriott_logo.avif" alt="Marriott" className="h-9 md:h-11 w-auto object-contain brightness-0 invert" />
+            <img
+              src={workspace === 'sheraton' ? '/logos/si_logo_L.avif' : '/logos/Marriott_logo.avif'}
+              alt={workspace === 'sheraton' ? 'Sheraton' : 'Marriott'}
+              className="h-9 md:h-11 w-auto object-contain brightness-0 invert"
+            />
             <div>
-            <h1 className="text-lg md:text-xl font-bold tracking-tight">Hospitality Command Center</h1>
-            <p className="text-xs md:text-sm text-white/70">
-              Marriott Palm Jumeirah Weekly Reports
-              {lastUpdated && (
-                <span className="ml-2 hidden sm:inline">
-                  | Updated {lastUpdated.toLocaleTimeString()}
-                </span>
-              )}
-            </p>
+              <h1 className="text-lg md:text-xl font-bold tracking-tight">Hospitality Command Center</h1>
+              <p className="text-xs md:text-sm text-white/70">
+                {workspace === 'sheraton' ? 'Sheraton Mall of the Emirates — Demo' : 'Marriott Palm Jumeirah Weekly Reports'}
+                {lastUpdated && (
+                  <span className="ml-2 hidden sm:inline">
+                    | Updated {lastUpdated.toLocaleTimeString()}
+                  </span>
+                )}
+              </p>
             </div>
           </div>
           <div className="flex gap-2 items-center flex-wrap">
+            {userRole === 'admin' && (
+              <button
+                onClick={() => setWorkspace(w => w === 'mpj' ? 'sheraton' : 'mpj')}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs md:text-sm font-semibold transition-colors cursor-pointer border ${
+                  workspace === 'sheraton'
+                    ? 'bg-amber-500 text-white border-amber-400'
+                    : 'bg-white/15 hover:bg-white/25 text-white border-white/20'
+                }`}
+                title={workspace === 'sheraton' ? 'Switch to MPJ' : 'Switch to Sheraton Demo'}
+              >
+                {workspace === 'sheraton' ? '🏨 Sheraton Demo' : '🏨 Demo'}
+              </button>
+            )}
             {userRole === 'admin' && allWeeks.length > 1 && (
               <button
                 onClick={() => setCompareMode(!compareMode)}
@@ -1077,7 +1120,7 @@ export default function Dashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {venues.map(v => {
+                    {displayVenues.map(v => {
                       const d = getVenueData(v.name, selectedWeek)
                       return (
                         <tr key={v.id} className="border-t hover:bg-gray-50/50 transition-colors">
@@ -1172,7 +1215,7 @@ export default function Dashboard() {
                   onChange={(e) => setSelectedVenue(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-200 rounded-xl font-medium text-sm focus:outline-none focus:ring-2 focus:ring-mpj-gold/40 focus:border-mpj-gold cursor-pointer bg-white input-shadow"
                 >
-                  {venues.map(v => <option key={v.id} value={v.name}>{v.name}</option>)}
+                  {displayVenues.map(v => <option key={v.id} value={v.name}>{v.name}</option>)}
                 </select>
               </div>
               <div className="flex-1 min-w-[200px]">
@@ -2093,7 +2136,7 @@ export default function Dashboard() {
                 onChange={(e) => setLiveCampaignVenue(e.target.value)}
                 className="w-full max-w-sm px-3 py-2 border border-gray-200 rounded-lg font-medium text-sm focus:outline-none focus:ring-2 focus:ring-mpj-gold/40 focus:border-mpj-gold cursor-pointer"
               >
-                {venues.map(v => <option key={v.id} value={v.name}>{v.name}</option>)}
+                {displayVenues.map(v => <option key={v.id} value={v.name}>{v.name}</option>)}
               </select>
             </div>
 
