@@ -4,6 +4,7 @@ import { ChevronRight, Users, Eye, EyeOff, Pencil, Check, X, Plus } from 'lucide
 import AudienceTag from './AudienceTag'
 
 const formatInt = (n) => n?.toLocaleString('en-US') || '0'
+const formatCtr = (v) => v == null ? '—' : typeof v === 'number' ? v.toFixed(2) + '%' : v
 
 // ── Inline-editable single field ────────────────────────────────────────────
 function EditableField({ value, onSave, placeholder = '' }) {
@@ -150,7 +151,7 @@ export default function AdSetRow({ adSet, isExpanded, onToggle, userRole, onTogg
 
         <td className="px-3 py-2.5 text-right tabular-nums">{formatInt(adSet.impressions)}</td>
         <td className="px-3 py-2.5 text-right tabular-nums">{formatInt(adSet.clicks)}</td>
-        <td className="px-3 py-2.5 text-right tabular-nums">{adSet.ctr ?? '—'}</td>
+        <td className="px-3 py-2.5 text-right tabular-nums">{formatCtr(adSet.ctr)}</td>
         <td className="px-3 py-2.5 text-right tabular-nums hidden md:table-cell">{formatInt(adSet.linkClicks)}</td>
         <td className="px-3 py-2.5 text-right tabular-nums hidden md:table-cell">{formatInt(adSet.engagement)}</td>
       </tr>

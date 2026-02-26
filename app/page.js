@@ -70,6 +70,7 @@ const SLA_DATA = [
 const formatNum = (n) => n?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'
 const formatInt = (n) => n?.toLocaleString('en-US') || '0'
 const formatK = (n) => n >= 1000000 ? (n / 1000000).toFixed(1) + 'M' : n >= 1000 ? (n / 1000).toFixed(0) + 'K' : n
+const formatCtr = (v) => v == null ? '—' : typeof v === 'number' ? v.toFixed(2) + '%' : v
 const calcAvgSpend = (rev, res) => res > 0 ? (rev / res).toFixed(2) : '0.00'
 
 // ── Meta status badge ─────────────────────────
@@ -1384,7 +1385,7 @@ export default function Dashboard() {
                                 <td className="px-3 py-2.5 font-medium max-w-[200px] truncate">{c.name}</td>
                                 <td className="px-3 py-2.5"><MetaStatusBadge status={c.status} /></td>
                                 {(userRole === 'admin' || columnVisibility.impressions) && <td className="px-3 py-2.5 text-right tabular-nums">{formatInt(c.impressions)}</td>}
-                                {(userRole === 'admin' || columnVisibility.ctr) && <td className="px-3 py-2.5 text-right tabular-nums">{c.ctr ?? '—'}</td>}
+                                {(userRole === 'admin' || columnVisibility.ctr) && <td className="px-3 py-2.5 text-right tabular-nums">{formatCtr(c.ctr)}</td>}
                                 {(userRole === 'admin' || columnVisibility.linkClicks) && <td className="px-3 py-2.5 text-right tabular-nums hidden md:table-cell">{formatInt(c.linkClicks)}</td>}
                                 {(userRole === 'admin' || columnVisibility.engagement) && <td className="px-3 py-2.5 text-right tabular-nums hidden md:table-cell">{formatInt(c.engagement)}</td>}
                                 {(userRole === 'admin' || columnVisibility.reach) && <td className="px-3 py-2.5 text-right tabular-nums hidden lg:table-cell">{c.reach != null ? formatInt(c.reach) : '—'}</td>}
@@ -1508,7 +1509,7 @@ export default function Dashboard() {
                                         </div>
                                       </td>
                                       {(userRole === 'admin' || columnVisibility.impressions) && <td className="px-3 py-2.5 text-right tabular-nums">{formatInt(a.impressions)}</td>}
-                                      {(userRole === 'admin' || columnVisibility.ctr) && <td className="px-3 py-2.5 text-right tabular-nums">{a.ctr ?? '—'}</td>}
+                                      {(userRole === 'admin' || columnVisibility.ctr) && <td className="px-3 py-2.5 text-right tabular-nums">{formatCtr(a.ctr)}</td>}
                                       {(userRole === 'admin' || columnVisibility.linkClicks) && <td className="px-3 py-2.5 text-right tabular-nums hidden md:table-cell">{formatInt(a.linkClicks)}</td>}
                                       {(userRole === 'admin' || columnVisibility.engagement) && <td className="px-3 py-2.5 text-right tabular-nums hidden md:table-cell">{formatInt(a.engagement)}</td>}
                                       <td className="px-3 py-2.5 text-center">
@@ -1767,7 +1768,7 @@ export default function Dashboard() {
                 { label: 'Days Live',     value: prog.days_live },
                 { label: 'Impressions',   value: formatK(prog.totals?.impressions) },
                 { label: 'Clicks',        value: formatInt(prog.totals?.clicks) },
-                { label: 'CTR',           value: prog.totals?.ctr },
+                { label: 'CTR',           value: formatCtr(prog.totals?.ctr) },
                 { label: 'Viewability',   value: prog.totals?.viewability },
               ]
               return (
@@ -1809,7 +1810,7 @@ export default function Dashboard() {
                                 </td>
                                 <td className="px-3 py-2.5 text-right tabular-nums">{formatInt(c.impressions)}</td>
                                 <td className="px-3 py-2.5 text-right tabular-nums">{formatInt(c.clicks)}</td>
-                                <td className="px-3 py-2.5 text-right tabular-nums">{c.ctr}</td>
+                                <td className="px-3 py-2.5 text-right tabular-nums">{formatCtr(c.ctr)}</td>
                               </tr>
                             ))}
                             {prog.totals && (
@@ -1819,7 +1820,7 @@ export default function Dashboard() {
                                 <td className="hidden md:table-cell"></td>
                                 <td className="px-3 py-2.5 text-right tabular-nums">{formatInt(prog.totals.impressions)}</td>
                                 <td className="px-3 py-2.5 text-right tabular-nums">{formatInt(prog.totals.clicks)}</td>
-                                <td className="px-3 py-2.5 text-right tabular-nums">{prog.totals.ctr}</td>
+                                <td className="px-3 py-2.5 text-right tabular-nums">{formatCtr(prog.totals.ctr)}</td>
                               </tr>
                             )}
                           </tbody>
