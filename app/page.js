@@ -1246,8 +1246,9 @@ export default function Dashboard() {
               // Ad spend sourced from Workspace (manually entered budget tracker), not Meta raw data
               const venueMonth   = currentData.weekStart?.substring(0, 7) // e.g. '2026-02'
               // Fuzzy brand match: "Above Eleven" matches workspace brand "Above Eleven Media"
+              // w.month is a DATE returned as '2026-02-01' by Supabase; venueMonth is '2026-02'
               const wsRow        = workspaceData
-                .filter(w => w.month === venueMonth)
+                .filter(w => (w.month || '').substring(0, 7) === venueMonth)
                 .find(w => {
                   const brand = (w.brand || '').toLowerCase().trim()
                   const venue = (selectedVenue || '').toLowerCase().trim()
