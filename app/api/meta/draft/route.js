@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { supabaseAdmin as supabase } from '@/lib/supabase'
 
 // GET /api/meta/draft?week_start=&week_end= — load draft for a week
 // Omit params to get the most recent draft
