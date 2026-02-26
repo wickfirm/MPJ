@@ -1846,6 +1846,166 @@ export default function Dashboard() {
                     </div>
                   )}
 
+                  {/* Contextual Targeting */}
+                  {(prog.targeting?.contextual_en || prog.targeting?.contextual_ar) && (() => {
+                    const enData = prog.targeting.contextual_en || {}
+                    const arData = prog.targeting.contextual_ar || {}
+                    const categoryLabels = {
+                      core_ramadan:       'Core Ramadan',
+                      dining_culinary:    'Dining & Culinary',
+                      luxury_lifestyle:   'Luxury & Lifestyle',
+                      hotel_hospitality:  'Hotel & Hospitality',
+                      competitor_venue:   'Competitor & Venue',
+                      cultural_community: 'Cultural & Community',
+                      food_specific:      'Food & Dishes',
+                      travel_tourism:     'Travel & Tourism',
+                    }
+                    const allCategories = Object.keys(categoryLabels).filter(k => enData[k] || arData[k])
+                    return (
+                      <div>
+                        <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Contextual Targeting</h4>
+                        <div className="grid md:grid-cols-2 gap-4">
+                          {/* English */}
+                          <div className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm">
+                            <p className="text-xs font-bold text-mpj-charcoal uppercase tracking-widest mb-3 flex items-center gap-1.5">
+                              <span className="w-5 h-5 rounded-full bg-mpj-charcoal text-white text-[9px] flex items-center justify-center font-bold">EN</span>
+                              English Keywords
+                            </p>
+                            <div className="space-y-3">
+                              {allCategories.map(cat => enData[cat]?.length > 0 && (
+                                <div key={cat}>
+                                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">{categoryLabels[cat]}</p>
+                                  <div className="flex flex-wrap gap-1">
+                                    {enData[cat].map((kw, ki) => (
+                                      <span key={ki} className="text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">{kw}</span>
+                                    ))}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                          {/* Arabic */}
+                          <div className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm" dir="rtl">
+                            <p className="text-xs font-bold text-mpj-charcoal uppercase tracking-widest mb-3 flex items-center gap-1.5" dir="ltr">
+                              <span className="w-5 h-5 rounded-full bg-mpj-gold text-white text-[9px] flex items-center justify-center font-bold">AR</span>
+                              Arabic Keywords
+                            </p>
+                            <div className="space-y-3">
+                              {allCategories.map(cat => arData[cat]?.length > 0 && (
+                                <div key={cat}>
+                                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5" dir="ltr">{categoryLabels[cat]}</p>
+                                  <div className="flex flex-wrap gap-1">
+                                    {arData[cat].map((kw, ki) => (
+                                      <span key={ki} className="text-[10px] bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded">{kw}</span>
+                                    ))}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                        {/* Negative keywords */}
+                        {(prog.targeting.negative_en?.length > 0 || prog.targeting.negative_ar?.length > 0) && (
+                          <div className="mt-3 bg-red-50 border border-red-100 rounded-xl p-3.5">
+                            <p className="text-[10px] font-semibold text-red-500 uppercase tracking-wider mb-2">Negative Keywords (Excluded)</p>
+                            <div className="flex flex-wrap gap-1.5">
+                              {(prog.targeting.negative_en || []).map((kw, ki) => (
+                                <span key={`en-${ki}`} className="text-[10px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded line-through">{kw}</span>
+                              ))}
+                              {(prog.targeting.negative_ar || []).map((kw, ki) => (
+                                <span key={`ar-${ki}`} className="text-[10px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded line-through" dir="rtl">{kw}</span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })()}
+
+                  {/* Website Targeting */}
+                  {prog.targeting?.website_targeting && (() => {
+                    const wt = prog.targeting.website_targeting
+                    const corpCategories = {
+                      premium_news_business: 'Premium News & Business',
+                      business_corporate:    'Business & Corporate',
+                      sports:                'Sports',
+                      uae_lifestyle_events:  'UAE Lifestyle & Events',
+                      finance_investment:    'Finance & Investment',
+                      arabic_news:           'Arabic News',
+                    }
+                    const indCategories = {
+                      food_restaurant:    'Food & Restaurant Discovery',
+                      lifestyle_culture:  'Lifestyle & Culture',
+                      social_entertainment: 'Social & Entertainment',
+                      parenting_family:   'Parenting & Family',
+                      travel_leisure:     'Travel & Leisure',
+                      arabic_lifestyle:   'Arabic Lifestyle',
+                    }
+                    return (
+                      <div>
+                        <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Website Targeting</h4>
+                        <div className="grid md:grid-cols-2 gap-4">
+                          {/* Corporate/Group */}
+                          {wt.corporate && (
+                            <div className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm">
+                              <p className="text-xs font-bold text-mpj-charcoal mb-3 flex items-center gap-1.5">
+                                <span className="w-2 h-2 rounded-full bg-mpj-charcoal inline-block"></span>
+                                Corporate / Group Iftars
+                              </p>
+                              <div className="space-y-2.5">
+                                {Object.entries(corpCategories).map(([key, label]) => wt.corporate[key]?.length > 0 && (
+                                  <div key={key}>
+                                    <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">{label}</p>
+                                    <div className="flex flex-wrap gap-1">
+                                      {wt.corporate[key].map((site, si) => (
+                                        <span key={si} className="text-[10px] bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded font-mono">{site}</span>
+                                      ))}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          {/* Individual/Family */}
+                          {wt.individual_family && (
+                            <div className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm">
+                              <p className="text-xs font-bold text-mpj-charcoal mb-3 flex items-center gap-1.5">
+                                <span className="w-2 h-2 rounded-full bg-mpj-gold inline-block"></span>
+                                Individual & Family Iftars
+                              </p>
+                              <div className="space-y-2.5">
+                                {Object.entries(indCategories).map(([key, label]) => wt.individual_family[key]?.length > 0 && (
+                                  <div key={key}>
+                                    <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">{label}</p>
+                                    <div className="flex flex-wrap gap-1">
+                                      {wt.individual_family[key].map((site, si) => (
+                                        <span key={si} className="text-[10px] bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded font-mono">{site}</span>
+                                      ))}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                        {/* Brand Safety Exclusions */}
+                        {wt.exclusions?.length > 0 && (
+                          <div className="mt-3 bg-gray-50 border border-gray-200 rounded-xl p-3.5">
+                            <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-2">Brand Safety Exclusions</p>
+                            <ul className="space-y-1">
+                              {wt.exclusions.map((ex, ei) => (
+                                <li key={ei} className="text-xs text-gray-600 flex items-start gap-1.5">
+                                  <span className="text-gray-400 mt-0.5 flex-shrink-0">✕</span>
+                                  {ex}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })()}
+
                   {/* Campaign dates footer */}
                   {(prog.campaign_start || prog.campaign_end) && (
                     <p className="text-xs text-gray-400">
