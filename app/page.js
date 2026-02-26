@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
-import { Download, BarChart3, Calendar, TrendingUp, Megaphone, ExternalLink, Users, Lightbulb, RefreshCw, LogOut, DollarSign, ShoppingBag, Target, Upload, Image as ImageIcon, Eye, MousePointerClick, Percent, Instagram, MessageSquare, Settings, Copy, Check, ChevronRight } from 'lucide-react'
+import { Download, BarChart3, Calendar, TrendingUp, Megaphone, ExternalLink, Users, Lightbulb, RefreshCw, LogOut, DollarSign, ShoppingBag, Target, Upload, Image as ImageIcon, Eye, EyeOff, MousePointerClick, Percent, Instagram, MessageSquare, Settings, Copy, Check, ChevronRight, Send } from 'lucide-react'
 import { LineChart as ReLineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
 
 import CollapsibleSection from './components/CollapsibleSection'
@@ -152,6 +152,7 @@ export default function Dashboard() {
   const [mappings, setMappings]         = useState([])
   const [draft, setDraft]               = useState(null)
   const [publishingVenue, setPublishingVenue] = useState(null)
+  const [publishingDraft, setPublishingDraft] = useState(false)
   const [columnVisibility, setColumnVisibility] = useState({ spend: false, impressions: true, ctr: true, linkClicks: true, engagement: true, reach: false })
   const [shortLivedToken, setShortLivedToken] = useState('')
   const [longLivedToken, setLongLivedToken]   = useState('')
@@ -331,10 +332,15 @@ export default function Dashboard() {
     return [...arr].sort((a, b) => (b.impressions || 0) - (a.impressions || 0))
   }, [])
 
-  const getVenueData = useCallback((venueName, weekKey) => {
+  const getVenueData = useCallback((venueName, weekKey, role) => {
     const venue = venues.find(v => v.name === venueName)
     const report = weeklyReports[venueName]?.[weekKey]
     const [weekStart, weekEnd] = weekKey ? weekKey.split('_') : ['', '']
+
+    // Admin sees draft if one exists; client always sees published meta_data
+    const metaSource = (role === 'admin' && report?.meta_data_draft)
+      ? report.meta_data_draft
+      : report?.meta_data
 
     // Merge ad_statuses overrides into the ads array
     const applyStatuses = (ads) => {
@@ -348,11 +354,11 @@ export default function Dashboard() {
       })
     }
 
-    const sortedMeta = report?.meta_data ? {
-      campaigns: sortByImpressions(report.meta_data.campaigns),
-      adSets: sortByImpressions(report.meta_data.adSets),
-      ads: applyStatuses(report.meta_data.ads),
-      analysis: report.meta_data.analysis
+    const sortedMeta = metaSource ? {
+      campaigns: sortByImpressions(metaSource.campaigns),
+      adSets: sortByImpressions(metaSource.adSets),
+      ads: applyStatuses(metaSource.ads),
+      analysis: metaSource.analysis
     } : { campaigns: [], adSets: [], ads: [], analysis: null }
 
     return {
@@ -361,6 +367,7 @@ export default function Dashboard() {
       weekEnd: report?.week_end,
       adSpend: report?.ad_spend || 0,
       meta: sortedMeta,
+      hasDraft: !!(report?.meta_data_draft),
       revenue: report?.revenue_data,
       programmatic: report?.programmatic_data,
       liveCampaigns: liveCampaigns[venueName] || [],
@@ -472,12 +479,12 @@ export default function Dashboard() {
   }, [venues])
 
   const currentData = useMemo(() =>
-    selectedVenue && selectedWeek ? getVenueData(selectedVenue, selectedWeek) : null
-  , [selectedVenue, selectedWeek, getVenueData])
+    selectedVenue && selectedWeek ? getVenueData(selectedVenue, selectedWeek, userRole) : null
+  , [selectedVenue, selectedWeek, getVenueData, userRole])
 
   const previousData = useMemo(() =>
-    selectedVenue && previousWeek && compareMode ? getVenueData(selectedVenue, previousWeek) : null
-  , [selectedVenue, previousWeek, compareMode, getVenueData])
+    selectedVenue && previousWeek && compareMode ? getVenueData(selectedVenue, previousWeek, userRole) : null
+  , [selectedVenue, previousWeek, compareMode, getVenueData, userRole])
 
   const executiveMetrics = useMemo(() => {
     if (!selectedWeek) return { totalAdSpend: 0, totalOnlineRevenue: 0, totalRevenue: 0, totalReservations: 0, onlineReservations: 0, totalImpressions: 0, totalClicks: 0, totalLinkClicks: 0, allVenuesSpend: [], pocPieData: [], allVenuesImpressions: [] }
@@ -489,7 +496,7 @@ export default function Dashboard() {
     const spendByPOC = {}
 
     venues.forEach(v => {
-      const d = getVenueData(v.name, selectedWeek)
+      const d = getVenueData(v.name, selectedWeek, userRole)
       totalAdSpend += d.adSpend || 0
       totalOnlineRevenue += d.revenue?.totalOnline || 0
       totalRevenue += d.revenue?.totalBusiness || 0
@@ -512,7 +519,7 @@ export default function Dashboard() {
 
     const pocPieData = Object.entries(spendByPOC).map(([name, value]) => ({ name, value }))
     return { totalAdSpend, totalOnlineRevenue, totalRevenue, totalReservations, onlineReservations, totalImpressions, totalClicks, totalLinkClicks, allVenuesSpend, pocPieData, allVenuesImpressions }
-  }, [venues, selectedWeek, getVenueData])
+  }, [venues, selectedWeek, getVenueData, userRole])
 
   // Workspace budget filtered by month
   const filteredWorkspaceData = useMemo(() => {
@@ -556,7 +563,7 @@ export default function Dashboard() {
   const exportToCSV = () => {
     let csv = 'Venue,Week,Ad Spend,Total Revenue,Online Revenue,ROAS,Reservations\n'
     venues.forEach(v => {
-      const d = getVenueData(v.name, selectedWeek)
+      const d = getVenueData(v.name, selectedWeek, userRole)
       csv += `${v.name},${d.weekStart} to ${d.weekEnd},${d.adSpend},${d.revenue?.totalBusiness || 0},${d.revenue?.totalOnline || 0},${calcROAS(d)},${d.revenue?.totalReservations || 0}\n`
     })
     const blob = new Blob([csv], { type: 'text/csv' })
@@ -690,24 +697,29 @@ export default function Dashboard() {
     }
   }, [])
 
-  // Toggle hidden flag on a published meta_data item (direct update to weekly_reports)
-  const handleToggleHidden = useCallback(async (level, index, hidden) => {
+  // Toggle hidden flag — writes to meta_data_draft (admin preview only until Push to Client)
+  const handleToggleHidden = useCallback(async (level, itemName, hidden) => {
     if (!selectedVenue || !selectedWeek) return
     const venue = venues.find(v => v.name === selectedVenue)
     if (!venue) return
     const [weekStart, weekEnd] = selectedWeek.split('_')
 
-    // Optimistic update
+    // Optimistic update — always modifies meta_data_draft
     setWeeklyReports(prev => {
       const report = prev[selectedVenue]?.[selectedWeek]
-      if (!report?.meta_data) return prev
-      const items = [...(report.meta_data[level] || [])]
-      items[index] = { ...items[index], hidden }
+      if (!report) return prev
+      // Use existing draft or copy from published to create a new draft
+      const source = report.meta_data_draft || report.meta_data || {}
+      const items = [...(source[level] || [])]
+      const idx = items.findIndex(it => it.name === itemName)
+      if (idx === -1) return prev
+      items[idx] = { ...items[idx], hidden }
+      const newDraft = { ...source, [level]: items }
       return {
         ...prev,
         [selectedVenue]: {
           ...prev[selectedVenue],
-          [selectedWeek]: { ...report, meta_data: { ...report.meta_data, [level]: items } }
+          [selectedWeek]: { ...report, meta_data_draft: newDraft }
         }
       }
     })
@@ -716,7 +728,7 @@ export default function Dashboard() {
       const res = await fetch('/api/meta/meta-data', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ venue_id: venue.id, week_start: weekStart, week_end: weekEnd, level, index, field: 'hidden', value: hidden })
+        body: JSON.stringify({ venue_id: venue.id, week_start: weekStart, week_end: weekEnd, level, item_name: itemName, field: 'hidden', value: hidden })
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error || 'Update failed')
@@ -725,25 +737,28 @@ export default function Dashboard() {
     }
   }, [selectedVenue, selectedWeek, venues])
 
-  // Edit an audience field on a published adSet (direct update to weekly_reports)
-  const handleAudienceEdit = useCallback(async (level, index, field, value) => {
+  // Edit an audience field — writes to meta_data_draft (admin preview only)
+  const handleAudienceEdit = useCallback(async (level, itemName, field, value) => {
     if (!selectedVenue || !selectedWeek) return
     const venue = venues.find(v => v.name === selectedVenue)
     if (!venue) return
     const [weekStart, weekEnd] = selectedWeek.split('_')
 
-    // Optimistic update
+    // Optimistic update — always modifies meta_data_draft
     setWeeklyReports(prev => {
       const report = prev[selectedVenue]?.[selectedWeek]
-      if (!report?.meta_data) return prev
-      const items = [...(report.meta_data[level] || [])]
-      const existing = items[index] || {}
-      items[index] = { ...existing, audience: { ...(existing.audience || {}), [field]: value } }
+      if (!report) return prev
+      const source = report.meta_data_draft || report.meta_data || {}
+      const items = [...(source[level] || [])]
+      const idx = items.findIndex(it => it.name === itemName)
+      if (idx === -1) return prev
+      items[idx] = { ...items[idx], audience: { ...(items[idx].audience || {}), [field]: value } }
+      const newDraft = { ...source, [level]: items }
       return {
         ...prev,
         [selectedVenue]: {
           ...prev[selectedVenue],
-          [selectedWeek]: { ...report, meta_data: { ...report.meta_data, [level]: items } }
+          [selectedWeek]: { ...report, meta_data_draft: newDraft }
         }
       }
     })
@@ -752,12 +767,47 @@ export default function Dashboard() {
       const res = await fetch('/api/meta/meta-data', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ venue_id: venue.id, week_start: weekStart, week_end: weekEnd, level, index, field: `audience.${field}`, value })
+        body: JSON.stringify({ venue_id: venue.id, week_start: weekStart, week_end: weekEnd, level, item_name: itemName, field: `audience.${field}`, value })
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error || 'Update failed')
     } catch (err) {
       setToast({ message: 'Failed to save audience edit', type: 'error' })
+    }
+  }, [selectedVenue, selectedWeek, venues])
+
+  // Push admin draft to client-visible meta_data
+  const handlePublishDraft = useCallback(async () => {
+    if (!selectedVenue || !selectedWeek) return
+    const venue = venues.find(v => v.name === selectedVenue)
+    if (!venue) return
+    const [weekStart, weekEnd] = selectedWeek.split('_')
+    setPublishingDraft(true)
+    try {
+      const res = await fetch('/api/meta/publish-draft', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ venue_id: venue.id, week_start: weekStart, week_end: weekEnd })
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Publish failed')
+      // Optimistic: promote draft to published, clear draft
+      setWeeklyReports(prev => {
+        const report = prev[selectedVenue]?.[selectedWeek]
+        if (!report?.meta_data_draft) return prev
+        return {
+          ...prev,
+          [selectedVenue]: {
+            ...prev[selectedVenue],
+            [selectedWeek]: { ...report, meta_data: report.meta_data_draft, meta_data_draft: null }
+          }
+        }
+      })
+      setToast({ message: 'Published to client view!', type: 'success' })
+    } catch (err) {
+      setToast({ message: 'Failed to publish: ' + err.message, type: 'error' })
+    } finally {
+      setPublishingDraft(false)
     }
   }, [selectedVenue, selectedWeek, venues])
 
@@ -1267,6 +1317,25 @@ export default function Dashboard() {
             {/* ══ META ADS ══ */}
             {venueTab === 'meta' && (
               <div className="space-y-6">
+
+                {/* Admin: draft-not-yet-published banner */}
+                {userRole === 'admin' && currentData?.hasDraft && (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: 10, padding: '10px 16px', gap: 12 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#92400e', fontSize: 13 }}>
+                      <EyeOff size={15} />
+                      <span><strong>Draft mode</strong> — your changes are only visible to you. Clients still see the previous version.</span>
+                    </div>
+                    <button
+                      onClick={handlePublishDraft}
+                      disabled={publishingDraft}
+                      style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#d97706', color: '#fff', border: 'none', borderRadius: 7, padding: '6px 14px', fontSize: 13, fontWeight: 600, cursor: publishingDraft ? 'default' : 'pointer', opacity: publishingDraft ? 0.7 : 1 }}
+                    >
+                      <Send size={13} />
+                      {publishingDraft ? 'Publishing…' : 'Push to Client'}
+                    </button>
+                  </div>
+                )}
+
                 {currentData.meta?.campaigns?.length > 0 ? (
                   <>
                     {/* Campaign table */}
@@ -1291,7 +1360,7 @@ export default function Dashboard() {
                               <tr key={i} className={`border-t hover:bg-gray-50/50 transition-colors ${c.hidden ? 'opacity-40' : ''}`}>
                                 {userRole === 'admin' && (
                                   <td className="px-2 py-2.5">
-                                    <button onClick={() => handleToggleHidden('campaigns', i, !c.hidden)} title={c.hidden ? 'Show to client' : 'Hide from client'} className="text-gray-300 hover:text-mpj-charcoal transition-colors cursor-pointer">
+                                    <button onClick={() => handleToggleHidden('campaigns', c.name, !c.hidden)} title={c.hidden ? 'Show to client' : 'Hide from client'} className="text-gray-300 hover:text-mpj-charcoal transition-colors cursor-pointer">
                                       {c.hidden ? <EyeOff size={13} /> : <Eye size={13} />}
                                     </button>
                                   </td>
@@ -1333,8 +1402,8 @@ export default function Dashboard() {
                               {currentData.meta.adSets.filter(a => userRole === 'admin' || !a.hidden).map((a, i) => (
                                 <AdSetRow key={a.name} adSet={a} isExpanded={expandedAdSets[a.name]} onToggle={() => toggleAdSet(a.name)}
                                   userRole={userRole}
-                                  onToggleHidden={() => handleToggleHidden('adSets', i, !a.hidden)}
-                                  onAudienceEdit={(field, value) => handleAudienceEdit('adSets', i, field, value)}
+                                  onToggleHidden={() => handleToggleHidden('adSets', a.name, !a.hidden)}
+                                  onAudienceEdit={(field, value) => handleAudienceEdit('adSets', a.name, field, value)}
                                 />
                               ))}
                             </tbody>
@@ -1391,7 +1460,7 @@ export default function Dashboard() {
                                     <tr key={i} className={`border-t border-gray-100 hover:bg-mpj-gold-xlight/60 transition-colors duration-150 ${a.hidden ? 'opacity-40' : ''} ${i % 2 === 1 ? 'bg-gray-50/30' : ''}`}>
                                       {userRole === 'admin' && (
                                         <td className="px-2 py-2">
-                                          <button onClick={() => handleToggleHidden('ads', i, !a.hidden)} title={a.hidden ? 'Show to client' : 'Hide from client'} className="text-gray-300 hover:text-mpj-charcoal transition-colors cursor-pointer">
+                                          <button onClick={() => handleToggleHidden('ads', a.name, !a.hidden)} title={a.hidden ? 'Show to client' : 'Hide from client'} className="text-gray-300 hover:text-mpj-charcoal transition-colors cursor-pointer">
                                             {a.hidden ? <EyeOff size={13} /> : <Eye size={13} />}
                                           </button>
                                         </td>

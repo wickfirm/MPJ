@@ -68,26 +68,27 @@ export async function POST(req) {
       .maybeSingle()
 
     if (existing) {
-      // UPDATE — preserve revenue/programmatic, only overwrite meta_data + ad_spend
+      // UPDATE — write to meta_data_draft so admin can preview before pushing to client
       const { error: updateErr } = await supabase
         .from('weekly_reports')
         .update({
-          meta_data: finalMetaData,
-          ad_spend:  totalSpend,
+          meta_data_draft: finalMetaData,
+          ad_spend: totalSpend,
         })
         .eq('id', existing.id)
 
       if (updateErr) throw updateErr
     } else {
-      // INSERT new row (meta only — revenue/programmatic remain null until SQL entry)
+      // INSERT new row — put data into meta_data_draft (admin preview) and meta_data (client, initially same)
       const { error: insertErr } = await supabase
         .from('weekly_reports')
         .insert({
           venue_id,
           week_start,
           week_end,
-          meta_data: finalMetaData,
-          ad_spend:  totalSpend,
+          meta_data:       finalMetaData,
+          meta_data_draft: finalMetaData,
+          ad_spend:        totalSpend,
         })
 
       if (insertErr) throw insertErr

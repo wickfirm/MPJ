@@ -1,22 +1,28 @@
 import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 
-// PATCH /api/meta/meta-data
-// Body: { venue_id, week_start, week_end, level, index, field, value }
-// Patches a single field on an item in weekly_reports.meta_data
-// field can be 'hidden', 'audience.location', 'audience.age', etc.
+/**
+ * PATCH /api/meta/meta-data
+ * Body: { venue_id, week_start, week_end, level, item_name, field, value }
+ *
+ * Patches a single field on a named item inside meta_data_draft.
+ * If meta_data_draft doesn't exist yet, it is initialised from meta_data first
+ * (copy-on-write: the first admin edit creates the draft).
+ *
+ * field supports dot-notation: 'audience.interests', 'audience.location', etc.
+ */
 export async function PATCH(req) {
   try {
-    const { venue_id, week_start, week_end, level, index, field, value } = await req.json()
+    const { venue_id, week_start, week_end, level, item_name, field, value } = await req.json()
 
-    if (!venue_id || !week_start || !week_end || !level || index == null || !field) {
+    if (!venue_id || !week_start || !week_end || !level || !item_name || !field) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
-    // Load current meta_data
+    // Load current meta_data + meta_data_draft
     const { data: report, error: loadErr } = await supabase
       .from('weekly_reports')
-      .select('id, meta_data')
+      .select('id, meta_data, meta_data_draft')
       .eq('venue_id', venue_id)
       .eq('week_start', week_start)
       .eq('week_end', week_end)
@@ -25,35 +31,37 @@ export async function PATCH(req) {
     if (loadErr) throw loadErr
     if (!report) return NextResponse.json({ error: 'Report not found for this venue/week' }, { status: 404 })
 
-    const metaData = report.meta_data || {}
-    const items    = [...(metaData[level] || [])]
+    // Use existing draft, or copy from published (copy-on-write)
+    const source = report.meta_data_draft || report.meta_data || {}
+    const items  = [...(source[level] || [])]
 
-    if (index >= items.length) {
-      return NextResponse.json({ error: `Index ${index} out of range for ${level}` }, { status: 400 })
+    // Find item by name (stable identifier after IDs are stripped)
+    const idx = items.findIndex(it => it.name === item_name)
+    if (idx === -1) {
+      return NextResponse.json({ error: `Item "${item_name}" not found in ${level}` }, { status: 404 })
     }
 
-    // Support nested fields like 'audience.location'
+    // Apply field update (supports dot-notation for nested objects)
     const parts = field.split('.')
     if (parts.length === 1) {
-      items[index] = { ...items[index], [field]: value }
+      items[idx] = { ...items[idx], [field]: value }
     } else {
-      // e.g. field = 'audience.interests' → items[index].audience.interests = value
       const [parent, ...rest] = parts
-      const nested = { ...(items[index][parent] || {}) }
+      const nested = { ...(items[idx][parent] || {}) }
       let cur = nested
       for (let i = 0; i < rest.length - 1; i++) {
         cur[rest[i]] = { ...(cur[rest[i]] || {}) }
         cur = cur[rest[i]]
       }
       cur[rest[rest.length - 1]] = value
-      items[index] = { ...items[index], [parent]: nested }
+      items[idx] = { ...items[idx], [parent]: nested }
     }
 
-    const newMetaData = { ...metaData, [level]: items }
+    const newDraft = { ...source, [level]: items }
 
     const { error: updateErr } = await supabase
       .from('weekly_reports')
-      .update({ meta_data: newMetaData })
+      .update({ meta_data_draft: newDraft })
       .eq('id', report.id)
 
     if (updateErr) throw updateErr
