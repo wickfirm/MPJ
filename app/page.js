@@ -1138,13 +1138,13 @@ export default function Dashboard() {
               </div>
             </CollapsibleSection>
 
-            {monthlyData.length > 0 && (
+            {monthlyData.filter(m => (m.venue_group || 'mpj') === workspace).length > 0 && (
               <CollapsibleSection title="Monthly Rollup" color="#4a5568" icon={TrendingUp}>
                 <div className="grid md:grid-cols-2 gap-6">
                   <div>
                     <h4 className="text-sm font-semibold text-gray-700 mb-3">Ad Spend vs Revenue</h4>
                     <ResponsiveContainer width="100%" height={220}>
-                      <BarChart data={monthlyData}>
+                      <BarChart data={monthlyData.filter(m => (m.venue_group || 'mpj') === workspace)}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                         <XAxis dataKey="month" tick={{ fontSize: 11 }} />
                         <YAxis tickFormatter={formatK} tick={{ fontSize: 11 }} />
@@ -1158,7 +1158,7 @@ export default function Dashboard() {
                   <div>
                     <h4 className="text-sm font-semibold text-gray-700 mb-3">Reservations Trend</h4>
                     <ResponsiveContainer width="100%" height={220}>
-                      <ReLineChart data={monthlyData}>
+                      <ReLineChart data={monthlyData.filter(m => (m.venue_group || 'mpj') === workspace)}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                         <XAxis dataKey="month" tick={{ fontSize: 11 }} />
                         <YAxis tick={{ fontSize: 11 }} />
