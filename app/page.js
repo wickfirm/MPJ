@@ -1239,7 +1239,14 @@ export default function Dashboard() {
               const totalLinkClicks  = currentData.meta.campaigns.reduce((s, c) => s + (c.linkClicks  || 0), 0)
               // Ad spend sourced from Workspace (manually entered budget tracker), not Meta raw data
               const venueMonth   = currentData.weekStart?.substring(0, 7) // e.g. '2026-02'
-              const wsRow        = workspaceData.find(w => w.brand === selectedVenue && w.month === venueMonth)
+              // Fuzzy brand match: "Above Eleven" matches workspace brand "Above Eleven Media"
+              const wsRow        = workspaceData
+                .filter(w => w.month === venueMonth)
+                .find(w => {
+                  const brand = (w.brand || '').toLowerCase().trim()
+                  const venue = (selectedVenue || '').toLowerCase().trim()
+                  return brand === venue || brand.includes(venue) || venue.includes(brand)
+                })
               const wsSpend      = parseFloat(wsRow?.total_spend) || 0
               const roas = wsSpend > 0 && currentData.revenue?.totalOnline
                 ? (currentData.revenue.totalOnline / wsSpend).toFixed(2)
