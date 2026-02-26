@@ -1237,14 +1237,19 @@ export default function Dashboard() {
             {venueTab === 'overview' && (() => {
               const totalImpressions = currentData.meta.campaigns.reduce((s, c) => s + (c.impressions || 0), 0)
               const totalLinkClicks  = currentData.meta.campaigns.reduce((s, c) => s + (c.linkClicks  || 0), 0)
-              const roas = currentData.adSpend > 0 && currentData.revenue?.totalOnline
-                ? (currentData.revenue.totalOnline / currentData.adSpend).toFixed(2)
+              // Ad spend sourced from Workspace (manually entered budget tracker), not Meta raw data
+              const venueMonth   = currentData.weekStart?.substring(0, 7) // e.g. '2026-02'
+              const wsRow        = workspaceData.find(w => w.brand === selectedVenue && w.month === venueMonth)
+              const wsSpend      = parseFloat(wsRow?.total_spend) || 0
+              const roas = wsSpend > 0 && currentData.revenue?.totalOnline
+                ? (currentData.revenue.totalOnline / wsSpend).toFixed(2)
                 : null
               return (
                 <div className="space-y-4">
                   {/* KPI strip */}
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
                     {[
+                      { label: 'Ad Spend',     value: wsSpend > 0 ? `AED ${wsSpend >= 1000 ? (wsSpend/1000).toFixed(1)+'K' : formatNum(wsSpend)}` : '—', color: 'text-mpj-charcoal' },
                       { label: 'Impressions',  value: formatK(totalImpressions),  color: 'text-gray-800' },
                       { label: 'Link Clicks',  value: formatInt(totalLinkClicks), color: 'text-gray-800' },
                       { label: 'ROAS',         value: roas ? roas + 'x' : '—',   color: roas ? 'text-amber-600' : 'text-gray-400' },
