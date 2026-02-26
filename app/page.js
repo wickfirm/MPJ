@@ -857,7 +857,7 @@ export default function Dashboard() {
           <div className="flex items-center gap-3">
             <img src="/logos/Marriott_logo.avif" alt="Marriott" className="h-9 md:h-11 w-auto object-contain brightness-0 invert" />
             <div>
-            <h1 className="text-lg md:text-xl font-bold tracking-tight">MPJ F&Bs Performance Dashboard</h1>
+            <h1 className="text-lg md:text-xl font-bold tracking-tight">Hospitality Command Center</h1>
             <p className="text-xs md:text-sm text-white/70">
               Marriott Palm Jumeirah Weekly Reports
               {lastUpdated && (
