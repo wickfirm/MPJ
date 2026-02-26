@@ -17,7 +17,7 @@ UPDATE monthly_rollups SET venue_group = 'mpj' WHERE venue_group IS NULL OR venu
 -- Sheraton portfolio rollup — Jan 2026 (full month baseline)
 -- 4 venues combined: budget 18,500 | revenue ~1.8M | 3,840 res
 INSERT INTO monthly_rollups (month, ad_spend, revenue, reservations, venue_group)
-VALUES ('Jan 2026', 15820.00, 1784200.00, 3840, 'sheraton')
+VALUES ('2026-01-01', 15820.00, 1784200.00, 3840, 'sheraton')
 ON CONFLICT DO NOTHING;
 
 -- Sheraton portfolio rollup — Feb 2026 (1–24, 85.7% of month)
@@ -25,7 +25,7 @@ ON CONFLICT DO NOTHING;
 -- Revenue: 0 (MOE) + 628,540 + 557,820 + 712,480 = 1,898,840
 -- Reservations: 0 + 1,324 + 1,148 + 924 = 3,396
 INSERT INTO monthly_rollups (month, ad_spend, revenue, reservations, venue_group)
-VALUES ('Feb 2026', 16377.00, 1898840.00, 3396, 'sheraton')
+VALUES ('2026-02-01', 16377.00, 1898840.00, 3396, 'sheraton')
 ON CONFLICT DO NOTHING;
 
 
