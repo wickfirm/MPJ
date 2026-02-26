@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
-import { Download, BarChart3, Calendar, TrendingUp, Megaphone, ExternalLink, Users, Lightbulb, RefreshCw, LogOut, DollarSign, ShoppingBag, Target, Upload, Image as ImageIcon, Eye, EyeOff, MousePointerClick, Percent, Instagram, MessageSquare, Settings, Copy, Check, ChevronRight, Send } from 'lucide-react'
+import { Download, BarChart3, Calendar, TrendingUp, Megaphone, ExternalLink, Users, Lightbulb, RefreshCw, LogOut, DollarSign, ShoppingBag, Target, Upload, Image as ImageIcon, Eye, EyeOff, MousePointerClick, Percent, Instagram, MessageSquare, Settings, Copy, Check, ChevronRight, Send, MapPin, Layers } from 'lucide-react'
 import { LineChart as ReLineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
 
 import CollapsibleSection from './components/CollapsibleSection'
@@ -1220,6 +1220,7 @@ export default function Dashboard() {
                 { id: 'meta',     label: 'Meta Ads',  icon: Megaphone },
                 { id: 'revenue',  label: 'Revenue',   icon: DollarSign },
                 { id: 'social',   label: 'Social',    icon: Instagram },
+                ...(currentData.programmatic ? [{ id: 'programmatic', label: 'Programmatic', icon: Layers }] : []),
                 { id: 'notes',    label: 'Notes',     icon: MessageSquare },
               ].map(t => (
                 <button
@@ -1571,54 +1572,6 @@ export default function Dashboard() {
                       </div>
                     )}
 
-                    {/* Programmatic */}
-                    {currentData.programmatic && (
-                      <div>
-                        <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Programmatic Performance</h4>
-                        <div className="table-responsive">
-                          <table className="w-full text-sm mb-3">
-                            <thead className="bg-gray-50 border-b">
-                              <tr>
-                                <th className="text-left px-3 py-2.5 font-semibold text-gray-600">Creative</th>
-                                <th className="text-left px-3 py-2.5 font-semibold text-gray-600 hidden md:table-cell">Format</th>
-                                <th className="text-left px-3 py-2.5 font-semibold text-gray-600 hidden md:table-cell">Size</th>
-                                <th className="text-right px-3 py-2.5 font-semibold text-gray-600">Impressions</th>
-                                <th className="text-right px-3 py-2.5 font-semibold text-gray-600">Clicks</th>
-                                <th className="text-right px-3 py-2.5 font-semibold text-gray-600">CTR</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {currentData.programmatic.creatives?.map((c, i) => (
-                                <tr key={i} className="border-t hover:bg-gray-50/50 transition-colors">
-                                  <td className="px-3 py-2.5 font-medium truncate max-w-[150px]">{c.file}</td>
-                                  <td className="px-3 py-2.5 hidden md:table-cell">{c.format}</td>
-                                  <td className="px-3 py-2.5 hidden md:table-cell">{c.size}</td>
-                                  <td className="px-3 py-2.5 text-right tabular-nums">{formatInt(c.impressions)}</td>
-                                  <td className="px-3 py-2.5 text-right tabular-nums">{formatInt(c.clicks)}</td>
-                                  <td className="px-3 py-2.5 text-right tabular-nums">{c.ctr}</td>
-                                </tr>
-                              ))}
-                              {currentData.programmatic.totals && (
-                                <tr className="border-t bg-gray-100 font-semibold">
-                                  <td className="px-3 py-2.5">TOTALS</td>
-                                  <td className="hidden md:table-cell"></td>
-                                  <td className="hidden md:table-cell"></td>
-                                  <td className="px-3 py-2.5 text-right tabular-nums">{formatInt(currentData.programmatic.totals.impressions)}</td>
-                                  <td className="px-3 py-2.5 text-right tabular-nums">{formatInt(currentData.programmatic.totals.clicks)}</td>
-                                  <td className="px-3 py-2.5 text-right tabular-nums">{currentData.programmatic.totals.ctr}</td>
-                                </tr>
-                              )}
-                            </tbody>
-                          </table>
-                        </div>
-                        {currentData.programmatic.viewability && (
-                          <div className="flex gap-6 text-sm text-gray-600">
-                            <span>Viewability: <strong className="text-gray-900">{currentData.programmatic.viewability}</strong></span>
-                            <span>VTR: <strong className="text-gray-900">{currentData.programmatic.vtr}</strong></span>
-                          </div>
-                        )}
-                      </div>
-                    )}
                   </>
                 ) : (
                   <div className="text-center py-16 text-gray-400">
@@ -1804,6 +1757,105 @@ export default function Dashboard() {
                 </div>
               )
             )}
+
+            {/* ══ PROGRAMMATIC ══ */}
+            {venueTab === 'programmatic' && currentData.programmatic && (() => {
+              const prog = currentData.programmatic
+              const kpis = [
+                { label: 'Total Budget',  value: `AED ${formatNum(prog.budget)}` },
+                { label: 'Spend to Date', value: `AED ${formatNum(prog.spend)}` },
+                { label: 'Days Live',     value: prog.days_live },
+                { label: 'Impressions',   value: formatK(prog.totals?.impressions) },
+                { label: 'Clicks',        value: formatInt(prog.totals?.clicks) },
+                { label: 'CTR',           value: prog.totals?.ctr },
+                { label: 'Viewability',   value: prog.totals?.viewability },
+              ]
+              return (
+                <div className="space-y-6">
+
+                  {/* KPI strip */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
+                    {kpis.map(k => (
+                      <div key={k.label} className="bg-white border border-gray-100 rounded-xl p-3.5 shadow-sm">
+                        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">{k.label}</p>
+                        <p className="text-lg font-bold text-gray-900">{k.value ?? '—'}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Creative performance table */}
+                  {prog.creatives?.length > 0 && (
+                    <div>
+                      <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Creative Performance</h4>
+                      <div className="table-responsive">
+                        <table className="w-full text-sm">
+                          <thead className="bg-gray-50 border-b">
+                            <tr>
+                              <th className="text-left px-3 py-2.5 font-semibold text-gray-600">Creative</th>
+                              <th className="text-left px-3 py-2.5 font-semibold text-gray-600 hidden md:table-cell">Format</th>
+                              <th className="text-left px-3 py-2.5 font-semibold text-gray-600 hidden md:table-cell">Size</th>
+                              <th className="text-right px-3 py-2.5 font-semibold text-gray-600">Impressions</th>
+                              <th className="text-right px-3 py-2.5 font-semibold text-gray-600">Clicks</th>
+                              <th className="text-right px-3 py-2.5 font-semibold text-gray-600">CTR</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {prog.creatives.map((c, i) => (
+                              <tr key={i} className={`border-t hover:bg-gray-50/50 transition-colors ${i % 2 === 1 ? 'bg-gray-50/30' : ''}`}>
+                                <td className="px-3 py-2.5 font-medium text-gray-800">{c.file}</td>
+                                <td className="px-3 py-2.5 hidden md:table-cell text-gray-500 text-xs">{c.format}</td>
+                                <td className="px-3 py-2.5 hidden md:table-cell">
+                                  <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded font-mono">{c.size}</span>
+                                </td>
+                                <td className="px-3 py-2.5 text-right tabular-nums">{formatInt(c.impressions)}</td>
+                                <td className="px-3 py-2.5 text-right tabular-nums">{formatInt(c.clicks)}</td>
+                                <td className="px-3 py-2.5 text-right tabular-nums">{c.ctr}</td>
+                              </tr>
+                            ))}
+                            {prog.totals && (
+                              <tr className="border-t-2 border-mpj-charcoal/20 bg-mpj-gold-xlight font-semibold">
+                                <td className="px-3 py-2.5 text-mpj-charcoal">TOTALS</td>
+                                <td className="hidden md:table-cell"></td>
+                                <td className="hidden md:table-cell"></td>
+                                <td className="px-3 py-2.5 text-right tabular-nums">{formatInt(prog.totals.impressions)}</td>
+                                <td className="px-3 py-2.5 text-right tabular-nums">{formatInt(prog.totals.clicks)}</td>
+                                <td className="px-3 py-2.5 text-right tabular-nums">{prog.totals.ctr}</td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Location targeting */}
+                  {prog.targeting?.location?.length > 0 && (
+                    <div>
+                      <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Location Targeting</h4>
+                      <div className="grid md:grid-cols-2 gap-3">
+                        {prog.targeting.location.map((seg, i) => (
+                          <div key={i} className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm">
+                            <p className="font-semibold text-gray-800 text-sm mb-2 flex items-center gap-1.5">
+                              <MapPin size={13} className="text-mpj-charcoal flex-shrink-0" />
+                              {seg.segment}
+                            </p>
+                            <p className="text-xs text-gray-500 leading-relaxed">{seg.areas}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Campaign dates footer */}
+                  {(prog.campaign_start || prog.campaign_end) && (
+                    <p className="text-xs text-gray-400">
+                      Campaign period: <strong className="text-gray-600">{prog.campaign_start}</strong> → <strong className="text-gray-600">{prog.campaign_end}</strong>
+                    </p>
+                  )}
+
+                </div>
+              )
+            })()}
 
             {/* ══ NOTES ══ */}
             {venueTab === 'notes' && (() => {
