@@ -1243,9 +1243,8 @@ export default function Dashboard() {
               return (
                 <div className="space-y-4">
                   {/* KPI strip */}
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
                     {[
-                      { label: 'Ad Spend',     value: `AED ${currentData.adSpend >= 1000 ? (currentData.adSpend/1000).toFixed(1)+'K' : formatNum(currentData.adSpend)}`, color: 'text-mpj-charcoal' },
                       { label: 'Impressions',  value: formatK(totalImpressions),  color: 'text-gray-800' },
                       { label: 'Link Clicks',  value: formatInt(totalLinkClicks), color: 'text-gray-800' },
                       { label: 'ROAS',         value: roas ? roas + 'x' : '—',   color: roas ? 'text-amber-600' : 'text-gray-400' },
