@@ -868,7 +868,7 @@ export default function Dashboard() {
             </div>
           </div>
           <div className="flex gap-2 items-center flex-wrap">
-            {allWeeks.length > 1 && (
+            {userRole === 'admin' && allWeeks.length > 1 && (
               <button
                 onClick={() => setCompareMode(!compareMode)}
                 className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs md:text-sm font-medium transition-colors cursor-pointer ${
@@ -878,23 +878,27 @@ export default function Dashboard() {
                 {compareMode ? 'Compare ON' : 'Compare'}
               </button>
             )}
-            <button
-              onClick={() => fetchData(true)}
-              disabled={refreshing}
-              className="flex items-center gap-1.5 px-3 py-2 bg-white/15 hover:bg-white/25 rounded-xl text-xs md:text-sm cursor-pointer disabled:opacity-50 transition-all duration-200 backdrop-blur-sm border border-white/10"
-              aria-label="Refresh data"
-            >
-              <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
-              <span className="hidden sm:inline">Refresh</span>
-            </button>
-            <button
-              onClick={exportToCSV}
-              className="flex items-center gap-1.5 px-3 py-2 bg-white/15 hover:bg-white/25 rounded-xl text-xs md:text-sm cursor-pointer transition-all duration-200 backdrop-blur-sm border border-white/10"
-              aria-label="Export to CSV"
-            >
-              <Download size={14} />
-              <span className="hidden sm:inline">Export</span>
-            </button>
+            {userRole === 'admin' && (
+              <button
+                onClick={() => fetchData(true)}
+                disabled={refreshing}
+                className="flex items-center gap-1.5 px-3 py-2 bg-white/15 hover:bg-white/25 rounded-xl text-xs md:text-sm cursor-pointer disabled:opacity-50 transition-all duration-200 backdrop-blur-sm border border-white/10"
+                aria-label="Refresh data"
+              >
+                <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
+                <span className="hidden sm:inline">Refresh</span>
+              </button>
+            )}
+            {userRole === 'admin' && (
+              <button
+                onClick={exportToCSV}
+                className="flex items-center gap-1.5 px-3 py-2 bg-white/15 hover:bg-white/25 rounded-xl text-xs md:text-sm cursor-pointer transition-all duration-200 backdrop-blur-sm border border-white/10"
+                aria-label="Export to CSV"
+              >
+                <Download size={14} />
+                <span className="hidden sm:inline">Export</span>
+              </button>
+            )}
             <button
               onClick={handleLogout}
               className="flex items-center gap-1.5 px-3 py-2 bg-white/10 hover:bg-red-500/40 rounded-xl text-xs md:text-sm cursor-pointer transition-all duration-200 backdrop-blur-sm border border-white/10"
