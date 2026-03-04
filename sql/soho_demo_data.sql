@@ -129,7 +129,7 @@ WITH upd AS (
           "Request a portfolio brand video for Q2 to showcase the full Soho Hospitality venue lineup."
         ]
       }
-    }''::jsonb
+    }'::jsonb
   WHERE venue_id = (SELECT id FROM venues WHERE name = 'Soho Hospitality' LIMIT 1)
     AND week_start = '2026-02-01' AND week_end = '2026-02-24'
   RETURNING id
@@ -182,7 +182,7 @@ WITH upd AS (
         "Internal: Access Rule": { "revenue": 8000.00, "reservations": 4 },
         "Other - Manual":     { "revenue": 184000.00,  "reservations": 66 }
       }
-    }''::jsonb,
+    }'::jsonb,
     meta_data = '{
       "campaigns": [
         { "name": "Above Eleven - Traffic", "status": "ACTIVE", "impressions": 128420, "clicks": 3484, "ctr": 2.713801, "linkClicks": 2428, "engagement": 6842 },
@@ -206,7 +206,7 @@ WITH upd AS (
           "Request new sunset/skyline creative assets for Q2 — current February content will fatigue by end of March."
         ]
       }
-    }''::jsonb
+    }'::jsonb
   WHERE venue_id = (SELECT id FROM venues WHERE name = 'Above Eleven Bangkok' LIMIT 1)
     AND week_start = '2026-02-01' AND week_end = '2026-02-24'
   RETURNING id
@@ -243,7 +243,7 @@ WITH upd AS (
         "Door Cover":         { "revenue": 482000.00,  "reservations": 264 },
         "Other - Manual":     { "revenue": 364000.00,  "reservations": 28 }
       }
-    }''::jsonb,
+    }'::jsonb,
     meta_data = '{
       "campaigns": [
         { "name": "APT 101 - Traffic", "status": "ACTIVE", "impressions": 142840, "clicks": 3842, "ctr": 2.689601, "linkClicks": 2684, "engagement": 7248 },
@@ -267,7 +267,7 @@ WITH upd AS (
           "Brief creative team on a ''residents & guest DJ'' content series to build anticipation for Q2 event nights."
         ]
       }
-    }''::jsonb
+    }'::jsonb
   WHERE venue_id = (SELECT id FROM venues WHERE name = 'APT 101' LIMIT 1)
     AND week_start = '2026-02-01' AND week_end = '2026-02-24'
   RETURNING id
@@ -304,7 +304,7 @@ WITH upd AS (
         "Internal: Access Rule": { "revenue": 6000.00, "reservations": 4 },
         "Other - Manual":     { "revenue": 100000.00, "reservations": 48 }
       }
-    }''::jsonb,
+    }'::jsonb,
     meta_data = '{
       "campaigns": [
         { "name": "YANKII - Traffic", "status": "ACTIVE", "impressions": 68420, "clicks": 1848, "ctr": 2.700801, "linkClicks": 1284, "engagement": 3612 },
@@ -327,7 +327,7 @@ WITH upd AS (
           "Expand Google My Business presence — strong Google reservation numbers indicate untapped organic demand."
         ]
       }
-    }''::jsonb
+    }'::jsonb
   WHERE venue_id = (SELECT id FROM venues WHERE name = 'YANKII' LIMIT 1)
     AND week_start = '2026-02-01' AND week_end = '2026-02-24'
   RETURNING id
@@ -364,7 +364,7 @@ WITH upd AS (
         "Internal: Access Rule": { "revenue": 4000.00, "reservations": 4 },
         "Other - Manual":     { "revenue": 116000.00, "reservations": 60 }
       }
-    }''::jsonb,
+    }'::jsonb,
     meta_data = '{
       "campaigns": [
         { "name": "Charcoal - Traffic", "status": "ACTIVE", "impressions": 62480, "clicks": 1684, "ctr": 2.695601, "linkClicks": 1172, "engagement": 3248 },
@@ -387,7 +387,7 @@ WITH upd AS (
           "Brief creative team on a new chef''s grill experience content series for Q2."
         ]
       }
-    }''::jsonb
+    }'::jsonb
   WHERE venue_id = (SELECT id FROM venues WHERE name = 'Charcoal Tandoor' LIMIT 1)
     AND week_start = '2026-02-01' AND week_end = '2026-02-24'
   RETURNING id
@@ -424,7 +424,7 @@ WITH upd AS (
         "Internal: Access Rule": { "revenue": 2000.00, "reservations": 2 },
         "Other - Manual":     { "revenue": 116000.00, "reservations": 44 }
       }
-    }''::jsonb,
+    }'::jsonb,
     meta_data = '{
       "campaigns": [
         { "name": "Cantina - Traffic", "status": "ACTIVE", "impressions": 48420, "clicks": 1284, "ctr": 2.651600, "linkClicks": 896, "engagement": 2512 },
@@ -447,7 +447,7 @@ WITH upd AS (
           "Develop a margarita menu campaign featuring signature cocktails — beverage content drives strong saves and shares."
         ]
       }
-    }''::jsonb
+    }'::jsonb
   WHERE venue_id = (SELECT id FROM venues WHERE name = 'Cantina' LIMIT 1)
     AND week_start = '2026-02-01' AND week_end = '2026-02-24'
   RETURNING id
