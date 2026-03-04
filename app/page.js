@@ -876,9 +876,8 @@ export default function Dashboard() {
 
   const tabs = [
     { id: 'workspace', label: 'Workspace', icon: Calendar },
-    // { id: 'executive', label: 'Executive Summary', icon: TrendingUp },
+    { id: 'executive', label: 'Executive', icon: TrendingUp },
     { id: 'venue', label: 'Venue View', icon: BarChart3 },
-    // { id: 'live', label: 'Live Campaigns', icon: Megaphone }
     ...(userRole === 'admin' ? [{ id: 'admin', label: 'Admin', icon: Settings }] : []),
   ]
 
@@ -1121,53 +1120,185 @@ export default function Dashboard() {
         {/* EXECUTIVE SUMMARY TAB */}
         {activeTab === 'executive' && (
           <div className="space-y-4 animate-fade-in">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-              <KPICard label="Total Ad Spend" value={formatNum(executiveMetrics.totalAdSpend)} prefix={currencyPrefix} icon={DollarSign} />
-              <KPICard label="Online Revenue" value={formatNum(executiveMetrics.totalOnlineRevenue)} prefix={currencyPrefix} icon={TrendingUp} />
-              <KPICard label="Online Reservations" value={formatInt(executiveMetrics.onlineReservations)} icon={ShoppingBag} />
-              <KPICard label="ROAS" value={executiveMetrics.totalAdSpend > 0 ? (executiveMetrics.totalOnlineRevenue / executiveMetrics.totalAdSpend).toFixed(2) : '0'} suffix="x" icon={Target} />
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-              <KPICard label="Impressions" value={formatInt(executiveMetrics.totalImpressions)} icon={Eye} />
-              <KPICard label="Link Clicks" value={formatInt(executiveMetrics.totalLinkClicks)} icon={MousePointerClick} />
-              <KPICard label="CTR" value={executiveMetrics.totalImpressions > 0 ? ((executiveMetrics.totalClicks / executiveMetrics.totalImpressions) * 100).toFixed(2) : '0'} suffix="%" icon={Percent} />
-              <KPICard label="Cost per Click" value={executiveMetrics.totalClicks > 0 ? formatNum(executiveMetrics.totalAdSpend / executiveMetrics.totalClicks) : '0.00'} prefix={currencyPrefix} icon={DollarSign} />
+
+            {/* Week selector for executive view */}
+            <div className="card p-4 flex items-center gap-3 flex-wrap">
+              <div className="min-w-[220px]">
+                <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Reporting Period</label>
+                <select
+                  value={selectedWeek || ''}
+                  onChange={(e) => setSelectedWeek(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-xl font-medium text-sm focus:outline-none focus:ring-2 focus:ring-mpj-gold/40 focus:border-mpj-gold cursor-pointer bg-white input-shadow"
+                >
+                  {allWeeks.map(w => <option key={w.key} value={w.key}>{w.label}</option>)}
+                </select>
+              </div>
+              <div className="ml-auto text-xs text-gray-400">{displayVenues.length} venues · {workspace.toUpperCase()} workspace</div>
             </div>
 
-            <CollapsibleSection title="All Venues Performance" icon={BarChart3}>
+            {/* KPI rows */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+              <KPICard label="Total Ad Spend" value={formatNum(executiveMetrics.totalAdSpend)} prefix={currencyPrefix} icon={DollarSign} />
+              <KPICard label="Total Impressions" value={formatK(executiveMetrics.totalImpressions)} icon={Eye} />
+              <KPICard label="Link Clicks" value={formatInt(executiveMetrics.totalLinkClicks)} icon={MousePointerClick} />
+              <KPICard label="Avg CTR" value={executiveMetrics.totalImpressions > 0 ? ((executiveMetrics.totalClicks / executiveMetrics.totalImpressions) * 100).toFixed(2) : '0'} suffix="%" icon={Percent} />
+            </div>
+            {executiveMetrics.totalRevenue > 0 && (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+                <KPICard label="Total Revenue" value={formatNum(executiveMetrics.totalRevenue)} prefix={currencyPrefix} icon={TrendingUp} />
+                <KPICard label="Online Revenue" value={formatNum(executiveMetrics.totalOnlineRevenue)} prefix={currencyPrefix} icon={Target} />
+                <KPICard label="Online Reservations" value={formatInt(executiveMetrics.onlineReservations)} icon={ShoppingBag} />
+                <KPICard label="ROAS" value={executiveMetrics.totalAdSpend > 0 ? (executiveMetrics.totalOnlineRevenue / executiveMetrics.totalAdSpend).toFixed(2) : '0'} suffix="x" icon={TrendingUp} />
+              </div>
+            )}
+
+            {/* Per-venue full breakdown */}
+            <CollapsibleSection title="Portfolio Overview — All Venues" icon={BarChart3}>
               <div className="table-responsive">
                 <table className="w-full text-sm">
-                  <thead className="bg-gray-50 border-b">
-                    <tr>
-                      <th className="text-left px-3 py-2.5 font-semibold text-gray-600">Venue</th>
-                      <th className="text-left px-3 py-2.5 font-semibold text-gray-600 hidden md:table-cell">POC</th>
-                      <th className="text-right px-3 py-2.5 font-semibold text-gray-600">Ad Spend</th>
-                      <th className="text-right px-3 py-2.5 font-semibold text-gray-600">Revenue</th>
-                      <th className="text-right px-3 py-2.5 font-semibold text-gray-600 hidden sm:table-cell">Reservations</th>
-                      <th className="text-right px-3 py-2.5 font-semibold text-gray-600">ROAS</th>
+                  <thead>
+                    <tr className="bg-mpj-gold-xlight border-b border-mpj-warm">
+                      <th className="text-left px-3 py-2.5 font-semibold text-mpj-charcoal text-xs uppercase tracking-wider">Venue</th>
+                      <th className="text-right px-3 py-2.5 font-semibold text-mpj-charcoal text-xs uppercase tracking-wider">Ad Spend</th>
+                      <th className="text-right px-3 py-2.5 font-semibold text-mpj-charcoal text-xs uppercase tracking-wider hidden md:table-cell">Impressions</th>
+                      <th className="text-right px-3 py-2.5 font-semibold text-mpj-charcoal text-xs uppercase tracking-wider hidden md:table-cell">Link Clicks</th>
+                      <th className="text-right px-3 py-2.5 font-semibold text-mpj-charcoal text-xs uppercase tracking-wider hidden sm:table-cell">CTR</th>
+                      <th className="text-right px-3 py-2.5 font-semibold text-mpj-charcoal text-xs uppercase tracking-wider">Revenue</th>
+                      <th className="text-right px-3 py-2.5 font-semibold text-mpj-charcoal text-xs uppercase tracking-wider hidden sm:table-cell">Reservations</th>
+                      <th className="text-right px-3 py-2.5 font-semibold text-mpj-charcoal text-xs uppercase tracking-wider">ROAS</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {displayVenues.map(v => {
-                      const d = getVenueData(v.name, selectedWeek)
+                    {displayVenues.map((v, i) => {
+                      const d = getVenueData(v.name, selectedWeek, userRole)
+                      const venueImpressions = (d.meta?.campaigns || []).reduce((s, c) => s + (c.impressions || 0), 0)
+                      const venueClicks = (d.meta?.campaigns || []).reduce((s, c) => s + (c.clicks || 0), 0)
+                      const venueLinkClicks = (d.meta?.campaigns || []).reduce((s, c) => s + (c.linkClicks || 0), 0)
+                      const venueCTR = venueImpressions > 0 ? ((venueClicks / venueImpressions) * 100).toFixed(2) : null
+                      const hasRevenue = d.revenue?.totalBusiness > 0
                       return (
-                        <tr key={v.id} className="border-t hover:bg-gray-50/50 transition-colors">
-                          <td className="px-3 py-2.5 font-medium text-gray-900">{v.name}</td>
-                          <td className="px-3 py-2.5 text-gray-600 hidden md:table-cell">{v.poc}</td>
-                          <td className="px-3 py-2.5 text-right tabular-nums">{currencySymbol} {formatNum(d.adSpend)}</td>
-                          <td className="px-3 py-2.5 text-right tabular-nums">{currencySymbol} {formatNum(d.revenue?.totalBusiness || 0)}</td>
-                          <td className="px-3 py-2.5 text-right tabular-nums hidden sm:table-cell">{formatInt(d.revenue?.totalReservations || 0)}</td>
-                          <td className="px-3 py-2.5 text-right font-semibold text-mpj-charcoal">{calcROAS(d)}</td>
+                        <tr key={v.id} className={`border-t border-gray-100 hover:bg-mpj-gold-xlight/60 transition-colors ${i % 2 === 1 ? 'bg-gray-50/40' : ''}`}>
+                          <td className="px-3 py-3 font-semibold text-gray-900">
+                            <div className="flex items-center gap-2">
+                              {getVenueLogo(v.name) && <img src={getVenueLogo(v.name)} alt="" className="h-4 w-auto max-w-[40px] object-contain opacity-60" />}
+                              <span>{v.name}</span>
+                            </div>
+                          </td>
+                          <td className="px-3 py-3 text-right tabular-nums font-semibold text-gray-900">{currencySymbol} {formatNum(d.adSpend)}</td>
+                          <td className="px-3 py-3 text-right tabular-nums text-gray-700 hidden md:table-cell">{venueImpressions > 0 ? formatK(venueImpressions) : '—'}</td>
+                          <td className="px-3 py-3 text-right tabular-nums text-gray-700 hidden md:table-cell">{venueLinkClicks > 0 ? formatInt(venueLinkClicks) : '—'}</td>
+                          <td className="px-3 py-3 text-right tabular-nums text-gray-600 hidden sm:table-cell">{venueCTR ? venueCTR + '%' : '—'}</td>
+                          <td className="px-3 py-3 text-right tabular-nums text-gray-700">{hasRevenue ? currencySymbol + ' ' + formatNum(d.revenue.totalBusiness) : <span className="text-gray-300">—</span>}</td>
+                          <td className="px-3 py-3 text-right tabular-nums text-gray-700 hidden sm:table-cell">{hasRevenue ? formatInt(d.revenue.totalReservations) : <span className="text-gray-300">—</span>}</td>
+                          <td className="px-3 py-3 text-right font-semibold text-mpj-charcoal">{hasRevenue ? calcROAS(d) : <span className="text-gray-300">—</span>}</td>
                         </tr>
                       )
                     })}
+                    {/* Totals */}
+                    <tr className="border-t-2 border-mpj-charcoal/15 bg-mpj-gold-xlight font-bold">
+                      <td className="px-3 py-3 text-mpj-charcoal">TOTAL</td>
+                      <td className="px-3 py-3 text-right tabular-nums">{currencySymbol} {formatNum(executiveMetrics.totalAdSpend)}</td>
+                      <td className="px-3 py-3 text-right tabular-nums hidden md:table-cell">{formatK(executiveMetrics.totalImpressions)}</td>
+                      <td className="px-3 py-3 text-right tabular-nums hidden md:table-cell">{formatInt(executiveMetrics.totalLinkClicks)}</td>
+                      <td className="px-3 py-3 text-right tabular-nums hidden sm:table-cell">
+                        {executiveMetrics.totalImpressions > 0 ? ((executiveMetrics.totalClicks / executiveMetrics.totalImpressions) * 100).toFixed(2) + '%' : '—'}
+                      </td>
+                      <td className="px-3 py-3 text-right tabular-nums">{executiveMetrics.totalRevenue > 0 ? currencySymbol + ' ' + formatNum(executiveMetrics.totalRevenue) : <span className="text-gray-400">—</span>}</td>
+                      <td className="px-3 py-3 text-right tabular-nums hidden sm:table-cell">{executiveMetrics.totalReservations > 0 ? formatInt(executiveMetrics.totalReservations) : '—'}</td>
+                      <td className="px-3 py-3 text-right">
+                        {executiveMetrics.totalAdSpend > 0 && executiveMetrics.totalOnlineRevenue > 0
+                          ? (executiveMetrics.totalOnlineRevenue / executiveMetrics.totalAdSpend).toFixed(2) + 'x'
+                          : <span className="text-gray-400">—</span>}
+                      </td>
+                    </tr>
                   </tbody>
                 </table>
               </div>
             </CollapsibleSection>
 
+            {/* Top campaigns across all venues */}
+            <CollapsibleSection title="Top Campaigns — All Venues" icon={Megaphone}>
+              <div className="table-responsive">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-gray-50 border-b">
+                      <th className="text-left px-3 py-2.5 font-semibold text-gray-600 text-xs uppercase tracking-wider">Campaign</th>
+                      <th className="text-left px-3 py-2.5 font-semibold text-gray-600 text-xs uppercase tracking-wider hidden md:table-cell">Venue</th>
+                      <th className="text-right px-3 py-2.5 font-semibold text-gray-600 text-xs uppercase tracking-wider">Impressions</th>
+                      <th className="text-right px-3 py-2.5 font-semibold text-gray-600 text-xs uppercase tracking-wider hidden sm:table-cell">Clicks</th>
+                      <th className="text-right px-3 py-2.5 font-semibold text-gray-600 text-xs uppercase tracking-wider">CTR</th>
+                      <th className="text-right px-3 py-2.5 font-semibold text-gray-600 text-xs uppercase tracking-wider hidden sm:table-cell">Link Clicks</th>
+                      <th className="text-left px-3 py-2.5 font-semibold text-gray-600 text-xs uppercase tracking-wider">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {displayVenues.flatMap(v => {
+                      const d = getVenueData(v.name, selectedWeek, userRole)
+                      return (d.meta?.campaigns || []).map(c => ({ ...c, venueName: v.name }))
+                    })
+                    .sort((a, b) => (b.impressions || 0) - (a.impressions || 0))
+                    .map((c, i) => (
+                      <tr key={i} className={`border-t border-gray-100 hover:bg-gray-50/50 transition-colors ${i % 2 === 1 ? 'bg-gray-50/30' : ''}`}>
+                        <td className="px-3 py-2.5 font-medium text-gray-900 max-w-[180px] truncate">{c.name}</td>
+                        <td className="px-3 py-2.5 text-gray-500 hidden md:table-cell text-xs">{c.venueName}</td>
+                        <td className="px-3 py-2.5 text-right tabular-nums text-gray-700">{formatK(c.impressions || 0)}</td>
+                        <td className="px-3 py-2.5 text-right tabular-nums text-gray-700 hidden sm:table-cell">{formatInt(c.clicks || 0)}</td>
+                        <td className="px-3 py-2.5 text-right tabular-nums text-gray-700">{formatCtr(c.ctr)}</td>
+                        <td className="px-3 py-2.5 text-right tabular-nums text-gray-700 hidden sm:table-cell">{formatInt(c.linkClicks || 0)}</td>
+                        <td className="px-3 py-2.5"><MetaStatusBadge status={c.status} /></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CollapsibleSection>
+
+            {/* Revenue breakdown — only if any venue has revenue */}
+            {executiveMetrics.totalRevenue > 0 && (
+              <CollapsibleSection title="Revenue Breakdown — All Venues" icon={DollarSign}>
+                <div className="table-responsive">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-gray-50 border-b">
+                        <th className="text-left px-3 py-2.5 font-semibold text-gray-600 text-xs uppercase tracking-wider">Venue</th>
+                        <th className="text-right px-3 py-2.5 font-semibold text-gray-600 text-xs uppercase tracking-wider">Total Revenue</th>
+                        <th className="text-right px-3 py-2.5 font-semibold text-gray-600 text-xs uppercase tracking-wider hidden sm:table-cell">Online Rev</th>
+                        <th className="text-right px-3 py-2.5 font-semibold text-gray-600 text-xs uppercase tracking-wider hidden md:table-cell">Online %</th>
+                        <th className="text-right px-3 py-2.5 font-semibold text-gray-600 text-xs uppercase tracking-wider">Reservations</th>
+                        <th className="text-right px-3 py-2.5 font-semibold text-gray-600 text-xs uppercase tracking-wider hidden sm:table-cell">Online Res</th>
+                        <th className="text-right px-3 py-2.5 font-semibold text-gray-600 text-xs uppercase tracking-wider hidden md:table-cell">Avg Spend/Res</th>
+                        <th className="text-right px-3 py-2.5 font-semibold text-gray-600 text-xs uppercase tracking-wider">ROAS</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {displayVenues.filter(v => {
+                        const d = getVenueData(v.name, selectedWeek, userRole)
+                        return d.revenue?.totalBusiness > 0
+                      }).map((v, i) => {
+                        const d = getVenueData(v.name, selectedWeek, userRole)
+                        const op = calcOnlinePercent(d)
+                        return (
+                          <tr key={v.id} className={`border-t border-gray-100 hover:bg-gray-50/50 transition-colors ${i % 2 === 1 ? 'bg-gray-50/30' : ''}`}>
+                            <td className="px-3 py-2.5 font-semibold text-gray-900">{v.name}</td>
+                            <td className="px-3 py-2.5 text-right tabular-nums font-semibold text-gray-900">{currencySymbol} {formatNum(d.revenue.totalBusiness)}</td>
+                            <td className="px-3 py-2.5 text-right tabular-nums text-gray-700 hidden sm:table-cell">{currencySymbol} {formatNum(d.revenue.totalOnline)}</td>
+                            <td className="px-3 py-2.5 text-right tabular-nums text-gray-600 hidden md:table-cell">{op.rev}</td>
+                            <td className="px-3 py-2.5 text-right tabular-nums text-gray-700">{formatInt(d.revenue.totalReservations)}</td>
+                            <td className="px-3 py-2.5 text-right tabular-nums text-gray-700 hidden sm:table-cell">{formatInt(d.revenue.onlineReservations)}</td>
+                            <td className="px-3 py-2.5 text-right tabular-nums text-gray-600 hidden md:table-cell">{currencySymbol} {calcAvgSpend(d.revenue.totalBusiness, d.revenue.totalReservations)}</td>
+                            <td className="px-3 py-2.5 text-right font-semibold text-mpj-charcoal">{calcROAS(d)}</td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </CollapsibleSection>
+            )}
+
+            {/* Monthly rollup charts */}
             {monthlyData.filter(m => (m.venue_group || 'mpj') === workspace).length > 0 && (
-              <CollapsibleSection title="Monthly Rollup" color="#4a5568" icon={TrendingUp}>
+              <CollapsibleSection title="Monthly Trends" color="#4a5568" icon={TrendingUp}>
                 <div className="grid md:grid-cols-2 gap-6">
                   <div>
                     <h4 className="text-sm font-semibold text-gray-700 mb-3">Ad Spend vs Revenue</h4>
@@ -1199,33 +1330,68 @@ export default function Dashboard() {
               </CollapsibleSection>
             )}
 
-            <CollapsibleSection title="Visual Trends" color="#2d3748" icon={BarChart3}>
+            {/* Visual trends */}
+            <CollapsibleSection title="Visual Breakdown" color="#2d3748" icon={BarChart3}>
               <div className="grid md:grid-cols-2 gap-6">
                 <div>
                   <h4 className="text-sm font-semibold text-gray-700 mb-3">Ad Spend by Venue</h4>
-                  <ResponsiveContainer width="100%" height={240}>
+                  <ResponsiveContainer width="100%" height={Math.max(200, displayVenues.length * 40)}>
                     <BarChart data={executiveMetrics.allVenuesSpend} layout="vertical">
                       <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                       <XAxis type="number" tickFormatter={formatK} tick={{ fontSize: 11 }} />
-                      <YAxis dataKey="name" type="category" width={90} tick={{ fontSize: 10 }} />
+                      <YAxis dataKey="name" type="category" width={110} tick={{ fontSize: 10 }} />
                       <Tooltip content={<ChartTooltip prefix={currencyPrefix} />} />
                       <Bar dataKey="spend" fill="#D4A853" radius={[0, 4, 4, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
                 <div>
-                  <h4 className="text-sm font-semibold text-gray-700 mb-3">Spend by POC</h4>
-                  <ResponsiveContainer width="100%" height={240}>
-                    <PieChart>
-                      <Pie data={executiveMetrics.pocPieData} cx="50%" cy="50%" outerRadius={80} innerRadius={40} dataKey="value" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={{ strokeWidth: 1 }}>
-                        {executiveMetrics.pocPieData.map((e, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-                      </Pie>
-                      <Tooltip content={<ChartTooltip prefix={currencyPrefix} />} />
-                    </PieChart>
+                  <h4 className="text-sm font-semibold text-gray-700 mb-3">Impressions by Venue</h4>
+                  <ResponsiveContainer width="100%" height={Math.max(200, displayVenues.length * 40)}>
+                    <BarChart data={executiveMetrics.allVenuesImpressions} layout="vertical">
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                      <XAxis type="number" tickFormatter={formatK} tick={{ fontSize: 11 }} />
+                      <YAxis dataKey="name" type="category" width={110} tick={{ fontSize: 10 }} />
+                      <Tooltip content={<ChartTooltip prefix="" />} />
+                      <Bar dataKey="impressions" fill="#1C1917" radius={[0, 4, 4, 0]} name="Impressions" />
+                      <Bar dataKey="linkClicks" fill="#8FAF8A" radius={[0, 4, 4, 0]} name="Link Clicks" />
+                    </BarChart>
                   </ResponsiveContainer>
                 </div>
               </div>
             </CollapsibleSection>
+
+            {/* Analyst summaries from all venues */}
+            {displayVenues.some(v => getVenueData(v.name, selectedWeek, userRole).meta?.analysis?.summary) && (
+              <CollapsibleSection title="Analyst Summaries" color="#4a5568" icon={Lightbulb}>
+                <div className="space-y-3">
+                  {displayVenues.map(v => {
+                    const d = getVenueData(v.name, selectedWeek, userRole)
+                    const analysis = d.meta?.analysis
+                    if (!analysis?.summary) return null
+                    return (
+                      <div key={v.id} className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+                        <div className="flex items-center gap-2 mb-2">
+                          {getVenueLogo(v.name) && <img src={getVenueLogo(v.name)} alt="" className="h-4 w-auto max-w-[40px] object-contain opacity-50" />}
+                          <span className="font-semibold text-sm text-gray-900">{v.name}</span>
+                        </div>
+                        <p className="text-sm text-gray-600 leading-relaxed mb-2">{analysis.summary}</p>
+                        {analysis.recommendations?.length > 0 && (
+                          <ul className="space-y-1">
+                            {analysis.recommendations.map((r, i) => (
+                              <li key={i} className="text-xs text-gray-500 flex gap-2">
+                                <span className="text-mpj-gold mt-0.5">→</span>
+                                <span>{r}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              </CollapsibleSection>
+            )}
           </div>
         )}
 
