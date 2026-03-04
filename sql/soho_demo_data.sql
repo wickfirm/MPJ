@@ -130,8 +130,8 @@ WITH upd AS (
         ]
       }
     }''::jsonb
-  WHERE venue_id = (SELECT id FROM venues WHERE name = ''Soho Hospitality'' LIMIT 1)
-    AND week_start = ''2026-02-01'' AND week_end = ''2026-02-24''
+  WHERE venue_id = (SELECT id FROM venues WHERE name = 'Soho Hospitality' LIMIT 1)
+    AND week_start = '2026-02-01' AND week_end = '2026-02-24'
   RETURNING id
 )
 INSERT INTO weekly_reports (venue_id, week_start, week_end, ad_spend, meta_data)
@@ -207,8 +207,8 @@ WITH upd AS (
         ]
       }
     }''::jsonb
-  WHERE venue_id = (SELECT id FROM venues WHERE name = ''Above Eleven Bangkok'' LIMIT 1)
-    AND week_start = ''2026-02-01'' AND week_end = ''2026-02-24''
+  WHERE venue_id = (SELECT id FROM venues WHERE name = 'Above Eleven Bangkok' LIMIT 1)
+    AND week_start = '2026-02-01' AND week_end = '2026-02-24'
   RETURNING id
 )
 INSERT INTO weekly_reports (venue_id, week_start, week_end, ad_spend, revenue_data, meta_data)
@@ -268,8 +268,8 @@ WITH upd AS (
         ]
       }
     }''::jsonb
-  WHERE venue_id = (SELECT id FROM venues WHERE name = ''APT 101'' LIMIT 1)
-    AND week_start = ''2026-02-01'' AND week_end = ''2026-02-24''
+  WHERE venue_id = (SELECT id FROM venues WHERE name = 'APT 101' LIMIT 1)
+    AND week_start = '2026-02-01' AND week_end = '2026-02-24'
   RETURNING id
 )
 INSERT INTO weekly_reports (venue_id, week_start, week_end, ad_spend, revenue_data, meta_data)
@@ -328,8 +328,8 @@ WITH upd AS (
         ]
       }
     }''::jsonb
-  WHERE venue_id = (SELECT id FROM venues WHERE name = ''YANKII'' LIMIT 1)
-    AND week_start = ''2026-02-01'' AND week_end = ''2026-02-24''
+  WHERE venue_id = (SELECT id FROM venues WHERE name = 'YANKII' LIMIT 1)
+    AND week_start = '2026-02-01' AND week_end = '2026-02-24'
   RETURNING id
 )
 INSERT INTO weekly_reports (venue_id, week_start, week_end, ad_spend, revenue_data, meta_data)
@@ -388,8 +388,8 @@ WITH upd AS (
         ]
       }
     }''::jsonb
-  WHERE venue_id = (SELECT id FROM venues WHERE name = ''Charcoal Tandoor'' LIMIT 1)
-    AND week_start = ''2026-02-01'' AND week_end = ''2026-02-24''
+  WHERE venue_id = (SELECT id FROM venues WHERE name = 'Charcoal Tandoor' LIMIT 1)
+    AND week_start = '2026-02-01' AND week_end = '2026-02-24'
   RETURNING id
 )
 INSERT INTO weekly_reports (venue_id, week_start, week_end, ad_spend, revenue_data, meta_data)
@@ -448,8 +448,8 @@ WITH upd AS (
         ]
       }
     }''::jsonb
-  WHERE venue_id = (SELECT id FROM venues WHERE name = ''Cantina'' LIMIT 1)
-    AND week_start = ''2026-02-01'' AND week_end = ''2026-02-24''
+  WHERE venue_id = (SELECT id FROM venues WHERE name = 'Cantina' LIMIT 1)
+    AND week_start = '2026-02-01' AND week_end = '2026-02-24'
   RETURNING id
 )
 INSERT INTO weekly_reports (venue_id, week_start, week_end, ad_spend, revenue_data, meta_data)
