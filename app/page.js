@@ -36,10 +36,18 @@ const VENUE_LOGOS = {
   'Besh Turkish Kitchen': '/logos/si_logo_L.avif',
   'Spartan Sports Bar':   '/logos/si_logo_L.avif',
   'OAnjo Dubai':          '/logos/si_logo_L.avif',
+  // Soho Hospitality demo
+  'Soho Hospitality':     'https://sohohospitality.com/wp-content/themes/SOHO/assets/media/design/logo.svg',
+  'Above Eleven Bangkok': 'https://sohohospitality.com/wp-content/themes/SOHO/assets/media/design/logo.svg',
+  'APT 101':              'https://sohohospitality.com/wp-content/themes/SOHO/assets/media/design/logo.svg',
+  'YANKII':               'https://sohohospitality.com/wp-content/themes/SOHO/assets/media/design/logo.svg',
+  'Charcoal Tandoor':     'https://sohohospitality.com/wp-content/themes/SOHO/assets/media/design/logo.svg',
+  'Cantina':              'https://sohohospitality.com/wp-content/themes/SOHO/assets/media/design/logo.svg',
 }
 
-// Sheraton workspace brand names (for workspace budget filtering)
+// Workspace brand name lists (for workspace budget filtering)
 const SHERATON_BRANDS = ['Sheraton MOE', 'Besh Turkish Kitchen', 'Spartan Sports Bar', 'OAnjo Dubai']
+const SOHO_BRANDS     = ['Soho Hospitality', 'Above Eleven Bangkok', 'APT 101', 'YANKII', 'Charcoal Tandoor', 'Cantina']
 const getVenueLogo = (name) => {
   if (!name) return null
   return VENUE_LOGOS[name] ?? VENUE_LOGOS[Object.keys(VENUE_LOGOS).find(k => k.toLowerCase() === name.toLowerCase())] ?? null
@@ -150,7 +158,8 @@ export default function Dashboard() {
   const [savingVenueNote, setSavingVenueNote] = useState(false)
   const [adStatuses, setAdStatuses] = useState({})   // { "venueId_weekStart_weekEnd_adName": bool }
   const [venueTab, setVenueTab] = useState('overview')
-  const [workspace, setWorkspace] = useState('mpj') // 'mpj' | 'sheraton'
+  const [workspace, setWorkspace] = useState('mpj') // 'mpj' | 'sheraton' | 'soho'
+  const [currency, setCurrency] = useState('AED')   // 'AED' | 'THB'
 
   // ── Admin / Meta state ────────────────────
   const [userRole, setUserRole] = useState('client')
@@ -501,13 +510,18 @@ export default function Dashboard() {
     venues.filter(v => (v.venue_group || 'mpj') === workspace)
   , [venues, workspace])
 
-  // Reset selectedVenue when workspace changes
+  // Reset selectedVenue + currency when workspace changes
   useEffect(() => {
     if (displayVenues.length > 0) {
       setSelectedVenue(displayVenues[0].name)
       setLiveCampaignVenue(displayVenues[0].name)
     }
+    setCurrency(workspace === 'soho' ? 'THB' : 'AED')
   }, [workspace]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Currency helpers ─────────────────────
+  const currencySymbol = currency === 'THB' ? '฿' : 'AED'
+  const currencyPrefix = currency === 'THB' ? '฿' : 'AED '
 
   const executiveMetrics = useMemo(() => {
     if (!selectedWeek) return { totalAdSpend: 0, totalOnlineRevenue: 0, totalRevenue: 0, totalReservations: 0, onlineReservations: 0, totalImpressions: 0, totalClicks: 0, totalLinkClicks: 0, allVenuesSpend: [], pocPieData: [], allVenuesImpressions: [] }
@@ -550,7 +564,10 @@ export default function Dashboard() {
     return workspaceData.filter(w => {
       if (w.month !== selectedBudgetMonth) return false
       const isSheraton = SHERATON_BRANDS.some(b => w.brand?.includes(b) || b.includes(w.brand))
-      return workspace === 'sheraton' ? isSheraton : !isSheraton
+      const isSoho     = SOHO_BRANDS.some(b => w.brand?.includes(b) || b.includes(w.brand))
+      if (workspace === 'sheraton') return isSheraton
+      if (workspace === 'soho')     return isSoho
+      return !isSheraton && !isSoho
     })
   }, [workspaceData, selectedBudgetMonth, workspace])
 
@@ -882,14 +899,14 @@ export default function Dashboard() {
         <div className="max-w-7xl mx-auto flex justify-between items-center flex-wrap gap-3">
           <div className="flex items-center gap-3">
             <img
-              src={workspace === 'sheraton' ? '/logos/si_logo_L.avif' : '/logos/Marriott_logo.avif'}
-              alt={workspace === 'sheraton' ? 'Sheraton' : 'Marriott'}
+              src={workspace === 'sheraton' ? '/logos/si_logo_L.avif' : workspace === 'soho' ? 'https://sohohospitality.com/wp-content/themes/SOHO/assets/media/design/logo.svg' : '/logos/Marriott_logo.avif'}
+              alt={workspace === 'sheraton' ? 'Sheraton' : workspace === 'soho' ? 'Soho Hospitality' : 'Marriott'}
               className="h-9 md:h-11 w-auto object-contain brightness-0 invert"
             />
             <div>
               <h1 className="text-lg md:text-xl font-bold tracking-tight">Hospitality Command Center</h1>
               <p className="text-xs md:text-sm text-white/70">
-                {workspace === 'sheraton' ? 'Sheraton Mall of the Emirates — Demo' : 'Marriott Palm Jumeirah Weekly Reports'}
+                {workspace === 'sheraton' ? 'Sheraton Mall of the Emirates — Demo' : workspace === 'soho' ? 'Soho Hospitality Bangkok — Demo' : 'Marriott Palm Jumeirah Weekly Reports'}
                 {lastUpdated && (
                   <span className="ml-2 hidden sm:inline">
                     | Updated {lastUpdated.toLocaleTimeString()}
@@ -901,15 +918,26 @@ export default function Dashboard() {
           <div className="flex gap-2 items-center flex-wrap">
             {userRole === 'admin' && (
               <button
-                onClick={() => setWorkspace(w => w === 'mpj' ? 'sheraton' : 'mpj')}
+                onClick={() => setWorkspace(w => w === 'mpj' ? 'sheraton' : w === 'sheraton' ? 'soho' : 'mpj')}
                 className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs md:text-sm font-semibold transition-colors cursor-pointer border ${
                   workspace === 'sheraton'
                     ? 'bg-amber-500 text-white border-amber-400'
+                    : workspace === 'soho'
+                    ? 'bg-emerald-600 text-white border-emerald-500'
                     : 'bg-white/15 hover:bg-white/25 text-white border-white/20'
                 }`}
-                title={workspace === 'sheraton' ? 'Switch to MPJ' : 'Switch to Sheraton Demo'}
+                title={workspace === 'sheraton' ? 'Switch to Soho Demo' : workspace === 'soho' ? 'Switch to MPJ' : 'Switch to Sheraton Demo'}
               >
-                {workspace === 'sheraton' ? '🏨 Sheraton Demo' : '🏨 Demo'}
+                {workspace === 'sheraton' ? '🏨 Sheraton Demo' : workspace === 'soho' ? '🌿 Soho Demo' : '🏨 Demo'}
+              </button>
+            )}
+            {userRole === 'admin' && workspace === 'soho' && (
+              <button
+                onClick={() => setCurrency(c => c === 'AED' ? 'THB' : 'AED')}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs md:text-sm font-semibold transition-colors cursor-pointer border bg-white/15 hover:bg-white/25 text-white border-white/20"
+                title="Toggle currency"
+              >
+                {currency === 'THB' ? '฿ THB' : 'AED'}
               </button>
             )}
             {userRole === 'admin' && allWeeks.length > 1 && (
@@ -1034,10 +1062,10 @@ export default function Dashboard() {
                       <tr key={i} className={`border-t border-gray-100 hover:bg-mpj-gold-xlight/60 transition-colors duration-150 ${i % 2 === 1 ? 'bg-gray-50/40' : ''}`}>
                         <td className="px-3 py-3 font-semibold text-gray-900">{w.brand}</td>
                         <td className="px-3 py-3 text-gray-500 hidden sm:table-cell text-sm">{getBrandPOC(w.brand)}</td>
-                        <td className="px-3 py-3 text-right tabular-nums text-gray-700 text-sm">AED {formatNum(w.monthly_budget)}</td>
-                        <td className="px-3 py-3 text-right tabular-nums font-semibold text-gray-900 text-sm">AED {formatNum(w.total_spend)}</td>
+                        <td className="px-3 py-3 text-right tabular-nums text-gray-700 text-sm">{currencySymbol} {formatNum(w.monthly_budget)}</td>
+                        <td className="px-3 py-3 text-right tabular-nums font-semibold text-gray-900 text-sm">{currencySymbol} {formatNum(w.total_spend)}</td>
                         <td className={`px-3 py-3 text-right tabular-nums hidden sm:table-cell text-sm font-semibold ${parseFloat(w.remaining) < 0 ? 'text-red-600' : 'text-green-600'}`}>
-                          AED {formatNum(w.remaining)}
+                          {currencySymbol} {formatNum(w.remaining)}
                         </td>
                         <td className="px-3 py-3 text-right">
                           <span className={`badge ${parseFloat(w.pct_spent) > 90 ? 'badge-red' : parseFloat(w.pct_spent) > 70 ? 'badge-amber' : 'badge-green'}`}>
@@ -1051,10 +1079,10 @@ export default function Dashboard() {
                       <tr className="border-t-2 border-mpj-charcoal/15 bg-mpj-gold-xlight font-bold">
                         <td className="px-3 py-3 text-mpj-charcoal">TOTAL</td>
                         <td className="hidden sm:table-cell"></td>
-                        <td className="px-3 py-3 text-right tabular-nums text-gray-700">AED {formatNum(workspaceTotals.budget)}</td>
-                        <td className="px-3 py-3 text-right tabular-nums text-gray-900">AED {formatNum(workspaceTotals.spend)}</td>
+                        <td className="px-3 py-3 text-right tabular-nums text-gray-700">{currencySymbol} {formatNum(workspaceTotals.budget)}</td>
+                        <td className="px-3 py-3 text-right tabular-nums text-gray-900">{currencySymbol} {formatNum(workspaceTotals.spend)}</td>
                         <td className={`px-3 py-3 text-right tabular-nums hidden sm:table-cell ${workspaceTotals.remaining < 0 ? 'text-red-600' : 'text-green-600'}`}>
-                          AED {formatNum(workspaceTotals.remaining)}
+                          {currencySymbol} {formatNum(workspaceTotals.remaining)}
                         </td>
                         <td className="px-3 py-3 text-right">
                           <span className="badge badge-charcoal">{workspaceTotals.budget > 0 ? ((workspaceTotals.spend / workspaceTotals.budget) * 100).toFixed(1) + '%' : '0.0%'}</span>
@@ -1094,8 +1122,8 @@ export default function Dashboard() {
         {activeTab === 'executive' && (
           <div className="space-y-4 animate-fade-in">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-              <KPICard label="Total Ad Spend" value={formatNum(executiveMetrics.totalAdSpend)} prefix="AED " icon={DollarSign} />
-              <KPICard label="Online Revenue" value={formatNum(executiveMetrics.totalOnlineRevenue)} prefix="AED " icon={TrendingUp} />
+              <KPICard label="Total Ad Spend" value={formatNum(executiveMetrics.totalAdSpend)} prefix={currencyPrefix} icon={DollarSign} />
+              <KPICard label="Online Revenue" value={formatNum(executiveMetrics.totalOnlineRevenue)} prefix={currencyPrefix} icon={TrendingUp} />
               <KPICard label="Online Reservations" value={formatInt(executiveMetrics.onlineReservations)} icon={ShoppingBag} />
               <KPICard label="ROAS" value={executiveMetrics.totalAdSpend > 0 ? (executiveMetrics.totalOnlineRevenue / executiveMetrics.totalAdSpend).toFixed(2) : '0'} suffix="x" icon={Target} />
             </div>
@@ -1103,7 +1131,7 @@ export default function Dashboard() {
               <KPICard label="Impressions" value={formatInt(executiveMetrics.totalImpressions)} icon={Eye} />
               <KPICard label="Link Clicks" value={formatInt(executiveMetrics.totalLinkClicks)} icon={MousePointerClick} />
               <KPICard label="CTR" value={executiveMetrics.totalImpressions > 0 ? ((executiveMetrics.totalClicks / executiveMetrics.totalImpressions) * 100).toFixed(2) : '0'} suffix="%" icon={Percent} />
-              <KPICard label="Cost per Click" value={executiveMetrics.totalClicks > 0 ? formatNum(executiveMetrics.totalAdSpend / executiveMetrics.totalClicks) : '0.00'} prefix="AED " icon={DollarSign} />
+              <KPICard label="Cost per Click" value={executiveMetrics.totalClicks > 0 ? formatNum(executiveMetrics.totalAdSpend / executiveMetrics.totalClicks) : '0.00'} prefix={currencyPrefix} icon={DollarSign} />
             </div>
 
             <CollapsibleSection title="All Venues Performance" icon={BarChart3}>
@@ -1126,8 +1154,8 @@ export default function Dashboard() {
                         <tr key={v.id} className="border-t hover:bg-gray-50/50 transition-colors">
                           <td className="px-3 py-2.5 font-medium text-gray-900">{v.name}</td>
                           <td className="px-3 py-2.5 text-gray-600 hidden md:table-cell">{v.poc}</td>
-                          <td className="px-3 py-2.5 text-right tabular-nums">AED {formatNum(d.adSpend)}</td>
-                          <td className="px-3 py-2.5 text-right tabular-nums">AED {formatNum(d.revenue?.totalBusiness || 0)}</td>
+                          <td className="px-3 py-2.5 text-right tabular-nums">{currencySymbol} {formatNum(d.adSpend)}</td>
+                          <td className="px-3 py-2.5 text-right tabular-nums">{currencySymbol} {formatNum(d.revenue?.totalBusiness || 0)}</td>
                           <td className="px-3 py-2.5 text-right tabular-nums hidden sm:table-cell">{formatInt(d.revenue?.totalReservations || 0)}</td>
                           <td className="px-3 py-2.5 text-right font-semibold text-mpj-charcoal">{calcROAS(d)}</td>
                         </tr>
@@ -1148,7 +1176,7 @@ export default function Dashboard() {
                         <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                         <XAxis dataKey="month" tick={{ fontSize: 11 }} />
                         <YAxis tickFormatter={formatK} tick={{ fontSize: 11 }} />
-                        <Tooltip content={<ChartTooltip />} />
+                        <Tooltip content={<ChartTooltip prefix={currencyPrefix} />} />
                         <Legend />
                         <Bar dataKey="ad_spend" fill="#D4A853" name="Ad Spend" radius={[4, 4, 0, 0]} />
                         <Bar dataKey="revenue" fill="#1C1917" name="Revenue" radius={[4, 4, 0, 0]} />
@@ -1180,7 +1208,7 @@ export default function Dashboard() {
                       <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                       <XAxis type="number" tickFormatter={formatK} tick={{ fontSize: 11 }} />
                       <YAxis dataKey="name" type="category" width={90} tick={{ fontSize: 10 }} />
-                      <Tooltip content={<ChartTooltip />} />
+                      <Tooltip content={<ChartTooltip prefix={currencyPrefix} />} />
                       <Bar dataKey="spend" fill="#D4A853" radius={[0, 4, 4, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
@@ -1192,7 +1220,7 @@ export default function Dashboard() {
                       <Pie data={executiveMetrics.pocPieData} cx="50%" cy="50%" outerRadius={80} innerRadius={40} dataKey="value" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={{ strokeWidth: 1 }}>
                         {executiveMetrics.pocPieData.map((e, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                       </Pie>
-                      <Tooltip content={<ChartTooltip />} />
+                      <Tooltip content={<ChartTooltip prefix={currencyPrefix} />} />
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
@@ -1306,11 +1334,11 @@ export default function Dashboard() {
                   {/* KPI strip */}
                   <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
                     {[
-                      { label: 'Ad Spend',     value: wsSpend > 0 ? `AED ${wsSpend >= 1000 ? (wsSpend/1000).toFixed(1)+'K' : formatNum(wsSpend)}` : '—', color: 'text-mpj-charcoal' },
+                      { label: 'Ad Spend',     value: wsSpend > 0 ? `${currencySymbol} ${wsSpend >= 1000 ? (wsSpend/1000).toFixed(1)+'K' : formatNum(wsSpend)}` : '—', color: 'text-mpj-charcoal' },
                       { label: 'Impressions',  value: formatK(totalImpressions),  color: 'text-gray-800' },
                       { label: 'Link Clicks',  value: formatInt(totalLinkClicks), color: 'text-gray-800' },
                       { label: 'ROAS',         value: roas ? roas + 'x' : '—',   color: roas ? 'text-amber-600' : 'text-gray-400' },
-                      { label: 'Revenue',      value: currentData.revenue ? `AED ${currentData.revenue.totalBusiness >= 1000 ? (currentData.revenue.totalBusiness/1000).toFixed(0)+'K' : formatNum(currentData.revenue.totalBusiness)}` : '—', color: 'text-green-700' },
+                      { label: 'Revenue',      value: currentData.revenue ? `${currencySymbol} ${currentData.revenue.totalBusiness >= 1000 ? (currentData.revenue.totalBusiness/1000).toFixed(0)+'K' : formatNum(currentData.revenue.totalBusiness)}` : '—', color: 'text-green-700' },
                       { label: 'Reservations', value: currentData.revenue ? formatInt(currentData.revenue.totalReservations) : '—', color: 'text-blue-700' },
                     ].map(kpi => (
                       <div key={kpi.label} className="bg-white border border-gray-100 rounded-xl p-3.5 shadow-sm">
@@ -1332,7 +1360,7 @@ export default function Dashboard() {
                         </div>
                         <div>
                           <p className="text-xs text-blue-600 font-medium">Revenue</p>
-                          <p className="font-semibold text-gray-900">AED {formatNum(currentData.revenue?.totalBusiness || 0)}</p>
+                          <p className="font-semibold text-gray-900">{currencySymbol} {formatNum(currentData.revenue?.totalBusiness || 0)}</p>
                           <DeltaBadge current={currentData.revenue?.totalBusiness || 0} previous={previousData.revenue?.totalBusiness || 0} />
                         </div>
                         <div>
@@ -1657,7 +1685,7 @@ export default function Dashboard() {
                       </div>
                       <div className="bg-gradient-to-br from-blue-50 to-sky-50 border border-blue-200 rounded-xl p-3.5">
                         <p className="text-xs font-medium text-blue-700 mb-1">Online Revenue</p>
-                        <p className="text-2xl font-bold text-blue-700">AED {rev.totalOnline >= 1000 ? (rev.totalOnline / 1000).toFixed(0) + 'K' : formatNum(rev.totalOnline)}</p>
+                        <p className="text-2xl font-bold text-blue-700">{currencySymbol} {rev.totalOnline >= 1000 ? (rev.totalOnline / 1000).toFixed(0) + 'K' : formatNum(rev.totalOnline)}</p>
                         <p className="text-xs text-gray-500 mt-0.5">{formatInt(rev.onlineReservations)} reservations</p>
                       </div>
                       <div className={`rounded-xl p-3.5 border ${roas ? 'bg-gradient-to-br from-amber-50 to-yellow-50 border-amber-200' : 'bg-gray-50 border-gray-200'}`}>
@@ -1670,7 +1698,7 @@ export default function Dashboard() {
                       {topChannel && (
                         <div className="insight-pill bg-mpj-gold-xlight border-mpj-charcoal/15 text-gray-700">
                           <span className="w-6 h-6 rounded-lg bg-mpj-gold flex items-center justify-center text-mpj-charcoal text-xs flex-shrink-0">★</span>
-                          Top channel: <strong className="text-mpj-charcoal">{topChannel[0]}</strong> — AED {formatNum(topChannel[1].revenue)} · {topChannel[1].reservations} reservations
+                          Top channel: <strong className="text-mpj-charcoal">{topChannel[0]}</strong> — {currencySymbol} {formatNum(topChannel[1].revenue)} · {topChannel[1].reservations} reservations
                         </div>
                       )}
                       {onlineVsWalkIn && (
@@ -1682,7 +1710,7 @@ export default function Dashboard() {
                       {roas && (
                         <div className="insight-pill bg-amber-50 border-amber-200 text-gray-700">
                           <span className="w-6 h-6 rounded-lg bg-amber-500 flex items-center justify-center text-white text-xs flex-shrink-0">₿</span>
-                          AED 1 spend → <strong className="text-amber-700 mx-1">AED {roas.toFixed(2)}</strong> online revenue
+                          {currencySymbol} 1 spend → <strong className="text-amber-700 mx-1">{currencySymbol} {roas.toFixed(2)}</strong> online revenue
                         </div>
                       )}
                     </div>
@@ -1695,7 +1723,7 @@ export default function Dashboard() {
                               label={({ name, percent }) => `${name} ${(percent * 100).toFixed(1)}%`} labelLine={{ strokeWidth: 1 }}>
                               <Cell fill="#D4A853" /><Cell fill="#e5e7eb" />
                             </Pie>
-                            <Tooltip content={<ChartTooltip />} />
+                            <Tooltip content={<ChartTooltip prefix={currencyPrefix} />} />
                           </PieChart>
                         </ResponsiveContainer>
                       </div>
@@ -1707,7 +1735,7 @@ export default function Dashboard() {
                               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" horizontal={false} />
                               <XAxis type="number" tickFormatter={(v) => v >= 1000 ? (v/1000).toFixed(0)+'K' : v} tick={{ fontSize: 10 }} />
                               <YAxis dataKey="name" type="category" width={100} tick={{ fontSize: 10 }} />
-                              <Tooltip content={<ChartTooltip />} />
+                              <Tooltip content={<ChartTooltip prefix={currencyPrefix} />} />
                               <Bar dataKey="revenue" fill="#D4A853" radius={[0, 4, 4, 0]} />
                             </BarChart>
                           </ResponsiveContainer>
@@ -1720,7 +1748,7 @@ export default function Dashboard() {
                           <tr>
                             <th className="text-left px-3 py-2.5 font-semibold text-gray-600 w-32">Category</th>
                             <th className="text-left px-3 py-2.5 font-semibold text-gray-600">Metric / Channel</th>
-                            <th className="text-right px-3 py-2.5 font-semibold text-gray-600">Revenue (AED)</th>
+                            <th className="text-right px-3 py-2.5 font-semibold text-gray-600">Revenue ({currencySymbol})</th>
                             <th className="text-right px-3 py-2.5 font-semibold text-gray-600 hidden sm:table-cell">Reservations</th>
                             <th className="text-right px-3 py-2.5 font-semibold text-gray-600 hidden md:table-cell">Avg. Spend</th>
                             <th className="text-right px-3 py-2.5 font-semibold text-gray-600 hidden md:table-cell">% of Total</th>
@@ -1807,8 +1835,8 @@ export default function Dashboard() {
             {venueTab === 'programmatic' && currentData.programmatic && (() => {
               const prog = currentData.programmatic
               const kpis = [
-                { label: 'Total Budget',  value: `AED ${formatNum(prog.budget)}` },
-                { label: 'Spend to Date', value: `AED ${formatNum(prog.spend)}` },
+                { label: 'Total Budget',  value: `${currencySymbol} ${formatNum(prog.budget)}` },
+                { label: 'Spend to Date', value: `${currencySymbol} ${formatNum(prog.spend)}` },
                 { label: 'Days Live',     value: prog.days_live },
                 { label: 'Impressions',   value: formatK(prog.totals?.impressions) },
                 { label: 'Clicks',        value: formatInt(prog.totals?.clicks) },
@@ -2107,7 +2135,7 @@ export default function Dashboard() {
                         </div>
                         <div>
                           <p className="text-xs text-blue-600 font-medium">Revenue</p>
-                          <p className="font-semibold text-gray-900">AED {formatNum(currentData.revenue?.totalBusiness || 0)}</p>
+                          <p className="font-semibold text-gray-900">{currencySymbol} {formatNum(currentData.revenue?.totalBusiness || 0)}</p>
                           <DeltaBadge current={currentData.revenue?.totalBusiness || 0} previous={previousData.revenue?.totalBusiness || 0} />
                         </div>
                         <div>
