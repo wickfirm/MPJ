@@ -56,14 +56,14 @@ export async function POST(req) {
 
     // Collect all unique hashes
     const allHashes = []
-    const hashToAds = {} // hash → [{ ad_id, ad_name, campaign_id, type }]
+    const hashToAds = {} // hash → [{ ad_id, ad_name, campaign_id, type, created_time }]
     for (const ad of adCreatives) {
       for (const h of ad.image_hashes) {
         if (!hashToAds[h.hash]) {
           hashToAds[h.hash] = []
           allHashes.push(h.hash)
         }
-        hashToAds[h.hash].push({ ad_id: ad.ad_id, ad_name: ad.ad_name, campaign_id: ad.campaign_id, type: h.type })
+        hashToAds[h.hash].push({ ad_id: ad.ad_id, ad_name: ad.ad_name, campaign_id: ad.campaign_id, type: h.type, created_time: ad.created_time })
       }
     }
 
@@ -91,7 +91,7 @@ export async function POST(req) {
     // Download, upload to R2, insert into DB
     let synced = 0
     let errors = 0
-    const currentMonth = new Date().toISOString().slice(0, 7) // YYYY-MM
+    const fallbackMonth = new Date().toISOString().slice(0, 7)
 
     for (const hash of newHashes) {
       const imgInfo = imageMap.get(hash)
@@ -105,6 +105,11 @@ export async function POST(req) {
       const venueName = venueNameMap[venueId]
       if (!venueId || !venueName) { errors++; continue }
 
+      // Use ad creation date for month, fallback to current month
+      const adMonth = adInfo.created_time
+        ? new Date(adInfo.created_time).toISOString().slice(0, 7)
+        : fallbackMonth
+
       try {
         // Download image from Meta CDN
         const imgRes = await fetch(imgInfo.url)
@@ -116,14 +121,14 @@ export async function POST(req) {
         const fileName = imgInfo.name || `${hash}.jpg`
 
         // Upload to R2
-        const r2Key = generateR2Key(venueName, currentMonth, fileName)
+        const r2Key = generateR2Key(venueName, adMonth, fileName)
         const imageUrl = await uploadToR2(buffer, r2Key, contentType)
 
         // Insert into ad_creatives
         const { error: insertErr } = await supabase.from('ad_creatives').insert({
           venue_id: venueId,
           ad_name: adInfo.ad_name,
-          month: currentMonth,
+          month: adMonth,
           image_url: imageUrl,
           file_name: fileName,
           file_size: buffer.length,
