@@ -1,12 +1,34 @@
 'use client'
 import { useState, useMemo } from 'react'
-import { Trash2, Calendar, X, ChevronDown, Maximize2 } from 'lucide-react'
+import { Trash2, Calendar, X, ChevronDown, Maximize2, Check } from 'lucide-react'
 
-export default function CreativeGallery({ creatives = [], onDelete }) {
+export default function CreativeGallery({ creatives = [], onDelete, userRole = 'client', onPublish }) {
   const [filterMonth, setFilterMonth] = useState('all')
   const [previewImage, setPreviewImage] = useState(null)
   const [deleteConfirm, setDeleteConfirm] = useState(null)
   const [deleting, setDeleting] = useState(false)
+  const [selected, setSelected] = useState(new Set())
+  const [publishing, setPublishing] = useState(false)
+  const isAdmin = userRole === 'admin'
+
+  const toggleSelect = (id) => {
+    setSelected(prev => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+
+  const handleBulkPublish = async () => {
+    if (selected.size === 0) return
+    setPublishing(true)
+    try {
+      await onPublish?.([...selected])
+      setSelected(new Set())
+    } finally {
+      setPublishing(false)
+    }
+  }
 
   // Get unique months
   const months = useMemo(() => {
@@ -65,8 +87,31 @@ export default function CreativeGallery({ creatives = [], onDelete }) {
     )
   }
 
+  const draftCount = creatives.filter(c => c.status === 'draft').length
+
   return (
     <div className="space-y-4">
+      {/* Bulk Publish Bar */}
+      {isAdmin && draftCount > 0 && (
+        <div className="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800">
+              {draftCount} draft{draftCount !== 1 ? 's' : ''}
+            </span>
+            <span className="text-sm text-amber-700">
+              {selected.size > 0 ? `${selected.size} selected` : 'Select drafts to publish or publish all'}
+            </span>
+          </div>
+          <button
+            onClick={handleBulkPublish}
+            disabled={publishing || selected.size === 0}
+            className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-green-600 hover:bg-green-700 text-white disabled:opacity-40 transition-colors"
+          >
+            {publishing ? 'Publishing...' : `Publish ${selected.size > 0 ? 'Selected' : 'All'}`}
+          </button>
+        </div>
+      )}
+
       {/* Month Filter */}
       {months.length > 1 && (
         <div className="flex items-center gap-2">
@@ -123,6 +168,31 @@ export default function CreativeGallery({ creatives = [], onDelete }) {
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                     loading="lazy"
                   />
+                  {/* Draft badge */}
+                  {isAdmin && c.status === 'draft' && (
+                    <span className="absolute top-2 left-2 px-2 py-0.5 text-[10px] font-bold uppercase rounded-full bg-amber-400 text-amber-900 shadow-sm">
+                      Draft
+                    </span>
+                  )}
+                  {/* Meta source badge */}
+                  {isAdmin && c.source === 'meta' && (
+                    <span className="absolute bottom-2 left-2 px-1.5 py-0.5 text-[9px] font-medium rounded bg-blue-500 text-white shadow-sm">
+                      META
+                    </span>
+                  )}
+                  {/* Select checkbox for drafts */}
+                  {isAdmin && c.status === 'draft' && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); toggleSelect(c.id) }}
+                      className={`absolute top-2 right-8 w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
+                        selected.has(c.id)
+                          ? 'bg-green-500 border-green-500 text-white'
+                          : 'bg-white/80 border-gray-300 hover:border-green-400'
+                      }`}
+                    >
+                      {selected.has(c.id) && <Check size={12} />}
+                    </button>
+                  )}
                   {/* Hover overlay */}
                   <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
                     <button

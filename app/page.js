@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
-import { Download, BarChart3, Calendar, TrendingUp, Megaphone, ExternalLink, Users, Lightbulb, RefreshCw, LogOut, DollarSign, ShoppingBag, Target, Upload, Image as ImageIcon, Eye, EyeOff, MousePointerClick, Percent, Instagram, MessageSquare, Settings, Copy, Check, ChevronRight, Send, MapPin, Layers } from 'lucide-react'
+import { Download, BarChart3, Calendar, TrendingUp, Megaphone, ExternalLink, Users, Lightbulb, RefreshCw, LogOut, DollarSign, ShoppingBag, Target, Upload, Image as ImageIcon, Eye, EyeOff, MousePointerClick, Percent, Instagram, MessageSquare, Settings, Copy, Check, ChevronRight, Send, MapPin, Layers, Loader2 } from 'lucide-react'
 import { LineChart as ReLineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
 
 import CollapsibleSection from './components/CollapsibleSection'
@@ -178,6 +178,8 @@ export default function Dashboard() {
   const [tokenExchanging, setTokenExchanging] = useState(false)
   const [copiedToken, setCopiedToken]   = useState(false)
   const [savingColumns, setSavingColumns] = useState(false)
+  const [creativeSyncing, setCreativeSyncing] = useState(false)
+  const [creativeSyncResult, setCreativeSyncResult] = useState(null)
 
   // UI state
   const [loading, setLoading] = useState(true)
@@ -416,6 +418,60 @@ export default function Dashboard() {
   const handleCreativeDeleted = useCallback((id) => {
     setAdCreatives(prev => prev.filter(c => c.id !== id))
     setToast({ message: 'Creative deleted', type: 'success' })
+  }, [])
+
+  const handleCreativeSync = useCallback(async () => {
+    setCreativeSyncing(true); setCreativeSyncResult(null)
+    try {
+      const res = await fetch('/api/meta/creatives/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ venue_id: 'all' }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error)
+      setCreativeSyncResult(json)
+      const { data } = await supabase.from('ad_creatives').select('*, venues(name)').order('created_at', { ascending: false })
+      setAdCreatives(data || [])
+      setToast({ message: `Synced ${json.synced} creative${json.synced !== 1 ? 's' : ''} from Meta`, type: 'success' })
+    } catch (err) {
+      setToast({ message: err.message, type: 'error' })
+    } finally {
+      setCreativeSyncing(false)
+    }
+  }, [])
+
+  const handleCreativePublish = useCallback(async (creativeIds) => {
+    try {
+      const res = await fetch('/api/meta/creatives/publish', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ creative_ids: creativeIds }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error)
+      // Update local state
+      setAdCreatives(prev => prev.map(c => creativeIds.includes(c.id) ? { ...c, status: 'published' } : c))
+      setToast({ message: `Published ${json.published} creative${json.published !== 1 ? 's' : ''}`, type: 'success' })
+    } catch (err) {
+      setToast({ message: err.message, type: 'error' })
+    }
+  }, [])
+
+  const handleCreativePublishVenue = useCallback(async (venueId) => {
+    try {
+      const res = await fetch('/api/meta/creatives/publish', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ venue_id: venueId }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error)
+      setAdCreatives(prev => prev.map(c => c.venue_id === venueId && c.status === 'draft' ? { ...c, status: 'published' } : c))
+      setToast({ message: `Published ${json.published} creative${json.published !== 1 ? 's' : ''}`, type: 'success' })
+    } catch (err) {
+      setToast({ message: err.message, type: 'error' })
+    }
   }, [])
 
   // Toggle ad status (active ↔ inactive) — persists to ad_statuses table
@@ -1801,12 +1857,14 @@ export default function Dashboard() {
                     )}
 
                     {/* Creative Gallery */}
-                    {adCreatives.filter(c => c.venues?.name === selectedVenue).length > 0 && (
+                    {adCreatives.filter(c => c.venues?.name === selectedVenue && (userRole === 'admin' || c.status === 'published')).length > 0 && (
                       <div>
                         <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Creative Gallery</h4>
                         <CreativeGallery
-                          creatives={adCreatives.filter(c => c.venues?.name === selectedVenue)}
+                          creatives={adCreatives.filter(c => c.venues?.name === selectedVenue && (userRole === 'admin' || c.status === 'published'))}
                           onDelete={handleCreativeDeleted}
+                          userRole={userRole}
+                          onPublish={handleCreativePublish}
                         />
                       </div>
                     )}
@@ -2401,6 +2459,7 @@ export default function Dashboard() {
               {[
                 { id: 'sync',    label: 'Sync' },
                 { id: 'draft',   label: 'Draft Review' },
+                { id: 'creatives', label: 'Creatives' },
                 { id: 'settings',label: 'Settings' },
               ].map(s => (
                 <button
@@ -2714,6 +2773,71 @@ export default function Dashboard() {
                     })}
                   </>
                 )}
+              </div>
+            )}
+
+            {/* ── CREATIVES SECTION ── */}
+            {activeAdminSection === 'creatives' && (
+              <div className="space-y-4">
+                <div className="card p-5">
+                  <h3 className="font-semibold text-mpj-charcoal mb-4 flex items-center gap-2"><RefreshCw size={16} /> Sync Creatives from Meta</h3>
+                  <p className="text-sm text-gray-500 mb-4">Pull ad creative images from all mapped campaigns and save them as drafts for review before publishing to client view.</p>
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={handleCreativeSync}
+                      disabled={creativeSyncing}
+                      className="px-5 py-2.5 bg-mpj-charcoal text-white rounded-xl text-sm font-semibold hover:bg-mpj-charcoal-light transition-colors disabled:opacity-50 flex items-center gap-2 cursor-pointer"
+                    >
+                      {creativeSyncing ? <><Loader2 size={14} className="animate-spin" /> Syncing...</> : <><RefreshCw size={14} /> Sync All Creatives</>}
+                    </button>
+                    {creativeSyncResult && (
+                      <span className="text-sm text-gray-600">
+                        {creativeSyncResult.synced} synced · {creativeSyncResult.skipped} skipped · {creativeSyncResult.errors} errors
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Draft creatives by venue */}
+                {(() => {
+                  const draftCreatives = adCreatives.filter(c => c.status === 'draft')
+                  if (draftCreatives.length === 0) return (
+                    <div className="card p-5 text-center text-gray-400 text-sm">
+                      No draft creatives. Click "Sync All Creatives" to pull images from Meta.
+                    </div>
+                  )
+
+                  // Group by venue
+                  const byVenue = {}
+                  draftCreatives.forEach(c => {
+                    const vName = c.venues?.name || 'Unmapped'
+                    if (!byVenue[vName]) byVenue[vName] = { items: [], venueId: c.venue_id }
+                    byVenue[vName].items.push(c)
+                  })
+
+                  return Object.entries(byVenue).sort((a, b) => a[0].localeCompare(b[0])).map(([venueName, { items, venueId }]) => (
+                    <div key={venueName} className="card p-5">
+                      <div className="flex items-center justify-between mb-4">
+                        <h4 className="font-semibold text-mpj-charcoal flex items-center gap-2">
+                          {venueName}
+                          <span className="text-xs font-normal text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">{items.length} draft{items.length !== 1 ? 's' : ''}</span>
+                        </h4>
+                        <button
+                          onClick={() => handleCreativePublishVenue(venueId)}
+                          className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-green-600 hover:bg-green-700 text-white transition-colors cursor-pointer"
+                        >
+                          Publish All for {venueName}
+                        </button>
+                      </div>
+                      <CreativeGallery
+                        creatives={items}
+                        onDelete={handleCreativeDeleted}
+                        userRole="admin"
+                        onPublish={handleCreativePublish}
+                      />
+                    </div>
+                  ))
+                })()}
               </div>
             )}
 
