@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
-import { Download, BarChart3, Calendar, TrendingUp, Megaphone, ExternalLink, Users, Lightbulb, RefreshCw, LogOut, DollarSign, ShoppingBag, Target, Upload, Image as ImageIcon, Eye, EyeOff, MousePointerClick, Percent, Instagram, MessageSquare, Settings, Copy, Check, ChevronRight, Send, MapPin, Layers, Loader2 } from 'lucide-react'
+import { Download, BarChart3, Calendar, TrendingUp, Megaphone, ExternalLink, Users, Lightbulb, RefreshCw, LogOut, DollarSign, ShoppingBag, Target, Upload, Image as ImageIcon, Eye, EyeOff, MousePointerClick, Percent, Instagram, MessageSquare, Settings, Copy, Check, ChevronRight, Send, MapPin, Layers, Loader2, Wallet } from 'lucide-react'
 import { LineChart as ReLineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
 
 import CollapsibleSection from './components/CollapsibleSection'
@@ -947,6 +947,7 @@ export default function Dashboard() {
     { id: 'workspace', label: 'Workspace', icon: Calendar },
     // { id: 'executive', label: 'Executive', icon: TrendingUp },
     { id: 'venue', label: 'Venue View', icon: BarChart3 },
+    { id: 'treasury', label: 'Treasury', icon: Wallet },
     ...(userRole === 'admin' ? [{ id: 'admin', label: 'Admin', icon: Settings }] : []),
   ]
 
@@ -2456,6 +2457,90 @@ export default function Dashboard() {
                 </div>
               )}
             </CollapsibleSection>
+          </div>
+        )}
+
+        {/* TREASURY TAB */}
+        {activeTab === 'treasury' && (
+          <div className="space-y-6 animate-fade-in">
+            <div className="card p-6">
+              <h3 className="text-lg font-bold text-mpj-charcoal mb-6 flex items-center gap-2">
+                <Wallet size={20} /> Treasury Overview — 2026
+              </h3>
+
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Invoiced */}
+                <div className="bg-green-50 border border-green-200 rounded-xl p-5">
+                  <h4 className="text-sm font-bold text-green-800 uppercase tracking-wider mb-4">Invoiced</h4>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-700">2025 Roll Over</span>
+                      <span className="text-sm font-semibold text-gray-900">AED 116,875</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-700">Direct Campaign</span>
+                      <span className="text-sm font-semibold text-gray-900">AED 10,000</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-700">Influencer Campaign</span>
+                      <span className="text-sm font-semibold text-gray-900">AED 25,000</span>
+                    </div>
+                    <div className="border-t border-green-300 pt-3 mt-3 flex justify-between items-center">
+                      <span className="text-sm font-bold text-green-800">Total Invoiced</span>
+                      <span className="text-base font-bold text-green-800">AED 151,875</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Costs */}
+                <div className="bg-red-50 border border-red-200 rounded-xl p-5">
+                  <h4 className="text-sm font-bold text-red-800 uppercase tracking-wider mb-4">Costs</h4>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-700">DxB Hun Costs</span>
+                      <span className="text-sm font-semibold text-gray-900">AED 15,000</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-700">Elyaza + Ali Costs</span>
+                      <span className="text-sm font-semibold text-gray-900">AED 11,000</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-700">Influencer Costs</span>
+                      <span className="text-sm font-semibold text-gray-900">AED 35,000</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-700">Layalina Creative Costs</span>
+                      <span className="text-sm font-semibold text-gray-900">AED 11,000</span>
+                    </div>
+                    <div className="border-t border-red-300 pt-3 mt-3 flex justify-between items-center">
+                      <span className="text-sm font-bold text-red-800">Total Costs</span>
+                      <span className="text-base font-bold text-red-800">AED 72,000</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Remaining */}
+                <div className="bg-mpj-warm border border-mpj-gold/30 rounded-xl p-5 flex flex-col justify-between">
+                  <h4 className="text-sm font-bold text-mpj-charcoal uppercase tracking-wider mb-4">Balance</h4>
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center text-sm text-gray-600">
+                      <span>Invoiced</span>
+                      <span className="font-medium text-green-700">+ AED 151,875</span>
+                    </div>
+                    <div className="flex justify-between items-center text-sm text-gray-600">
+                      <span>Costs</span>
+                      <span className="font-medium text-red-700">− AED 72,000</span>
+                    </div>
+                    <div className="border-t-2 border-mpj-gold/40 pt-4 mt-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-base font-bold text-mpj-charcoal">Remaining</span>
+                        <span className="text-2xl font-bold text-mpj-charcoal">AED 79,875</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
