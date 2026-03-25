@@ -180,6 +180,8 @@ export default function Dashboard() {
   const [savingColumns, setSavingColumns] = useState(false)
   const [creativeSyncing, setCreativeSyncing] = useState(false)
   const [creativeSyncResult, setCreativeSyncResult] = useState(null)
+  const [syncDateFrom, setSyncDateFrom] = useState('')
+  const [syncDateTo, setSyncDateTo] = useState('')
 
   // UI state
   const [loading, setLoading] = useState(true)
@@ -426,7 +428,11 @@ export default function Dashboard() {
       const res = await fetch('/api/meta/creatives/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ venue_id: 'all' }),
+        body: JSON.stringify({
+          venue_id: 'all',
+          ...(syncDateFrom && { date_from: syncDateFrom }),
+          ...(syncDateTo && { date_to: syncDateTo }),
+        }),
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error)
@@ -2782,13 +2788,31 @@ export default function Dashboard() {
                 <div className="card p-5">
                   <h3 className="font-semibold text-mpj-charcoal mb-4 flex items-center gap-2"><RefreshCw size={16} /> Sync Creatives from Meta</h3>
                   <p className="text-sm text-gray-500 mb-4">Pull ad creative images from all mapped campaigns and save them as drafts for review before publishing to client view.</p>
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <div className="flex items-center gap-2">
+                      <label className="text-xs text-gray-500">From</label>
+                      <input
+                        type="date"
+                        value={syncDateFrom}
+                        onChange={(e) => setSyncDateFrom(e.target.value)}
+                        className="px-2.5 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-none focus:ring-1 focus:ring-mpj-gold"
+                      />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <label className="text-xs text-gray-500">To</label>
+                      <input
+                        type="date"
+                        value={syncDateTo}
+                        onChange={(e) => setSyncDateTo(e.target.value)}
+                        className="px-2.5 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-none focus:ring-1 focus:ring-mpj-gold"
+                      />
+                    </div>
                     <button
                       onClick={handleCreativeSync}
                       disabled={creativeSyncing}
                       className="px-5 py-2.5 bg-mpj-charcoal text-white rounded-xl text-sm font-semibold hover:bg-mpj-charcoal-light transition-colors disabled:opacity-50 flex items-center gap-2 cursor-pointer"
                     >
-                      {creativeSyncing ? <><Loader2 size={14} className="animate-spin" /> Syncing...</> : <><RefreshCw size={14} /> Sync All Creatives</>}
+                      {creativeSyncing ? <><Loader2 size={14} className="animate-spin" /> Syncing...</> : <><RefreshCw size={14} /> Sync Creatives</>}
                     </button>
                     {creativeSyncResult && (
                       <span className="text-sm text-gray-600">
