@@ -945,7 +945,7 @@ export default function Dashboard() {
 
   const tabs = [
     { id: 'workspace', label: 'Workspace', icon: Calendar },
-    { id: 'executive', label: 'Executive', icon: TrendingUp },
+    // { id: 'executive', label: 'Executive', icon: TrendingUp },
     { id: 'venue', label: 'Venue View', icon: BarChart3 },
     ...(userRole === 'admin' ? [{ id: 'admin', label: 'Admin', icon: Settings }] : []),
   ]
