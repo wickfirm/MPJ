@@ -83,7 +83,7 @@ export async function POST(req) {
         hashToAds[h.hash].push({ ad_id: ad.ad_id, ad_name: ad.ad_name, campaign_id: ad.campaign_id, type: h.type, created_time: ad.created_time })
       }
       for (const u of (ad.image_urls || [])) {
-        directUrlAds.push({ url: u.url, type: u.type, ad_id: ad.ad_id, ad_name: ad.ad_name, campaign_id: ad.campaign_id, created_time: ad.created_time })
+        directUrlAds.push({ url: u.url, video_id: u.video_id, type: u.type, ad_id: ad.ad_id, ad_name: ad.ad_name, campaign_id: ad.campaign_id, created_time: ad.created_time })
       }
     }
 
@@ -185,7 +185,25 @@ export async function POST(req) {
     }
 
     for (const d of newDirectUrls) {
-      workItems.push({ url: d.url, fileName: `${d.ad_id}_${d.type}.jpg`, adInfo: d })
+      if (d.type === 'video_needs_thumb' && d.video_id) {
+        // Fetch video thumbnail from Meta Video API
+        try {
+          const vidRes = await fetch(`https://graph.facebook.com/v21.0/${d.video_id}?fields=thumbnails{uri}&access_token=${token}`)
+          const vidJson = await vidRes.json()
+          const thumbUri = vidJson.thumbnails?.data?.[0]?.uri
+          if (thumbUri) {
+            workItems.push({ url: thumbUri, fileName: `${d.ad_id}_video_thumb.jpg`, adInfo: d })
+          } else {
+            console.warn(`[sync] No thumbnail for video ${d.video_id}`)
+            errors++
+          }
+        } catch (e) {
+          console.warn(`[sync] Failed to fetch video thumb for ${d.video_id}:`, e.message)
+          errors++
+        }
+      } else if (d.url) {
+        workItems.push({ url: d.url, fileName: `${d.ad_id}_${d.type}.jpg`, adInfo: d })
+      }
     }
 
     // Process 5 images in parallel per batch
