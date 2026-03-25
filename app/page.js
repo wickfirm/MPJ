@@ -289,7 +289,11 @@ export default function Dashboard() {
       const monthsArr = Array.from(monthsSet).sort((a, b) => new Date(a) - new Date(b))
       setWorkspaceMonths(monthsArr)
       if (monthsArr.length > 0 && !selectedBudgetMonth) {
-        setSelectedBudgetMonth(monthsArr[monthsArr.length - 1])
+        // Default to current month, or nearest past month if not available
+        const now = new Date()
+        const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`
+        const match = monthsArr.find(m => m === currentMonth) || monthsArr.filter(m => m <= currentMonth).pop() || monthsArr[monthsArr.length - 1]
+        setSelectedBudgetMonth(match)
       }
 
       setMonthlyData(monthlyRes.data || [])
