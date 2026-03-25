@@ -3,6 +3,8 @@ import { createClient } from '@supabase/supabase-js'
 import { fetchAdCreatives, fetchAdImagesByHash } from '@/lib/meta-api'
 import { uploadToR2, generateR2Key } from '@/lib/r2'
 
+export const maxDuration = 120 // Vercel function timeout (seconds)
+
 function getSupabase() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -10,8 +12,19 @@ function getSupabase() {
   )
 }
 
+// Process items in parallel batches
+async function parallelBatch(items, fn, batchSize = 5) {
+  const results = []
+  for (let i = 0; i < items.length; i += batchSize) {
+    const batch = items.slice(i, i + batchSize)
+    const batchResults = await Promise.allSettled(batch.map(fn))
+    results.push(...batchResults)
+  }
+  return results
+}
+
 // POST /api/meta/creatives/sync
-// Body: { venue_id: string | 'all' }
+// Body: { venue_id: string | 'all', date_from?, date_to? }
 export async function POST(req) {
   try {
     const { venue_id, date_from, date_to } = await req.json()
@@ -59,8 +72,8 @@ export async function POST(req) {
 
     // Collect all unique hashes AND direct URLs
     const allHashes = []
-    const hashToAds = {} // hash → [{ ad_id, ad_name, campaign_id, type, created_time }]
-    const directUrlAds = [] // { url, type, ad_id, ad_name, campaign_id, created_time }
+    const hashToAds = {}
+    const directUrlAds = []
     for (const ad of adCreatives) {
       for (const h of (ad.image_hashes || [])) {
         if (!hashToAds[h.hash]) {
@@ -69,7 +82,6 @@ export async function POST(req) {
         }
         hashToAds[h.hash].push({ ad_id: ad.ad_id, ad_name: ad.ad_name, campaign_id: ad.campaign_id, type: h.type, created_time: ad.created_time })
       }
-      // Direct URLs (carousel cards without hashes, dynamic creative, etc.)
       for (const u of (ad.image_urls || [])) {
         directUrlAds.push({ url: u.url, type: u.type, ad_id: ad.ad_id, ad_name: ad.ad_name, campaign_id: ad.campaign_id, created_time: ad.created_time })
       }
@@ -79,27 +91,29 @@ export async function POST(req) {
       return NextResponse.json({ synced: 0, skipped: 0, errors: 0, message: 'No creatives found in Meta ads' })
     }
 
-    // Dedup hashes: check which already exist in ad_creatives
+    // Dedup hashes
     let existingHashes = new Set()
     if (allHashes.length > 0) {
-      const { data: existing } = await supabase
-        .from('ad_creatives')
-        .select('meta_image_hash')
-        .in('meta_image_hash', allHashes)
-      existingHashes = new Set((existing || []).map(e => e.meta_image_hash))
+      // Query in chunks of 100 to avoid Supabase URL length limits
+      for (let i = 0; i < allHashes.length; i += 100) {
+        const chunk = allHashes.slice(i, i + 100)
+        const { data: existing } = await supabase
+          .from('ad_creatives')
+          .select('meta_image_hash')
+          .in('meta_image_hash', chunk)
+        ;(existing || []).forEach(e => existingHashes.add(e.meta_image_hash))
+      }
     }
 
     const newHashes = allHashes.filter(h => !existingHashes.has(h))
     let skipped = allHashes.length - newHashes.length
 
-    // Dedup direct URLs by checking if the source URL already exists
+    // Dedup direct URLs
     let newDirectUrls = directUrlAds
     if (directUrlAds.length > 0) {
-      // Use ad_id + type combo to dedup (same ad won't re-sync same image type)
-      const adKeys = directUrlAds.map(d => `${d.ad_id}:${d.type}`)
       const { data: existingByAd } = await supabase
         .from('ad_creatives')
-        .select('meta_ad_id, source')
+        .select('meta_ad_id')
         .in('meta_ad_id', [...new Set(directUrlAds.map(d => d.ad_id))])
         .eq('source', 'meta')
       const existingAdIds = new Set((existingByAd || []).map(e => e.meta_ad_id))
@@ -112,73 +126,76 @@ export async function POST(req) {
       return NextResponse.json({ synced: 0, skipped, errors: 0, message: 'All creatives already synced' })
     }
 
-    // Fetch full-size image URLs from Meta for hash-based creatives
+    // Fetch full-size image URLs from Meta
     let imageMap = new Map()
     if (newHashes.length > 0) {
       imageMap = await fetchAdImagesByHash(newHashes, token, adAccountId)
     }
 
-    // Download, upload to R2, insert into DB
     let synced = 0
     let errors = 0
     const fallbackMonth = new Date().toISOString().slice(0, 7)
 
-    // Helper to sync a single image
+    // Sync a single image: download → R2 → DB
     const syncImage = async (imgUrl, fileName, adInfo) => {
       const venueId = campToVenue[adInfo.campaign_id]
       const venueName = venueNameMap[venueId]
-      if (!venueId || !venueName) { errors++; return }
+      if (!venueId || !venueName) throw new Error('no venue')
 
       const adMonth = adInfo.created_time
         ? new Date(adInfo.created_time).toISOString().slice(0, 7)
         : fallbackMonth
 
-      try {
-        const imgRes = await fetch(imgUrl)
-        if (!imgRes.ok) { errors++; return }
+      const imgRes = await fetch(imgUrl)
+      if (!imgRes.ok) throw new Error(`HTTP ${imgRes.status}`)
 
-        const arrayBuffer = await imgRes.arrayBuffer()
-        const buffer = Buffer.from(arrayBuffer)
-        const contentType = imgRes.headers.get('content-type') || 'image/jpeg'
+      const arrayBuffer = await imgRes.arrayBuffer()
+      const buffer = Buffer.from(arrayBuffer)
+      const contentType = imgRes.headers.get('content-type') || 'image/jpeg'
 
-        const r2Key = generateR2Key(venueName, adMonth, fileName)
-        const imageUrl = await uploadToR2(buffer, r2Key, contentType)
+      const r2Key = generateR2Key(venueName, adMonth, fileName)
+      const imageUrl = await uploadToR2(buffer, r2Key, contentType)
 
-        const { error: insertErr } = await supabase.from('ad_creatives').insert({
-          venue_id: venueId,
-          ad_name: adInfo.ad_name,
-          month: adMonth,
-          image_url: imageUrl,
-          file_name: fileName,
-          file_size: buffer.length,
-          mime_type: contentType,
-          source: 'meta',
-          status: 'draft',
-          meta_image_hash: adInfo.hash || null,
-          meta_ad_id: adInfo.ad_id,
-        })
+      const { error: insertErr } = await supabase.from('ad_creatives').insert({
+        venue_id: venueId,
+        ad_name: adInfo.ad_name,
+        month: adMonth,
+        image_url: imageUrl,
+        file_name: fileName,
+        file_size: buffer.length,
+        mime_type: contentType,
+        source: 'meta',
+        status: 'draft',
+        meta_image_hash: adInfo.hash || null,
+        meta_ad_id: adInfo.ad_id,
+      })
 
-        if (insertErr) { console.error('DB insert error:', insertErr.message); errors++; return }
-        synced++
-      } catch (err) {
-        console.error(`Error syncing image:`, err.message)
-        errors++
-      }
+      if (insertErr) throw new Error(insertErr.message)
     }
 
-    // Sync hash-based creatives
+    // Build work items
+    const workItems = []
+
     for (const hash of newHashes) {
       const imgInfo = imageMap.get(hash)
       if (!imgInfo) { errors++; continue }
       const adInfo = hashToAds[hash]?.[0]
       if (!adInfo) { errors++; continue }
-      await syncImage(imgInfo.url, imgInfo.name || `${hash}.jpg`, { ...adInfo, hash })
+      workItems.push({ url: imgInfo.url, fileName: imgInfo.name || `${hash}.jpg`, adInfo: { ...adInfo, hash } })
     }
 
-    // Sync direct-URL creatives (carousel cards, dynamic creative without hashes)
     for (const d of newDirectUrls) {
-      const urlFileName = `${d.ad_id}_${d.type}_${Date.now()}.jpg`
-      await syncImage(d.url, urlFileName, d)
+      workItems.push({ url: d.url, fileName: `${d.ad_id}_${d.type}.jpg`, adInfo: d })
+    }
+
+    // Process 5 images in parallel per batch
+    const results = await parallelBatch(workItems, async (item) => {
+      await syncImage(item.url, item.fileName, item.adInfo)
+    }, 5)
+
+    for (const r of results) {
+      if (r.status === 'fulfilled') synced++
+      else { console.error('Sync error:', r.reason?.message); errors++ }
     }
 
     return NextResponse.json({ synced, skipped, errors, total: allHashes.length + directUrlAds.length })
