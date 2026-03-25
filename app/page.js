@@ -2534,8 +2534,9 @@ export default function Dashboard() {
                     <div className="border-t-2 border-mpj-gold/40 pt-4 mt-2">
                       <div className="flex justify-between items-center">
                         <span className="text-base font-bold text-mpj-charcoal">Remaining</span>
-                        <span className="text-2xl font-bold text-mpj-charcoal">AED 79,875</span>
+                        <span className="text-2xl font-bold text-mpj-charcoal">AED 79,875*</span>
                       </div>
+                      <p className="text-[10px] text-gray-400 mt-2 italic">* Pending confirmation from UDMS Finance on whether figures are inclusive or exclusive of VAT.</p>
                     </div>
                   </div>
                 </div>
