@@ -289,7 +289,7 @@ export default function Dashboard() {
       const monthsArr = Array.from(monthsSet).sort((a, b) => new Date(a) - new Date(b))
       setWorkspaceMonths(monthsArr)
       if (monthsArr.length > 0 && !selectedBudgetMonth) {
-        setSelectedBudgetMonth(monthsArr[0])
+        setSelectedBudgetMonth(monthsArr[monthsArr.length - 1])
       }
 
       setMonthlyData(monthlyRes.data || [])
