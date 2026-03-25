@@ -182,6 +182,7 @@ export default function Dashboard() {
   const [creativeSyncResult, setCreativeSyncResult] = useState(null)
   const [syncDateFrom, setSyncDateFrom] = useState('')
   const [syncDateTo, setSyncDateTo] = useState('')
+  const [syncVenueId, setSyncVenueId] = useState('all')
 
   // UI state
   const [loading, setLoading] = useState(true)
@@ -429,7 +430,7 @@ export default function Dashboard() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          venue_id: 'all',
+          venue_id: syncVenueId,
           ...(syncDateFrom && { date_from: syncDateFrom }),
           ...(syncDateTo && { date_to: syncDateTo }),
         }),
@@ -2789,6 +2790,19 @@ export default function Dashboard() {
                   <h3 className="font-semibold text-mpj-charcoal mb-4 flex items-center gap-2"><RefreshCw size={16} /> Sync Creatives from Meta</h3>
                   <p className="text-sm text-gray-500 mb-4">Pull ad creative images from all mapped campaigns and save them as drafts for review before publishing to client view.</p>
                   <div className="flex items-center gap-3 flex-wrap">
+                    <div className="flex items-center gap-2">
+                      <label className="text-xs text-gray-500">Venue</label>
+                      <select
+                        value={syncVenueId}
+                        onChange={(e) => setSyncVenueId(e.target.value)}
+                        className="px-2.5 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-none focus:ring-1 focus:ring-mpj-gold bg-white"
+                      >
+                        <option value="all">All Venues</option>
+                        {venues.map(v => (
+                          <option key={v.id} value={v.id}>{v.name}</option>
+                        ))}
+                      </select>
+                    </div>
                     <div className="flex items-center gap-2">
                       <label className="text-xs text-gray-500">From</label>
                       <input
