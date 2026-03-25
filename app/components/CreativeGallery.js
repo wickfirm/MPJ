@@ -184,7 +184,7 @@ export default function CreativeGallery({ creatives = [], onDelete, userRole = '
                   {isAdmin && c.status === 'draft' && (
                     <button
                       onClick={(e) => { e.stopPropagation(); toggleSelect(c.id) }}
-                      className={`absolute top-2 right-8 w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
+                      className={`absolute top-2 right-8 z-10 w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
                         selected.has(c.id)
                           ? 'bg-green-500 border-green-500 text-white'
                           : 'bg-white/80 border-gray-300 hover:border-green-400'
@@ -217,7 +217,7 @@ export default function CreativeGallery({ creatives = [], onDelete, userRole = '
                 {/* Delete button */}
                 <button
                   onClick={(e) => { e.stopPropagation(); setDeleteConfirm(c.id) }}
-                  className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 bg-red-500 hover:bg-red-600 text-white rounded-full p-1 shadow-md transition-all"
+                  className="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 bg-red-500 hover:bg-red-600 text-white rounded-full p-1 shadow-md transition-all"
                   title="Delete creative"
                 >
                   <Trash2 size={12} />
