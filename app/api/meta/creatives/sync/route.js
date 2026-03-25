@@ -70,68 +70,68 @@ export async function POST(req) {
       dateTo: date_to || null,
     })
 
-    // Collect all unique hashes AND direct URLs
-    const allHashes = []
-    const hashToAds = {}
-    const directUrlAds = []
+    // Collect all work items: hash-based and direct URL
+    // Each item is { hash?, url?, video_id?, type, ad_id, ad_name, campaign_id, created_time }
+    const hashItems = []
+    const directUrlItems = []
+    const uniqueHashes = new Set()
+
     for (const ad of adCreatives) {
       for (const h of (ad.image_hashes || [])) {
-        if (!hashToAds[h.hash]) {
-          hashToAds[h.hash] = []
-          allHashes.push(h.hash)
-        }
-        hashToAds[h.hash].push({ ad_id: ad.ad_id, ad_name: ad.ad_name, campaign_id: ad.campaign_id, type: h.type, created_time: ad.created_time })
+        uniqueHashes.add(h.hash)
+        hashItems.push({ hash: h.hash, type: h.type, ad_id: ad.ad_id, ad_name: ad.ad_name, campaign_id: ad.campaign_id, created_time: ad.created_time })
       }
       for (const u of (ad.image_urls || [])) {
-        directUrlAds.push({ url: u.url, video_id: u.video_id, type: u.type, ad_id: ad.ad_id, ad_name: ad.ad_name, campaign_id: ad.campaign_id, created_time: ad.created_time })
+        directUrlItems.push({ url: u.url, video_id: u.video_id, type: u.type, ad_id: ad.ad_id, ad_name: ad.ad_name, campaign_id: ad.campaign_id, created_time: ad.created_time })
       }
     }
 
-    if (allHashes.length === 0 && directUrlAds.length === 0) {
+    if (hashItems.length === 0 && directUrlItems.length === 0) {
       return NextResponse.json({ synced: 0, skipped: 0, errors: 0, message: 'No creatives found in Meta ads' })
     }
 
-    // Dedup hashes
-    let existingHashes = new Set()
-    if (allHashes.length > 0) {
-      // Query in chunks of 100 to avoid Supabase URL length limits
+    // Dedup by hash+ad_id combo (not just hash — different ads can share a hash)
+    let existingKeys = new Set()
+    if (hashItems.length > 0) {
+      const allHashes = [...uniqueHashes]
       for (let i = 0; i < allHashes.length; i += 100) {
         const chunk = allHashes.slice(i, i + 100)
         const { data: existing } = await supabase
           .from('ad_creatives')
-          .select('meta_image_hash')
+          .select('meta_image_hash, meta_ad_id')
           .in('meta_image_hash', chunk)
-        ;(existing || []).forEach(e => existingHashes.add(e.meta_image_hash))
+        ;(existing || []).forEach(e => existingKeys.add(`${e.meta_image_hash}_${e.meta_ad_id}`))
       }
     }
 
-    const newHashes = allHashes.filter(h => !existingHashes.has(h))
-    let skipped = allHashes.length - newHashes.length
+    const newHashItems = hashItems.filter(h => !existingKeys.has(`${h.hash}_${h.ad_id}`))
+    let skipped = hashItems.length - newHashItems.length
 
-    // Dedup direct URLs by ad_id
-    let newDirectUrls = directUrlAds
-    if (directUrlAds.length > 0) {
-      const uniqueAdIds = [...new Set(directUrlAds.map(d => d.ad_id))]
+    // Dedup direct URLs by ad_id (only against other null-hash entries)
+    let newDirectUrls = directUrlItems
+    if (directUrlItems.length > 0) {
+      const uniqueAdIds = [...new Set(directUrlItems.map(d => d.ad_id))]
       const { data: existingByAd } = await supabase
         .from('ad_creatives')
         .select('meta_ad_id')
         .in('meta_ad_id', uniqueAdIds)
         .eq('source', 'meta')
-        .is('meta_image_hash', null) // Only dedup against other direct-URL synced items
+        .is('meta_image_hash', null)
       const existingAdIds = new Set((existingByAd || []).map(e => e.meta_ad_id))
       const beforeCount = newDirectUrls.length
-      newDirectUrls = directUrlAds.filter(d => !existingAdIds.has(d.ad_id))
+      newDirectUrls = directUrlItems.filter(d => !existingAdIds.has(d.ad_id))
       skipped += beforeCount - newDirectUrls.length
     }
 
-    if (newHashes.length === 0 && newDirectUrls.length === 0) {
+    if (newHashItems.length === 0 && newDirectUrls.length === 0) {
       return NextResponse.json({ synced: 0, skipped, errors: 0, message: 'All creatives already synced' })
     }
 
-    // Fetch full-size image URLs from Meta
+    // Fetch full-size image URLs from Meta for unique hashes we need
     let imageMap = new Map()
-    if (newHashes.length > 0) {
-      imageMap = await fetchAdImagesByHash(newHashes, token, adAccountId)
+    const hashesNeeded = [...new Set(newHashItems.map(h => h.hash))]
+    if (hashesNeeded.length > 0) {
+      imageMap = await fetchAdImagesByHash(hashesNeeded, token, adAccountId)
     }
 
     let synced = 0
@@ -178,12 +178,10 @@ export async function POST(req) {
     // Build work items
     const workItems = []
 
-    for (const hash of newHashes) {
-      const imgInfo = imageMap.get(hash)
+    for (const item of newHashItems) {
+      const imgInfo = imageMap.get(item.hash)
       if (!imgInfo) { errors++; continue }
-      const adInfo = hashToAds[hash]?.[0]
-      if (!adInfo) { errors++; continue }
-      workItems.push({ url: imgInfo.url, fileName: imgInfo.name || `${hash}.jpg`, adInfo: { ...adInfo, hash } })
+      workItems.push({ url: imgInfo.url, fileName: imgInfo.name || `${item.hash}.jpg`, adInfo: { ...item } })
     }
 
     for (const d of newDirectUrls) {
@@ -218,7 +216,7 @@ export async function POST(req) {
       else { console.error('Sync error:', r.reason?.message); errors++ }
     }
 
-    return NextResponse.json({ synced, skipped, errors, total: allHashes.length + directUrlAds.length })
+    return NextResponse.json({ synced, skipped, errors, total: hashItems.length + directUrlItems.length })
   } catch (error) {
     console.error('Creative sync error:', error)
     return NextResponse.json({ error: error.message || 'Sync failed' }, { status: 500 })
