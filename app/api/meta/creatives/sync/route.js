@@ -108,14 +108,16 @@ export async function POST(req) {
     const newHashes = allHashes.filter(h => !existingHashes.has(h))
     let skipped = allHashes.length - newHashes.length
 
-    // Dedup direct URLs
+    // Dedup direct URLs by ad_id
     let newDirectUrls = directUrlAds
     if (directUrlAds.length > 0) {
+      const uniqueAdIds = [...new Set(directUrlAds.map(d => d.ad_id))]
       const { data: existingByAd } = await supabase
         .from('ad_creatives')
         .select('meta_ad_id')
-        .in('meta_ad_id', [...new Set(directUrlAds.map(d => d.ad_id))])
+        .in('meta_ad_id', uniqueAdIds)
         .eq('source', 'meta')
+        .is('meta_image_hash', null) // Only dedup against other direct-URL synced items
       const existingAdIds = new Set((existingByAd || []).map(e => e.meta_ad_id))
       const beforeCount = newDirectUrls.length
       newDirectUrls = directUrlAds.filter(d => !existingAdIds.has(d.ad_id))
