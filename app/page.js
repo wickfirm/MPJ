@@ -157,7 +157,7 @@ export default function Dashboard() {
   const [venueNotes, setVenueNotes] = useState({})   // { "venueId_weekKey": "note text" }
   const [savingVenueNote, setSavingVenueNote] = useState(false)
   const [adStatuses, setAdStatuses] = useState({})   // { "venueId_weekStart_weekEnd_adName": bool }
-  const [venueTab, setVenueTab] = useState('overview')
+  const [venueTab, setVenueTab] = useState('meta')
   const [workspace, setWorkspace] = useState('mpj') // 'mpj' | 'sheraton' | 'soho'
   const [currency, setCurrency] = useState('AED')   // 'AED' | 'THB'
 
@@ -1478,19 +1478,14 @@ export default function Dashboard() {
                   onChange={(e) => setSelectedVenue(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-200 rounded-xl font-medium text-sm focus:outline-none focus:ring-2 focus:ring-mpj-gold/40 focus:border-mpj-gold cursor-pointer bg-white input-shadow"
                 >
-                  {displayVenues.map(v => <option key={v.id} value={v.name}>{v.name}</option>)}
+                  {displayVenues.filter(v => v.name !== 'Layalina').map(v => <option key={v.id} value={v.name}>{v.name}</option>)}
                 </select>
               </div>
               <div className="flex-1 min-w-[200px]">
-                <label htmlFor="week-select" className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Reporting Week</label>
-                <select
-                  id="week-select"
-                  value={selectedWeek}
-                  onChange={(e) => setSelectedWeek(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-xl font-medium text-sm focus:outline-none focus:ring-2 focus:ring-mpj-gold/40 focus:border-mpj-gold cursor-pointer bg-white input-shadow"
-                >
-                  {allWeeks.map(w => <option key={w.key} value={w.key}>{w.label}</option>)}
-                </select>
+                <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Reporting Month</label>
+                <div className="w-full px-3 py-2 border border-gray-200 rounded-xl font-medium text-sm bg-white input-shadow text-gray-700">
+                  March 2026
+                </div>
               </div>
               <div className="flex items-end gap-3 pb-0.5">
                 {getVenueLogo(selectedVenue) && (
@@ -1523,11 +1518,11 @@ export default function Dashboard() {
             {/* ── Inner tab bar ── */}
             <div className="flex gap-1 bg-mpj-bone-dark rounded-xl p-1 flex-wrap">
               {[
-                { id: 'overview', label: 'Overview',  icon: BarChart3 },
+                // { id: 'overview', label: 'Overview',  icon: BarChart3 },
                 { id: 'meta',     label: 'Meta Ads',  icon: Megaphone },
-                { id: 'revenue',  label: 'Revenue',   icon: DollarSign },
-                { id: 'social',   label: 'Social',    icon: Instagram },
-                ...(currentData.programmatic ? [{ id: 'programmatic', label: 'Programmatic', icon: Layers }] : []),
+                // { id: 'revenue',  label: 'Revenue',   icon: DollarSign },
+                // { id: 'social',   label: 'Social',    icon: Instagram },
+                // ...(currentData.programmatic ? [{ id: 'programmatic', label: 'Programmatic', icon: Layers }] : []),
                 { id: 'notes',    label: 'Notes',     icon: MessageSquare },
               ].map(t => (
                 <button
