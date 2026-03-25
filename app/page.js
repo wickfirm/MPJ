@@ -446,7 +446,7 @@ export default function Dashboard() {
     } finally {
       setCreativeSyncing(false)
     }
-  }, [])
+  }, [syncVenueId, syncDateFrom, syncDateTo])
 
   const handleCreativePublish = useCallback(async (creativeIds) => {
     try {
