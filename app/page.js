@@ -284,11 +284,11 @@ export default function Dashboard() {
       const wsData = workspaceRes.data || []
       setWorkspaceData(wsData)
 
-      // Extract unique months from workspace data (current month only)
+      // Extract unique months from workspace data (show all available months)
       const now = new Date()
       const currentMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`
       const monthsSet = new Set(wsData.map(w => w.month))
-      const monthsArr = Array.from(monthsSet).filter(m => m === currentMonthStr).sort((a, b) => new Date(a) - new Date(b))
+      const monthsArr = Array.from(monthsSet).sort((a, b) => new Date(a) - new Date(b))
       setWorkspaceMonths(monthsArr)
       if (monthsArr.length > 0 && !selectedBudgetMonth) {
         // Default to current month, or nearest past month if not available
