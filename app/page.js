@@ -158,6 +158,7 @@ export default function Dashboard() {
   const [savingVenueNote, setSavingVenueNote] = useState(false)
   const [adStatuses, setAdStatuses] = useState({})   // { "venueId_weekStart_weekEnd_adName": bool }
   const [venueTab, setVenueTab] = useState('meta')
+  const [selectedVenueWeek, setSelectedVenueWeek] = useState(null) // independent from executive view
   const [workspace, setWorkspace] = useState('mpj') // 'mpj' | 'sheraton' | 'soho'
   const [currency, setCurrency] = useState('AED')   // 'AED' | 'THB'
 
@@ -269,6 +270,9 @@ export default function Dashboard() {
         setSelectedWeek(weeksArray[0].key)
         if (weeksArray.length > 1) setPreviousWeek(weeksArray[1].key)
       }
+      if (weeksArray.length > 0 && !selectedVenueWeek) {
+        setSelectedVenueWeek(weeksArray[0].key)
+      }
 
       // Process live campaigns
       const campaignsMap = {}
@@ -284,11 +288,13 @@ export default function Dashboard() {
       const wsData = workspaceRes.data || []
       setWorkspaceData(wsData)
 
-      // Extract unique months from workspace data (show all available months)
+      // Extract unique months from workspace data (show only March & April 2026)
       const now = new Date()
       const currentMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`
       const monthsSet = new Set(wsData.map(w => w.month))
-      const monthsArr = Array.from(monthsSet).sort((a, b) => new Date(a) - new Date(b))
+      const monthsArr = Array.from(monthsSet)
+        .filter(m => m === '2026-03-01' || m === '2026-04-01')
+        .sort((a, b) => new Date(a) - new Date(b))
       setWorkspaceMonths(monthsArr)
       if (monthsArr.length > 0 && !selectedBudgetMonth) {
         // Default to current month, or nearest past month if not available
@@ -569,6 +575,10 @@ export default function Dashboard() {
   const currentData = useMemo(() =>
     selectedVenue && selectedWeek ? getVenueData(selectedVenue, selectedWeek, userRole) : null
   , [selectedVenue, selectedWeek, getVenueData, userRole])
+
+  const venueCurrentData = useMemo(() =>
+    selectedVenue && selectedVenueWeek ? getVenueData(selectedVenue, selectedVenueWeek, userRole) : null
+  , [selectedVenue, selectedVenueWeek, getVenueData, userRole])
 
   const previousData = useMemo(() =>
     selectedVenue && previousWeek && compareMode ? getVenueData(selectedVenue, previousWeek, userRole) : null
@@ -1466,7 +1476,7 @@ export default function Dashboard() {
         )}
 
         {/* VENUE VIEW TAB */}
-        {activeTab === 'venue' && currentData && (
+        {activeTab === 'venue' && venueCurrentData && (
           <div className="space-y-3 animate-fade-in">
 
             {/* ── Control bar ── */}
@@ -1483,10 +1493,14 @@ export default function Dashboard() {
                 </select>
               </div>
               <div className="flex-1 min-w-[200px]">
-                <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Reporting Month</label>
-                <div className="w-full px-3 py-2 border border-gray-200 rounded-xl font-medium text-sm bg-white input-shadow text-gray-700">
-                  March 2026
-                </div>
+                <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Reporting Period</label>
+                <select
+                  value={selectedVenueWeek || ''}
+                  onChange={(e) => setSelectedVenueWeek(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-xl font-medium text-sm focus:outline-none focus:ring-2 focus:ring-mpj-gold/40 focus:border-mpj-gold cursor-pointer bg-white input-shadow"
+                >
+                  {allWeeks.map(w => <option key={w.key} value={w.key}>{w.label}</option>)}
+                </select>
               </div>
               <div className="flex items-end gap-3 pb-0.5">
                 {getVenueLogo(selectedVenue) && (
@@ -1503,7 +1517,7 @@ export default function Dashboard() {
                 )}
                 <div className="flex flex-col gap-1">
                   <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">POC</span>
-                  <span className="text-sm font-bold text-mpj-charcoal bg-mpj-gold-xlight px-2.5 py-1 rounded-lg">{currentData.poc}</span>
+                  <span className="text-sm font-bold text-mpj-charcoal bg-mpj-gold-xlight px-2.5 py-1 rounded-lg">{venueCurrentData.poc}</span>
                 </div>
                 <button
                   onClick={() => setShowUploadModal(true)}
@@ -1523,7 +1537,7 @@ export default function Dashboard() {
                 { id: 'meta',     label: 'Meta Ads',  icon: Megaphone },
                 // { id: 'revenue',  label: 'Revenue',   icon: DollarSign },
                 ...((workspace === 'sheraton' || workspace === 'soho') ? [{ id: 'social', label: 'Social', icon: Instagram }] : []),
-                // ...(currentData.programmatic ? [{ id: 'programmatic', label: 'Programmatic', icon: Layers }] : []),
+                // ...(venueCurrentData.programmatic ? [{ id: 'programmatic', label: 'Programmatic', icon: Layers }] : []),
                 { id: 'notes',    label: 'Notes',     icon: MessageSquare },
               ].map(t => (
                 <button
@@ -1543,10 +1557,10 @@ export default function Dashboard() {
 
             {/* ══ OVERVIEW ══ */}
             {venueTab === 'overview' && (() => {
-              const totalImpressions = currentData.meta.campaigns.reduce((s, c) => s + (c.impressions || 0), 0)
-              const totalLinkClicks  = currentData.meta.campaigns.reduce((s, c) => s + (c.linkClicks  || 0), 0)
+              const totalImpressions = venueCurrentData.meta.campaigns.reduce((s, c) => s + (c.impressions || 0), 0)
+              const totalLinkClicks  = venueCurrentData.meta.campaigns.reduce((s, c) => s + (c.linkClicks  || 0), 0)
               // Ad spend sourced from Workspace (manually entered budget tracker), not Meta raw data
-              const venueMonth   = currentData.weekStart?.substring(0, 7) // e.g. '2026-02'
+              const venueMonth   = venueCurrentData.weekStart?.substring(0, 7) // e.g. '2026-02'
               // Fuzzy brand match: "Above Eleven" matches workspace brand "Above Eleven Media"
               // w.month is a DATE returned as '2026-02-01' by Supabase; venueMonth is '2026-02'
               const wsRow        = workspaceData
@@ -1557,8 +1571,8 @@ export default function Dashboard() {
                   return brand === venue || brand.includes(venue) || venue.includes(brand)
                 })
               const wsSpend      = parseFloat(wsRow?.total_spend) || 0
-              const roas = wsSpend > 0 && currentData.revenue?.totalOnline
-                ? (currentData.revenue.totalOnline / wsSpend).toFixed(2)
+              const roas = wsSpend > 0 && venueCurrentData.revenue?.totalOnline
+                ? (venueCurrentData.revenue.totalOnline / wsSpend).toFixed(2)
                 : null
               return (
                 <div className="space-y-4">
@@ -1569,8 +1583,8 @@ export default function Dashboard() {
                       { label: 'Impressions',  value: formatK(totalImpressions),  color: 'text-gray-800' },
                       { label: 'Link Clicks',  value: formatInt(totalLinkClicks), color: 'text-gray-800' },
                       { label: 'ROAS',         value: roas ? roas + 'x' : '—',   color: roas ? 'text-amber-600' : 'text-gray-400' },
-                      { label: 'Revenue',      value: currentData.revenue ? `${currencySymbol} ${currentData.revenue.totalBusiness >= 1000 ? (currentData.revenue.totalBusiness/1000).toFixed(0)+'K' : formatNum(currentData.revenue.totalBusiness)}` : '—', color: 'text-green-700' },
-                      { label: 'Reservations', value: currentData.revenue ? formatInt(currentData.revenue.totalReservations) : '—', color: 'text-blue-700' },
+                      { label: 'Revenue',      value: venueCurrentData.revenue ? `${currencySymbol} ${venueCurrentData.revenue.totalBusiness >= 1000 ? (venueCurrentData.revenue.totalBusiness/1000).toFixed(0)+'K' : formatNum(venueCurrentData.revenue.totalBusiness)}` : '—', color: 'text-green-700' },
+                      { label: 'Reservations', value: venueCurrentData.revenue ? formatInt(venueCurrentData.revenue.totalReservations) : '—', color: 'text-blue-700' },
                     ].map(kpi => (
                       <div key={kpi.label} className="bg-white border border-gray-100 rounded-xl p-3.5 shadow-sm">
                         <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">{kpi.label}</p>
@@ -1591,20 +1605,20 @@ export default function Dashboard() {
                         </div>
                         <div>
                           <p className="text-xs text-blue-600 font-medium">Revenue</p>
-                          <p className="font-semibold text-gray-900">{currencySymbol} {formatNum(currentData.revenue?.totalBusiness || 0)}</p>
-                          <DeltaBadge current={currentData.revenue?.totalBusiness || 0} previous={previousData.revenue?.totalBusiness || 0} />
+                          <p className="font-semibold text-gray-900">{currencySymbol} {formatNum(venueCurrentData.revenue?.totalBusiness || 0)}</p>
+                          <DeltaBadge current={venueCurrentData.revenue?.totalBusiness || 0} previous={previousData.revenue?.totalBusiness || 0} />
                         </div>
                         <div>
                           <p className="text-xs text-blue-600 font-medium">Reservations</p>
-                          <p className="font-semibold text-gray-900">{formatInt(currentData.revenue?.totalReservations || 0)}</p>
-                          <DeltaBadge current={currentData.revenue?.totalReservations || 0} previous={previousData.revenue?.totalReservations || 0} />
+                          <p className="font-semibold text-gray-900">{formatInt(venueCurrentData.revenue?.totalReservations || 0)}</p>
+                          <DeltaBadge current={venueCurrentData.revenue?.totalReservations || 0} previous={previousData.revenue?.totalReservations || 0} />
                         </div>
                       </div>
                     </div>
                   )}
 
                   {/* Analysis */}
-                  {currentData.meta?.analysis && (
+                  {venueCurrentData.meta?.analysis && (
                     <div className="card p-5 space-y-4">
                       <div className="flex items-start gap-3">
                         <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0 mt-0.5">
@@ -1612,14 +1626,14 @@ export default function Dashboard() {
                         </div>
                         <div>
                           <h4 className="font-semibold text-gray-900 mb-1.5 text-sm">Analysis Summary</h4>
-                          <p className="text-gray-600 text-sm leading-relaxed">{currentData.meta.analysis.summary}</p>
+                          <p className="text-gray-600 text-sm leading-relaxed">{venueCurrentData.meta.analysis.summary}</p>
                         </div>
                       </div>
-                      {currentData.meta.analysis.recommendations?.length > 0 && (
+                      {venueCurrentData.meta.analysis.recommendations?.length > 0 && (
                         <div>
                           <h4 className="font-semibold text-gray-700 mb-2 text-xs uppercase tracking-wider">Recommendations</h4>
                           <ul className="space-y-1.5">
-                            {currentData.meta.analysis.recommendations.map((rec, i) => (
+                            {venueCurrentData.meta.analysis.recommendations.map((rec, i) => (
                               <li key={i} className="flex items-start gap-2 text-sm text-gray-600 bg-gray-50 px-3 py-2 rounded-lg">
                                 <span className="text-mpj-charcoal font-bold mt-0.5">–</span>
                                 <span className="leading-relaxed">{rec}</span>
@@ -1639,7 +1653,7 @@ export default function Dashboard() {
               <div className="space-y-6">
 
                 {/* Admin: draft-not-yet-published banner */}
-                {userRole === 'admin' && currentData?.hasDraft && (
+                {userRole === 'admin' && venueCurrentData?.hasDraft && (
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: 10, padding: '10px 16px', gap: 12 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#92400e', fontSize: 13 }}>
                       <EyeOff size={15} />
@@ -1656,7 +1670,7 @@ export default function Dashboard() {
                   </div>
                 )}
 
-                {currentData.meta?.campaigns?.length > 0 ? (
+                {venueCurrentData.meta?.campaigns?.length > 0 ? (
                   <>
                     {/* Campaign table */}
                     <div>
@@ -1676,7 +1690,7 @@ export default function Dashboard() {
                             </tr>
                           </thead>
                           <tbody>
-                            {currentData.meta.campaigns.filter(c => userRole === 'admin' || !c.hidden).map((c, i) => (
+                            {venueCurrentData.meta.campaigns.filter(c => userRole === 'admin' || !c.hidden).map((c, i) => (
                               <tr key={i} className={`border-t hover:bg-gray-50/50 transition-colors ${c.hidden ? 'opacity-40' : ''}`}>
                                 {userRole === 'admin' && (
                                   <td className="px-2 py-2.5">
@@ -1700,7 +1714,7 @@ export default function Dashboard() {
                     </div>
 
                     {/* Ad Set table */}
-                    {currentData.meta.adSets?.length > 0 && (
+                    {venueCurrentData.meta.adSets?.length > 0 && (
                       <div>
                         <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
                           Ad Set Level <span className="normal-case font-normal text-gray-400">(click to view audience)</span>
@@ -1719,7 +1733,7 @@ export default function Dashboard() {
                               </tr>
                             </thead>
                             <tbody>
-                              {currentData.meta.adSets.filter(a => userRole === 'admin' || !a.hidden).map((a, i) => (
+                              {venueCurrentData.meta.adSets.filter(a => userRole === 'admin' || !a.hidden).map((a, i) => (
                                 <AdSetRow key={a.name} adSet={a} isExpanded={expandedAdSets[a.name]} onToggle={() => toggleAdSet(a.name)}
                                   userRole={userRole}
                                   onToggleHidden={() => handleToggleHidden('adSets', a.name, !a.hidden)}
@@ -1733,7 +1747,7 @@ export default function Dashboard() {
                     )}
 
                     {/* Ad Level table */}
-                    {currentData.meta.ads?.length > 0 && (
+                    {venueCurrentData.meta.ads?.length > 0 && (
                       <div>
                         <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
                           Ad Level <span className="normal-case font-normal text-gray-400 ml-1">· click status to toggle · click notes to edit</span>
@@ -1755,8 +1769,8 @@ export default function Dashboard() {
                             </thead>
                             <tbody>
                               {(() => {
-                                const adSets = currentData.meta.adSets || []
-                                const campaigns = currentData.meta.campaigns || []
+                                const adSets = venueCurrentData.meta.adSets || []
+                                const campaigns = venueCurrentData.meta.campaigns || []
                                 const findParent = (arr, adName) => {
                                   let best = null, bestLen = 0
                                   arr.forEach(p => {
@@ -1770,8 +1784,8 @@ export default function Dashboard() {
                                   })
                                   return best
                                 }
-                                return currentData.meta.ads.filter(a => userRole === 'admin' || !a.hidden).map((a, i) => {
-                                  const noteKey = getNoteKey(selectedVenue, selectedWeek, a.name)
+                                return venueCurrentData.meta.ads.filter(a => userRole === 'admin' || !a.hidden).map((a, i) => {
+                                  const noteKey = getNoteKey(selectedVenue, selectedVenueWeek, a.name)
                                   const noteVal = noteKey ? (adNotes[noteKey] || '') : ''
                                   const isSaving = savingNote === noteKey
                                   const matchedAdSet = findParent(adSets, a.name)
@@ -1786,7 +1800,7 @@ export default function Dashboard() {
                                         </td>
                                       )}
                                       <td className="px-2 py-2 hidden sm:table-cell">
-                                        <CreativeThumb creative={getCreativeForAd(selectedVenue, a.name, currentData.weekStart)} size={36} />
+                                        <CreativeThumb creative={getCreativeForAd(selectedVenue, a.name, venueCurrentData.weekStart)} size={36} />
                                       </td>
                                       <td className="px-3 py-2.5 max-w-[200px] font-medium">
                                         <div className="relative group/adname">
@@ -1817,7 +1831,7 @@ export default function Dashboard() {
                                       {(userRole === 'admin' || columnVisibility.engagement) && <td className="px-3 py-2.5 text-right tabular-nums hidden md:table-cell">{formatInt(a.engagement)}</td>}
                                       <td className="px-3 py-2.5 text-center">
                                         <button
-                                          onClick={() => toggleAdStatus(selectedVenue, selectedWeek, a.name, a.status)}
+                                          onClick={() => toggleAdStatus(selectedVenue, selectedVenueWeek, a.name, a.status)}
                                           title="Click to toggle active / inactive"
                                           className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold transition-all duration-200 cursor-pointer hover:scale-105 active:scale-95 border ${
                                             a.status === 'active'
@@ -1845,7 +1859,7 @@ export default function Dashboard() {
                                             rows={1}
                                             onBlur={(e) => {
                                               const val = e.target.value.trim()
-                                              if (val !== noteVal) saveAdNote(selectedVenue, selectedWeek, a.name, val)
+                                              if (val !== noteVal) saveAdNote(selectedVenue, selectedVenueWeek, a.name, val)
                                             }}
                                             onKeyDown={(e) => {
                                               if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); e.target.blur() }
@@ -1890,11 +1904,11 @@ export default function Dashboard() {
 
             {/* ══ REVENUE ══ */}
             {venueTab === 'revenue' && (
-              currentData.revenue ? (() => {
-                const rev = currentData.revenue
+              venueCurrentData.revenue ? (() => {
+                const rev = venueCurrentData.revenue
                 const onlinePct = rev.totalBusiness > 0 ? ((rev.totalOnline / rev.totalBusiness) * 100) : 0
                 const resPct = rev.totalReservations > 0 ? ((rev.onlineReservations / rev.totalReservations) * 100) : 0
-                const roas = currentData.adSpend > 0 ? (rev.totalOnline / currentData.adSpend) : null
+                const roas = venueCurrentData.adSpend > 0 ? (rev.totalOnline / venueCurrentData.adSpend) : null
                 const offlineTotal = rev.totalBusiness - rev.totalOnline
                 const donutData = [{ name: 'Online', value: rev.totalOnline }, { name: 'Offline', value: offlineTotal }]
                 const onlineChannels = rev.channels
@@ -2065,8 +2079,8 @@ export default function Dashboard() {
             )}
 
             {/* ══ PROGRAMMATIC ══ */}
-            {venueTab === 'programmatic' && currentData.programmatic && (() => {
-              const prog = currentData.programmatic
+            {venueTab === 'programmatic' && venueCurrentData.programmatic && (() => {
+              const prog = venueCurrentData.programmatic
               const kpis = [
                 { label: 'Total Budget',  value: `${currencySymbol} ${formatNum(prog.budget)}` },
                 { label: 'Spend to Date', value: `${currencySymbol} ${formatNum(prog.spend)}` },
@@ -2326,7 +2340,7 @@ export default function Dashboard() {
             {/* ══ NOTES ══ */}
             {venueTab === 'notes' && (() => {
               const venue = venues.find(v => v.name === selectedVenue)
-              const noteKey = venue ? `${venue.id}_${selectedWeek}` : null
+              const noteKey = venue ? `${venue.id}_${selectedVenueWeek}` : null
               const noteVal = noteKey ? (venueNotes[noteKey] || '') : ''
               return (
                 <div className="space-y-4 max-w-2xl">
@@ -2348,7 +2362,7 @@ export default function Dashboard() {
                       defaultValue={noteVal}
                       placeholder="Add notes for your meeting — context, action items, observations..."
                       rows={8}
-                      onBlur={(e) => { const val = e.target.value; if (val !== noteVal) saveVenueNote(selectedVenue, selectedWeek, val) }}
+                      onBlur={(e) => { const val = e.target.value; if (val !== noteVal) saveVenueNote(selectedVenue, selectedVenueWeek, val) }}
                       onKeyDown={(e) => { if (e.key === 'Enter' && e.metaKey) e.target.blur() }}
                       className="w-full text-sm px-3 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-mpj-gold/40 focus:border-mpj-gold resize-none bg-gray-50/80 hover:bg-white transition-colors placeholder:text-gray-300 input-shadow"
                     />
@@ -2363,18 +2377,18 @@ export default function Dashboard() {
                       <div className="grid grid-cols-3 gap-4">
                         <div>
                           <p className="text-xs text-blue-600 font-medium">Impressions</p>
-                          <p className="font-semibold text-gray-900">{formatInt(currentData.meta.campaigns.reduce((s, c) => s + (c.impressions || 0), 0))}</p>
-                          <DeltaBadge current={currentData.meta.campaigns.reduce((s, c) => s + (c.impressions || 0), 0)} previous={previousData.meta.campaigns.reduce((s, c) => s + (c.impressions || 0), 0)} />
+                          <p className="font-semibold text-gray-900">{formatInt(venueCurrentData.meta.campaigns.reduce((s, c) => s + (c.impressions || 0), 0))}</p>
+                          <DeltaBadge current={venueCurrentData.meta.campaigns.reduce((s, c) => s + (c.impressions || 0), 0)} previous={previousData.meta.campaigns.reduce((s, c) => s + (c.impressions || 0), 0)} />
                         </div>
                         <div>
                           <p className="text-xs text-blue-600 font-medium">Revenue</p>
-                          <p className="font-semibold text-gray-900">{currencySymbol} {formatNum(currentData.revenue?.totalBusiness || 0)}</p>
-                          <DeltaBadge current={currentData.revenue?.totalBusiness || 0} previous={previousData.revenue?.totalBusiness || 0} />
+                          <p className="font-semibold text-gray-900">{currencySymbol} {formatNum(venueCurrentData.revenue?.totalBusiness || 0)}</p>
+                          <DeltaBadge current={venueCurrentData.revenue?.totalBusiness || 0} previous={previousData.revenue?.totalBusiness || 0} />
                         </div>
                         <div>
                           <p className="text-xs text-blue-600 font-medium">Reservations</p>
-                          <p className="font-semibold text-gray-900">{formatInt(currentData.revenue?.totalReservations || 0)}</p>
-                          <DeltaBadge current={currentData.revenue?.totalReservations || 0} previous={previousData.revenue?.totalReservations || 0} />
+                          <p className="font-semibold text-gray-900">{formatInt(venueCurrentData.revenue?.totalReservations || 0)}</p>
+                          <DeltaBadge current={venueCurrentData.revenue?.totalReservations || 0} previous={previousData.revenue?.totalReservations || 0} />
                         </div>
                       </div>
                     </div>
