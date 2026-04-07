@@ -1532,7 +1532,7 @@ export default function Dashboard() {
               {[
                 // { id: 'overview', label: 'Overview',  icon: BarChart3 },
                 { id: 'meta',     label: 'Meta Ads',  icon: Megaphone },
-                // { id: 'revenue',  label: 'Revenue',   icon: DollarSign },
+                { id: 'revenue',  label: 'Revenue',   icon: DollarSign },
                 ...((workspace === 'sheraton' || workspace === 'soho') ? [{ id: 'social', label: 'Social', icon: Instagram }] : []),
                 // ...(venueCurrentData.programmatic ? [{ id: 'programmatic', label: 'Programmatic', icon: Layers }] : []),
                 { id: 'notes',    label: 'Notes',     icon: MessageSquare },
