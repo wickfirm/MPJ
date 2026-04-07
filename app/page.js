@@ -263,7 +263,7 @@ export default function Dashboard() {
       const weeksArray = Array.from(weeksSet).map(wk => {
         const [start, end] = wk.split('_')
         return { key: wk, start, end, label: `${start} → ${end}` }
-      }).sort((a, b) => new Date(b.end) - new Date(a.end))
+      }).filter(w => w.start >= '2026-03-01').sort((a, b) => new Date(b.end) - new Date(a.end))
 
       setAllWeeks(weeksArray)
       if (weeksArray.length > 0 && !selectedWeek) {
@@ -1129,7 +1129,6 @@ export default function Dashboard() {
                   <thead>
                     <tr className="bg-mpj-gold-xlight border-b border-mpj-warm">
                       <th className="text-left px-3 py-3 font-semibold text-mpj-charcoal text-xs uppercase tracking-wider">Brand</th>
-                      <th className="text-left px-3 py-3 font-semibold text-mpj-charcoal text-xs uppercase tracking-wider hidden sm:table-cell">POC</th>
                       <th className="text-right px-3 py-3 font-semibold text-mpj-charcoal text-xs uppercase tracking-wider">Budget</th>
                       <th className="text-right px-3 py-3 font-semibold text-mpj-charcoal text-xs uppercase tracking-wider">Spend</th>
                       <th className="text-right px-3 py-3 font-semibold text-mpj-charcoal text-xs uppercase tracking-wider hidden sm:table-cell">Remaining</th>
@@ -1140,7 +1139,6 @@ export default function Dashboard() {
                     {filteredWorkspaceData.map((w, i) => (
                       <tr key={i} className={`border-t border-gray-100 hover:bg-mpj-gold-xlight/60 transition-colors duration-150 ${i % 2 === 1 ? 'bg-gray-50/40' : ''}`}>
                         <td className="px-3 py-3 font-semibold text-gray-900">{w.brand}</td>
-                        <td className="px-3 py-3 text-gray-500 hidden sm:table-cell text-sm">{getBrandPOC(w.brand)}</td>
                         <td className="px-3 py-3 text-right tabular-nums text-gray-700 text-sm">{currencySymbol} {formatNum(w.monthly_budget)}</td>
                         <td className="px-3 py-3 text-right tabular-nums font-semibold text-gray-900 text-sm">{currencySymbol} {formatNum(w.total_spend)}</td>
                         <td className={`px-3 py-3 text-right tabular-nums hidden sm:table-cell text-sm font-semibold ${parseFloat(w.remaining) < 0 ? 'text-red-600' : 'text-green-600'}`}>
@@ -1157,7 +1155,6 @@ export default function Dashboard() {
                     {filteredWorkspaceData.length > 0 && (
                       <tr className="border-t-2 border-mpj-charcoal/15 bg-mpj-gold-xlight font-bold">
                         <td className="px-3 py-3 text-mpj-charcoal">TOTAL</td>
-                        <td className="hidden sm:table-cell"></td>
                         <td className="px-3 py-3 text-right tabular-nums text-gray-700">{currencySymbol} {formatNum(workspaceTotals.budget)}</td>
                         <td className="px-3 py-3 text-right tabular-nums text-gray-900">{currencySymbol} {formatNum(workspaceTotals.spend)}</td>
                         <td className={`px-3 py-3 text-right tabular-nums hidden sm:table-cell ${workspaceTotals.remaining < 0 ? 'text-red-600' : 'text-green-600'}`}>
