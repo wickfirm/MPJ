@@ -2530,9 +2530,13 @@ export default function Dashboard() {
                       <span className="text-sm text-gray-700">Above Eleven — Nikkei Content Creation</span>
                       <span className="text-sm font-semibold text-gray-900">AED 11,500</span>
                     </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-700">Social Media Spend — March</span>
+                      <span className="text-sm font-semibold text-gray-900">AED 15,000</span>
+                    </div>
                     <div className="border-t border-red-300 pt-3 mt-3 flex justify-between items-center">
                       <span className="text-sm font-bold text-red-800">Total Costs</span>
-                      <span className="text-base font-bold text-red-800">AED 83,500</span>
+                      <span className="text-base font-bold text-red-800">AED 98,500</span>
                     </div>
                   </div>
                 </div>
@@ -2547,12 +2551,12 @@ export default function Dashboard() {
                     </div>
                     <div className="flex justify-between items-center text-sm text-gray-600">
                       <span>Costs</span>
-                      <span className="font-medium text-red-700">− AED 83,500</span>
+                      <span className="font-medium text-red-700">− AED 98,500</span>
                     </div>
                     <div className="border-t-2 border-mpj-gold/40 pt-4 mt-2">
                       <div className="flex justify-between items-center">
                         <span className="text-base font-bold text-mpj-charcoal">Remaining</span>
-                        <span className="text-2xl font-bold text-mpj-charcoal">AED 68,375*</span>
+                        <span className="text-2xl font-bold text-mpj-charcoal">AED 53,375*</span>
                       </div>
                       <p className="text-[10px] text-gray-400 mt-2 italic">* Pending confirmation from UDMS Finance on whether figures are inclusive or exclusive of VAT.</p>
                     </div>
