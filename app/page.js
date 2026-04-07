@@ -821,15 +821,16 @@ export default function Dashboard() {
   }, [])
 
   // Toggle hidden flag — writes to meta_data_draft (admin preview only until Push to Client)
-  const handleToggleHidden = useCallback(async (level, itemName, hidden) => {
-    if (!selectedVenue || !selectedWeek) return
+  const handleToggleHidden = useCallback(async (level, itemName, hidden, weekKey) => {
+    const wk = weekKey || selectedWeek
+    if (!selectedVenue || !wk) return
     const venue = venues.find(v => v.name === selectedVenue)
     if (!venue) return
-    const [weekStart, weekEnd] = selectedWeek.split('_')
+    const [weekStart, weekEnd] = wk.split('_')
 
     // Optimistic update — always modifies meta_data_draft
     setWeeklyReports(prev => {
-      const report = prev[selectedVenue]?.[selectedWeek]
+      const report = prev[selectedVenue]?.[wk]
       if (!report) return prev
       // Use existing draft or copy from published to create a new draft
       const source = report.meta_data_draft || report.meta_data || {}
@@ -842,7 +843,7 @@ export default function Dashboard() {
         ...prev,
         [selectedVenue]: {
           ...prev[selectedVenue],
-          [selectedWeek]: { ...report, meta_data_draft: newDraft }
+          [wk]: { ...report, meta_data_draft: newDraft }
         }
       }
     })
@@ -861,15 +862,16 @@ export default function Dashboard() {
   }, [selectedVenue, selectedWeek, venues])
 
   // Edit an audience field — writes to meta_data_draft (admin preview only)
-  const handleAudienceEdit = useCallback(async (level, itemName, field, value) => {
-    if (!selectedVenue || !selectedWeek) return
+  const handleAudienceEdit = useCallback(async (level, itemName, field, value, weekKey) => {
+    const wk = weekKey || selectedWeek
+    if (!selectedVenue || !wk) return
     const venue = venues.find(v => v.name === selectedVenue)
     if (!venue) return
-    const [weekStart, weekEnd] = selectedWeek.split('_')
+    const [weekStart, weekEnd] = wk.split('_')
 
     // Optimistic update — always modifies meta_data_draft
     setWeeklyReports(prev => {
-      const report = prev[selectedVenue]?.[selectedWeek]
+      const report = prev[selectedVenue]?.[wk]
       if (!report) return prev
       const source = report.meta_data_draft || report.meta_data || {}
       const items = [...(source[level] || [])]
@@ -881,7 +883,7 @@ export default function Dashboard() {
         ...prev,
         [selectedVenue]: {
           ...prev[selectedVenue],
-          [selectedWeek]: { ...report, meta_data_draft: newDraft }
+          [wk]: { ...report, meta_data_draft: newDraft }
         }
       }
     })
@@ -900,11 +902,12 @@ export default function Dashboard() {
   }, [selectedVenue, selectedWeek, venues])
 
   // Push admin draft to client-visible meta_data
-  const handlePublishDraft = useCallback(async () => {
-    if (!selectedVenue || !selectedWeek) return
+  const handlePublishDraft = useCallback(async (weekKey) => {
+    const wk = weekKey || selectedWeek
+    if (!selectedVenue || !wk) return
     const venue = venues.find(v => v.name === selectedVenue)
     if (!venue) return
-    const [weekStart, weekEnd] = selectedWeek.split('_')
+    const [weekStart, weekEnd] = wk.split('_')
     setPublishingDraft(true)
     try {
       const res = await fetch('/api/meta/publish-draft', {
@@ -916,13 +919,13 @@ export default function Dashboard() {
       if (!res.ok) throw new Error(json.error || 'Publish failed')
       // Optimistic: promote draft to published, clear draft
       setWeeklyReports(prev => {
-        const report = prev[selectedVenue]?.[selectedWeek]
+        const report = prev[selectedVenue]?.[wk]
         if (!report?.meta_data_draft) return prev
         return {
           ...prev,
           [selectedVenue]: {
             ...prev[selectedVenue],
-            [selectedWeek]: { ...report, meta_data: report.meta_data_draft, meta_data_draft: null }
+            [wk]: { ...report, meta_data: report.meta_data_draft, meta_data_draft: null }
           }
         }
       })
@@ -1657,7 +1660,7 @@ export default function Dashboard() {
                       <span><strong>Draft mode</strong> — your changes are only visible to you. Clients still see the previous version.</span>
                     </div>
                     <button
-                      onClick={handlePublishDraft}
+                      onClick={() => handlePublishDraft(selectedVenueWeek)}
                       disabled={publishingDraft}
                       style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#d97706', color: '#fff', border: 'none', borderRadius: 7, padding: '6px 14px', fontSize: 13, fontWeight: 600, cursor: publishingDraft ? 'default' : 'pointer', opacity: publishingDraft ? 0.7 : 1 }}
                     >
@@ -1691,7 +1694,7 @@ export default function Dashboard() {
                               <tr key={i} className={`border-t hover:bg-gray-50/50 transition-colors ${c.hidden ? 'opacity-40' : ''}`}>
                                 {userRole === 'admin' && (
                                   <td className="px-2 py-2.5">
-                                    <button onClick={() => handleToggleHidden('campaigns', c.name, !c.hidden)} title={c.hidden ? 'Show to client' : 'Hide from client'} className="text-gray-300 hover:text-mpj-charcoal transition-colors cursor-pointer">
+                                    <button onClick={() => handleToggleHidden('campaigns', c.name, !c.hidden, selectedVenueWeek)} title={c.hidden ? 'Show to client' : 'Hide from client'} className="text-gray-300 hover:text-mpj-charcoal transition-colors cursor-pointer">
                                       {c.hidden ? <EyeOff size={13} /> : <Eye size={13} />}
                                     </button>
                                   </td>
@@ -1733,8 +1736,8 @@ export default function Dashboard() {
                               {venueCurrentData.meta.adSets.filter(a => userRole === 'admin' || !a.hidden).map((a, i) => (
                                 <AdSetRow key={a.name} adSet={a} isExpanded={expandedAdSets[a.name]} onToggle={() => toggleAdSet(a.name)}
                                   userRole={userRole}
-                                  onToggleHidden={() => handleToggleHidden('adSets', a.name, !a.hidden)}
-                                  onAudienceEdit={(field, value) => handleAudienceEdit('adSets', a.name, field, value)}
+                                  onToggleHidden={() => handleToggleHidden('adSets', a.name, !a.hidden, selectedVenueWeek)}
+                                  onAudienceEdit={(field, value) => handleAudienceEdit('adSets', a.name, field, value, selectedVenueWeek)}
                                 />
                               ))}
                             </tbody>
@@ -1791,7 +1794,7 @@ export default function Dashboard() {
                                     <tr key={i} className={`border-t border-gray-100 hover:bg-mpj-gold-xlight/60 transition-colors duration-150 ${a.hidden ? 'opacity-40' : ''} ${i % 2 === 1 ? 'bg-gray-50/30' : ''}`}>
                                       {userRole === 'admin' && (
                                         <td className="px-2 py-2">
-                                          <button onClick={() => handleToggleHidden('ads', a.name, !a.hidden)} title={a.hidden ? 'Show to client' : 'Hide from client'} className="text-gray-300 hover:text-mpj-charcoal transition-colors cursor-pointer">
+                                          <button onClick={() => handleToggleHidden('ads', a.name, !a.hidden, selectedVenueWeek)} title={a.hidden ? 'Show to client' : 'Hide from client'} className="text-gray-300 hover:text-mpj-charcoal transition-colors cursor-pointer">
                                             {a.hidden ? <EyeOff size={13} /> : <Eye size={13} />}
                                           </button>
                                         </td>
