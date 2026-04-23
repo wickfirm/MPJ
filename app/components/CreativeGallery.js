@@ -48,6 +48,7 @@ export default function CreativeGallery({ creatives = [], onDelete, userRole = '
   const [downloadingId, setDownloadingId] = useState(null)
   const [exporting, setExporting] = useState(false)
   const [exportProgress, setExportProgress] = useState({ done: 0, total: 0 })
+  const [exportPhase, setExportPhase] = useState('idle') // 'idle' | 'fetching' | 'compressing'
   const isAdmin = userRole === 'admin'
 
   const toggleSelect = (id) => {
@@ -105,32 +106,52 @@ export default function CreativeGallery({ creatives = [], onDelete, userRole = '
 
   const handleExportAll = async () => {
     if (filtered.length === 0) return
+    const CONCURRENCY = 5
     setExporting(true)
+    setExportPhase('fetching')
     setExportProgress({ done: 0, total: filtered.length })
     try {
       const zip = new JSZip()
       const usedNames = new Set()
       let done = 0
-      for (const c of filtered) {
-        try {
-          const blob = await fetchCreativeBlob(c)
-          const ext = getExtFromMime(c.mime_type || blob.type, c.image_url)
-          const monthFolder = c.month || 'unknown-month'
-          let base = c.file_name ? c.file_name.replace(/\.[^.]+$/, '') : sanitizeName(c.ad_name)
-          let name = `${base}.${ext}`
-          let n = 1
-          while (usedNames.has(`${monthFolder}/${name}`)) {
-            name = `${base}_${n++}.${ext}`
-          }
-          usedNames.add(`${monthFolder}/${name}`)
-          zip.folder(monthFolder).file(name, blob)
-        } catch (e) {
-          console.warn('Skipping creative due to fetch error:', c.ad_name, e)
+      let cursor = 0
+
+      const processOne = async (c) => {
+        const blob = await fetchCreativeBlob(c)
+        const ext = getExtFromMime(c.mime_type || blob.type, c.image_url)
+        const monthFolder = c.month || 'unknown-month'
+        const base = c.file_name ? c.file_name.replace(/\.[^.]+$/, '') : sanitizeName(c.ad_name)
+        let name = `${base}.${ext}`
+        let n = 1
+        while (usedNames.has(`${monthFolder}/${name}`)) {
+          name = `${base}_${n++}.${ext}`
         }
-        done += 1
-        setExportProgress({ done, total: filtered.length })
+        usedNames.add(`${monthFolder}/${name}`)
+        zip.folder(monthFolder).file(name, blob)
       }
-      const zipBlob = await zip.generateAsync({ type: 'blob' })
+
+      const worker = async () => {
+        while (cursor < filtered.length) {
+          const c = filtered[cursor++]
+          try {
+            await processOne(c)
+          } catch (e) {
+            console.warn('Skipping creative due to fetch error:', c.ad_name, e)
+          }
+          done += 1
+          setExportProgress({ done, total: filtered.length })
+        }
+      }
+
+      const workerCount = Math.min(CONCURRENCY, filtered.length)
+      await Promise.all(Array.from({ length: workerCount }, worker))
+
+      setExportPhase('compressing')
+      setExportProgress({ done: 0, total: 100 })
+      const zipBlob = await zip.generateAsync({ type: 'blob' }, (meta) => {
+        setExportProgress({ done: Math.round(meta.percent), total: 100 })
+      })
+
       const venueTag = filtered[0]?.venues?.name ? sanitizeName(filtered[0].venues.name) + '_' : ''
       const monthTag = filterMonth === 'all' ? 'all-months' : filterMonth
       triggerBlobDownload(zipBlob, `${venueTag}creatives_${monthTag}.zip`)
@@ -138,6 +159,7 @@ export default function CreativeGallery({ creatives = [], onDelete, userRole = '
       console.error('Export error:', err)
     } finally {
       setExporting(false)
+      setExportPhase('idle')
       setExportProgress({ done: 0, total: 0 })
     }
   }
@@ -242,7 +264,9 @@ export default function CreativeGallery({ creatives = [], onDelete, userRole = '
           {exporting ? (
             <>
               <Loader2 size={14} className="animate-spin" />
-              Zipping {exportProgress.done}/{exportProgress.total}
+              {exportPhase === 'compressing'
+                ? `Compressing ${exportProgress.done}%`
+                : `Zipping ${exportProgress.done}/${exportProgress.total}`}
             </>
           ) : (
             <>
