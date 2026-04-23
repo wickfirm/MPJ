@@ -1919,6 +1919,12 @@ export default function Dashboard() {
                 const onlineVsWalkIn = walkInRevenue > 0 ? ((rev.totalOnline / walkInRevenue) * 100).toFixed(0) : null
                 return (
                   <div className="space-y-5">
+                    {rev.dataNote && (
+                      <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-900">
+                        <span className="font-semibold">Note:</span>
+                        <span>{rev.dataNote}</span>
+                      </div>
+                    )}
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                       <div className="bg-gradient-to-br from-mpj-gold/12 to-mpj-gold/5 border border-mpj-charcoal/15 rounded-xl p-3.5">
                         <p className="text-xs font-medium text-mpj-charcoal/70 mb-1">Online Revenue Share</p>

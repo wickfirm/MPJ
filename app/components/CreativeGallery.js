@@ -1,6 +1,42 @@
 'use client'
 import { useState, useMemo } from 'react'
-import { Trash2, Calendar, X, ChevronDown, Maximize2, Check } from 'lucide-react'
+import { Trash2, Calendar, X, ChevronDown, Maximize2, Check, Download, Loader2 } from 'lucide-react'
+import JSZip from 'jszip'
+
+const sanitizeName = (s) => (s || 'creative').replace(/[\\/:*?"<>|]+/g, '_').trim()
+
+const getExtFromMime = (mime, fallbackUrl = '') => {
+  if (mime?.includes('png')) return 'png'
+  if (mime?.includes('webp')) return 'webp'
+  if (mime?.includes('gif')) return 'gif'
+  if (mime?.includes('jpeg') || mime?.includes('jpg')) return 'jpg'
+  const m = fallbackUrl.match(/\.(png|jpe?g|webp|gif)(?:\?|$)/i)
+  return m ? m[1].toLowerCase().replace('jpeg', 'jpg') : 'jpg'
+}
+
+const triggerBlobDownload = (blob, filename) => {
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
+}
+
+const fetchCreativeBlob = async (c) => {
+  const res = await fetch(`/api/creatives/download?id=${encodeURIComponent(c.id)}`)
+  if (!res.ok) throw new Error('Failed to fetch image')
+  return res.blob()
+}
+
+const downloadCreative = async (c) => {
+  const blob = await fetchCreativeBlob(c)
+  const ext = getExtFromMime(c.mime_type || blob.type, c.image_url)
+  const name = c.file_name || `${sanitizeName(c.ad_name)}_${c.month || ''}.${ext}`
+  triggerBlobDownload(blob, name)
+}
 
 export default function CreativeGallery({ creatives = [], onDelete, userRole = 'client', onPublish }) {
   const [filterMonth, setFilterMonth] = useState('all')
@@ -9,6 +45,9 @@ export default function CreativeGallery({ creatives = [], onDelete, userRole = '
   const [deleting, setDeleting] = useState(false)
   const [selected, setSelected] = useState(new Set())
   const [publishing, setPublishing] = useState(false)
+  const [downloadingId, setDownloadingId] = useState(null)
+  const [exporting, setExporting] = useState(false)
+  const [exportProgress, setExportProgress] = useState({ done: 0, total: 0 })
   const isAdmin = userRole === 'admin'
 
   const toggleSelect = (id) => {
@@ -52,6 +91,56 @@ export default function CreativeGallery({ creatives = [], onDelete, userRole = '
     // Sort months descending
     return Object.entries(groups).sort((a, b) => b[0].localeCompare(a[0]))
   }, [filtered])
+
+  const handleDownloadOne = async (c) => {
+    setDownloadingId(c.id)
+    try {
+      await downloadCreative(c)
+    } catch (err) {
+      console.error('Download error:', err)
+    } finally {
+      setDownloadingId(null)
+    }
+  }
+
+  const handleExportAll = async () => {
+    if (filtered.length === 0) return
+    setExporting(true)
+    setExportProgress({ done: 0, total: filtered.length })
+    try {
+      const zip = new JSZip()
+      const usedNames = new Set()
+      let done = 0
+      for (const c of filtered) {
+        try {
+          const blob = await fetchCreativeBlob(c)
+          const ext = getExtFromMime(c.mime_type || blob.type, c.image_url)
+          const monthFolder = c.month || 'unknown-month'
+          let base = c.file_name ? c.file_name.replace(/\.[^.]+$/, '') : sanitizeName(c.ad_name)
+          let name = `${base}.${ext}`
+          let n = 1
+          while (usedNames.has(`${monthFolder}/${name}`)) {
+            name = `${base}_${n++}.${ext}`
+          }
+          usedNames.add(`${monthFolder}/${name}`)
+          zip.folder(monthFolder).file(name, blob)
+        } catch (e) {
+          console.warn('Skipping creative due to fetch error:', c.ad_name, e)
+        }
+        done += 1
+        setExportProgress({ done, total: filtered.length })
+      }
+      const zipBlob = await zip.generateAsync({ type: 'blob' })
+      const venueTag = filtered[0]?.venues?.name ? sanitizeName(filtered[0].venues.name) + '_' : ''
+      const monthTag = filterMonth === 'all' ? 'all-months' : filterMonth
+      triggerBlobDownload(zipBlob, `${venueTag}creatives_${monthTag}.zip`)
+    } catch (err) {
+      console.error('Export error:', err)
+    } finally {
+      setExporting(false)
+      setExportProgress({ done: 0, total: 0 })
+    }
+  }
 
   const handleDelete = async (id) => {
     setDeleting(true)
@@ -112,37 +201,57 @@ export default function CreativeGallery({ creatives = [], onDelete, userRole = '
         </div>
       )}
 
-      {/* Month Filter */}
-      {months.length > 1 && (
-        <div className="flex items-center gap-2">
-          <Calendar size={14} className="text-gray-400" />
-          <div className="flex gap-1.5 flex-wrap">
-            <button
-              onClick={() => setFilterMonth('all')}
-              className={`px-3 py-1 text-xs rounded-full font-medium transition-colors ${
-                filterMonth === 'all'
-                  ? 'bg-mpj-charcoal text-white'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              All
-            </button>
-            {months.map(m => (
+      {/* Filter + Export Row */}
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        {months.length > 1 ? (
+          <div className="flex items-center gap-2">
+            <Calendar size={14} className="text-gray-400" />
+            <div className="flex gap-1.5 flex-wrap">
               <button
-                key={m}
-                onClick={() => setFilterMonth(m)}
+                onClick={() => setFilterMonth('all')}
                 className={`px-3 py-1 text-xs rounded-full font-medium transition-colors ${
-                  filterMonth === m
+                  filterMonth === 'all'
                     ? 'bg-mpj-charcoal text-white'
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 }`}
               >
-                {formatMonth(m)}
+                All
               </button>
-            ))}
+              {months.map(m => (
+                <button
+                  key={m}
+                  onClick={() => setFilterMonth(m)}
+                  className={`px-3 py-1 text-xs rounded-full font-medium transition-colors ${
+                    filterMonth === m
+                      ? 'bg-mpj-charcoal text-white'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  {formatMonth(m)}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+        ) : <div />}
+        <button
+          onClick={handleExportAll}
+          disabled={exporting || filtered.length === 0}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-mpj-charcoal hover:bg-mpj-charcoal/90 text-white disabled:opacity-40 transition-colors"
+          title="Download all visible creatives as a ZIP"
+        >
+          {exporting ? (
+            <>
+              <Loader2 size={14} className="animate-spin" />
+              Zipping {exportProgress.done}/{exportProgress.total}
+            </>
+          ) : (
+            <>
+              <Download size={14} />
+              Export All ({filtered.length})
+            </>
+          )}
+        </button>
+      </div>
 
       {/* Grouped Gallery */}
       {grouped.map(([month, items]) => (
@@ -214,14 +323,26 @@ export default function CreativeGallery({ creatives = [], onDelete, userRole = '
                   )}
                 </div>
 
-                {/* Delete button */}
+                {/* Download button */}
                 <button
-                  onClick={(e) => { e.stopPropagation(); setDeleteConfirm(c.id) }}
-                  className="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 bg-red-500 hover:bg-red-600 text-white rounded-full p-1 shadow-md transition-all"
-                  title="Delete creative"
+                  onClick={(e) => { e.stopPropagation(); handleDownloadOne(c) }}
+                  disabled={downloadingId === c.id}
+                  className="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 bg-mpj-charcoal hover:bg-mpj-charcoal/90 text-white rounded-full p-1 shadow-md transition-all disabled:opacity-60"
+                  title="Download image"
                 >
-                  <Trash2 size={12} />
+                  {downloadingId === c.id ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />}
                 </button>
+
+                {/* Delete button (admin only) */}
+                {isAdmin && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setDeleteConfirm(c.id) }}
+                    className="absolute top-2 right-9 z-10 opacity-0 group-hover:opacity-100 bg-red-500 hover:bg-red-600 text-white rounded-full p-1 shadow-md transition-all"
+                    title="Delete creative"
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                )}
               </div>
             ))}
           </div>
@@ -276,12 +397,23 @@ export default function CreativeGallery({ creatives = [], onDelete, userRole = '
               alt={previewImage.ad_name}
               className="max-w-full max-h-[75vh] object-contain"
             />
-            <div className="px-4 py-3 bg-gray-50 border-t">
-              <p className="text-sm font-medium text-gray-800">{previewImage.ad_name}</p>
-              <p className="text-xs text-gray-500 mt-0.5">
-                {formatMonth(previewImage.month)}
-                {previewImage.notes ? ` \u2022 ${previewImage.notes}` : ''}
-              </p>
+            <div className="px-4 py-3 bg-gray-50 border-t flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-gray-800 truncate">{previewImage.ad_name}</p>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {formatMonth(previewImage.month)}
+                  {previewImage.notes ? ` \u2022 ${previewImage.notes}` : ''}
+                </p>
+              </div>
+              <button
+                onClick={() => handleDownloadOne(previewImage)}
+                disabled={downloadingId === previewImage.id}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-mpj-charcoal hover:bg-mpj-charcoal/90 text-white disabled:opacity-60 flex-shrink-0"
+              >
+                {downloadingId === previewImage.id
+                  ? <><Loader2 size={14} className="animate-spin" /> Downloading</>
+                  : <><Download size={14} /> Download</>}
+              </button>
             </div>
           </div>
         </div>
